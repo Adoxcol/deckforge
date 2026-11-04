@@ -1,0 +1,24 @@
+[package]
+name = "deckforge"
+version = "0.1.0"
+description = "DeckForge (OpenStreamDeck) — Universal Open-Source Stream Deck & Stream Dock Controller"
+authors = ["DeckForge Open Source Contributors"]
+license = "GPL-3.0-or-later"
+edition = "2021"
+
+[lib]
+name = "deckforge_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hidapi = { version = "2.6", default-features = false, features = ["windows-native"] }
+sha2 = "0.10"
+image = { version = "=0.25.5", default-features = false, features = ["jpeg", "png"] }
+base64 = "0.22"
+sysinfo = "=0.33.1"

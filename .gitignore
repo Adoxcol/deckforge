@@ -1,0 +1,10 @@
+# Dependencies & Build Outputs
+node_modules/
+dist/
+dist-ssr/
+src-tauri/target/
+*.exe
+*.pdb
+*.log
+.DS_Store
+Thumbs.db
