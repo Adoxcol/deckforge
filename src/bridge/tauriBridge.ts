@@ -7,7 +7,19 @@ import type {
   HardwareInputEvent,
   KeyConfig,
   MacroRunReport,
+  MacroSequence,
+  DeckContextEvent,
+  DeckFaceState,
+  GameModeConfig,
+  GameModeRunningApp,
+  GameModeScan,
+  GameModeServicePick,
+  GameModeStatus,
+  GameModeTarget,
+  MediaPreview,
+  ObsSettings,
   Profile,
+  AutoSwitchRule,
   SyncKeyResult,
   SystemTelemetrySnapshot,
 } from "../types/deckforge";
@@ -56,6 +68,69 @@ const buildDefaultKeys = (): KeyConfig[] => {
   });
 };
 
+const paintKeys = (
+  specs: Array<[string, string, string, string, string, string, string, string, string]>,
+): KeyConfig[] =>
+  Array.from({ length: 32 }, (_, i) => {
+    const p = specs[i % specs.length];
+    return {
+      index: i,
+      title: p[0],
+      subtitle: p[1],
+      iconName: p[2],
+      actionId: p[3],
+      actionLabel: p[4],
+      actionCategory: p[5],
+      actionParam: p[6],
+      accentColor: p[7],
+      bgColor: p[8],
+      showTitle: true,
+      titleSize: "Medium",
+      backgroundStyle: "Gradient",
+      cornerRadius: 8,
+    };
+  });
+
+const fallbackPage = (
+  id: string,
+  name: string,
+  accent: string,
+  bg: string,
+  specs: Array<[string, string, string, string, string, string, string]>,
+  zone: [string, string, string, string],
+) => ({
+  id,
+  name,
+  keys: paintKeys(
+    specs.map(
+      (spec) =>
+        [spec[0], spec[1], spec[2], spec[3], spec[4], spec[5], spec[6], accent, bg] as [
+          string,
+          string,
+          string,
+          string,
+          string,
+          string,
+          string,
+          string,
+          string,
+        ],
+    ),
+  ),
+  touchZones: [
+    { index: 0, label: zone[0], valueText: zone[1], tapActionId: zone[2], accentColor: zone[3] },
+    { index: 1, label: "PREV PAGE", valueText: "Previous page", tapActionId: "profile.prev_page", accentColor: "#56B9F2" },
+    { index: 2, label: "PAGE", valueText: "Swipe to change", tapActionId: "profile.next_page", accentColor: "#8B5CF6" },
+    { index: 3, label: "NEXT PAGE", valueText: "Next page", tapActionId: "profile.next_page", accentColor: "#F4B860" },
+  ],
+  encoders: [
+    { index: 0, label: "Master Vol", valueText: "Win32 Vol ±", cwAction: "audio.volume_up", ccwAction: "audio.volume_down", pushAction: "audio.volume_mute" },
+    { index: 1, label: "Media Track", valueText: "Prev / Next", cwAction: "media.next", ccwAction: "media.prev", pushAction: "media.play_pause" },
+    { index: 2, label: "Timeline", valueText: "Left / Right", cwAction: "Right", ccwAction: "Left", pushAction: "Space" },
+    { index: 3, label: "Brightness", valueText: "85% • CRT..LIG", cwAction: "brightness.up", ccwAction: "brightness.down", pushAction: "brightness.toggle" },
+  ],
+});
+
 const fallbackBootstrap = (): FullBootstrapPayload => {
   const now = Date.now();
   const basePage = {
@@ -64,7 +139,7 @@ const fallbackBootstrap = (): FullBootstrapPayload => {
     keys: buildDefaultKeys(),
     touchZones: [
       { index: 0, label: "SPOTIFY", valueText: "▶ Play / Pause", tapActionId: "media.play_pause", accentColor: "#35C98B" },
-      { index: 1, label: "CPU LOAD", valueText: "Live Telemetry", tapActionId: "sys.hotkey", accentColor: "#56B9F2" },
+      { index: 1, label: "NEXT PAGE", valueText: "Next page", tapActionId: "profile.next_page", accentColor: "#56B9F2" },
       { index: 2, label: "MIXER", valueText: "Open Audio", tapActionId: "audio.open_mixer", accentColor: "#8B5CF6" },
       { index: 3, label: "MIC MUTE", valueText: "Toggle Mute", tapActionId: "audio.mute_mic", accentColor: "#F4B860" },
     ],
@@ -75,6 +150,78 @@ const fallbackBootstrap = (): FullBootstrapPayload => {
       { index: 3, label: "Brightness", valueText: "85% • CRT..LIG", cwAction: "brightness.up", ccwAction: "brightness.down", pushAction: "brightness.toggle" },
     ],
   };
+  const musicPage = fallbackPage("page-music", "Music", "#35C98B", "#112822", [
+    ["Play", "SPOTIFY", "Music", "media.play_pause", "Media: Play / Pause", "Media", ""],
+    ["Next", "TRACK", "Music", "media.next", "Media: Next Track", "Media", ""],
+    ["Previous", "TRACK", "Disc", "media.prev", "Media: Previous Track", "Media", ""],
+    ["Stop", "MEDIA", "Disc", "media.stop", "Media: Stop", "Media", ""],
+    ["Vol Up", "+2%", "Volume2", "audio.volume_up", "Audio: Volume Up", "Media", ""],
+    ["Vol Down", "-2%", "Volume2", "audio.volume_down", "Audio: Volume Down", "Media", ""],
+    ["Mute", "SOUND", "Volume2", "audio.volume_mute", "Audio: Mute Speakers", "Media", ""],
+    ["Mute Mic", "MIC", "MicOff", "audio.mute_mic", "Audio: Mute Microphone", "Media", ""],
+    ["Mixer", "AUDIO", "Volume2", "audio.open_mixer", "Audio: Open Mixer", "Media", ""],
+    ["Stream", "PAGE", "Radio", "profile.switch_page", "Navigation: Stream Page", "Navigation", "Page 1"],
+  ], ["SPOTIFY", "Play / Pause", "media.play_pause", "#35C98B"]);
+  const desktopPage = fallbackPage("page-desktop", "Desktop", "#56B9F2", "#132235", [
+    ["Screenshot", "SNAP", "Camera", "sys.screenshot", "System: Screenshot", "System", "Win+Shift+S"],
+    ["Desktop", "SHOW", "Monitor", "sys.show_desktop", "System: Show Desktop", "System", "Win+D"],
+    ["Task Mgr", "TASK", "Terminal", "sys.hotkey", "System: Task Manager", "System", "Ctrl+Shift+Esc"],
+    ["Files", "OPEN", "Folder", "sys.hotkey", "System: File Explorer", "System", "Win+E"],
+    ["Lock", "PC", "Zap", "sys.lock_pc", "System: Lock PC", "System", ""],
+    ["Settings", "WIN", "Settings", "sys.hotkey", "System: Windows Settings", "System", "Win+I"],
+    ["Vol Up", "+2%", "Volume2", "audio.volume_up", "Audio: Volume Up", "Media", ""],
+    ["Mute Mic", "MIC", "MicOff", "audio.mute_mic", "Audio: Mute Microphone", "Media", ""],
+    ["Brighter", "DECK", "Zap", "brightness.up", "Deck: Brightness Up", "System", ""],
+    ["Music", "PAGE", "Music", "profile.switch_page", "Navigation: Music Page", "Navigation", "Music"],
+  ], ["SNAP", "Screenshot", "sys.screenshot", "#56B9F2"]);
+  const gamePage = fallbackPage("page-game", "Game", "#35C98B", "#10241C", [
+    ["Mute Mic", "MIC", "MicOff", "audio.mute_mic", "Audio: Mute Microphone", "Media", ""],
+    ["Vol Up", "+2%", "Volume2", "audio.volume_up", "Audio: Volume Up", "Media", ""],
+    ["Vol Down", "-2%", "Volume2", "audio.volume_down", "Audio: Volume Down", "Media", ""],
+    ["Mute", "SOUND", "Volume2", "audio.volume_mute", "Audio: Mute Speakers", "Media", ""],
+    ["Play", "MUSIC", "Music", "media.play_pause", "Media: Play / Pause", "Media", ""],
+    ["Screenshot", "SNAP", "Camera", "sys.screenshot", "System: Screenshot", "System", "Win+Shift+S"],
+    ["Desktop", "SHOW", "Monitor", "sys.show_desktop", "System: Show Desktop", "System", "Win+D"],
+    ["Task Mgr", "TASK", "Terminal", "sys.hotkey", "System: Task Manager", "System", "Ctrl+Shift+Esc"],
+    ["Lock", "PC", "Zap", "sys.lock_pc", "System: Lock PC", "System", ""],
+    ["Music", "PAGE", "Music", "profile.switch_page", "Navigation: Music Page", "Navigation", "Music"],
+  ], ["MIC", "Mute mic", "audio.mute_mic", "#35C98B"]);
+  const editPage = fallbackPage("page-edit", "Edit", "#56B9F2", "#10202C", [
+    ["Screenshot", "SNAP", "Camera", "sys.screenshot", "System: Screenshot", "System", "Win+Shift+S"],
+    ["Play", "REVIEW", "Music", "media.play_pause", "Media: Play / Pause", "Media", ""],
+    ["Previous", "CLIP", "Disc", "media.prev", "Media: Previous Track", "Media", ""],
+    ["Next", "CLIP", "Music", "media.next", "Media: Next Track", "Media", ""],
+    ["Vol Up", "+2%", "Volume2", "audio.volume_up", "Audio: Volume Up", "Media", ""],
+    ["Vol Down", "-2%", "Volume2", "audio.volume_down", "Audio: Volume Down", "Media", ""],
+    ["Mute Mic", "MIC", "MicOff", "audio.mute_mic", "Audio: Mute Microphone", "Media", ""],
+    ["Files", "OPEN", "Folder", "sys.hotkey", "System: File Explorer", "System", "Win+E"],
+    ["Desktop", "SHOW", "Monitor", "sys.show_desktop", "System: Show Desktop", "System", "Win+D"],
+    ["Music", "PAGE", "Music", "profile.switch_page", "Navigation: Music Page", "Navigation", "Music"],
+  ], ["SNAP", "Screenshot", "sys.screenshot", "#56B9F2"]);
+  const workPage = fallbackPage("page-work", "Work", "#F4B860", "#2A2215", [
+    ["Files", "OPEN", "Folder", "sys.hotkey", "System: File Explorer", "System", "Win+E"],
+    ["Settings", "WIN", "Settings", "sys.hotkey", "System: Windows Settings", "System", "Win+I"],
+    ["Screenshot", "SNAP", "Camera", "sys.screenshot", "System: Screenshot", "System", "Win+Shift+S"],
+    ["Desktop", "SHOW", "Monitor", "sys.show_desktop", "System: Show Desktop", "System", "Win+D"],
+    ["Lock", "PC", "Zap", "sys.lock_pc", "System: Lock PC", "System", ""],
+    ["Task Mgr", "TASK", "Terminal", "sys.hotkey", "System: Task Manager", "System", "Ctrl+Shift+Esc"],
+    ["Mute Mic", "MIC", "MicOff", "audio.mute_mic", "Audio: Mute Microphone", "Media", ""],
+    ["Vol Up", "+2%", "Volume2", "audio.volume_up", "Audio: Volume Up", "Media", ""],
+    ["Play", "MUSIC", "Music", "media.play_pause", "Media: Play / Pause", "Media", ""],
+    ["Music", "PAGE", "Music", "profile.switch_page", "Navigation: Music Page", "Navigation", "Music"],
+  ], ["FILES", "Explorer", "sys.hotkey", "#F4B860"]);
+  const homePage = fallbackPage("page-home", "Home", "#A6AFC4", "#1A1E27", [
+    ["Desktop", "SHOW", "Monitor", "sys.show_desktop", "System: Show Desktop", "System", "Win+D"],
+    ["Screenshot", "SNAP", "Camera", "sys.screenshot", "System: Screenshot", "System", "Win+Shift+S"],
+    ["Files", "OPEN", "Folder", "sys.hotkey", "System: File Explorer", "System", "Win+E"],
+    ["Settings", "WIN", "Settings", "sys.hotkey", "System: Windows Settings", "System", "Win+I"],
+    ["Lock", "PC", "Zap", "sys.lock_pc", "System: Lock PC", "System", ""],
+    ["Task Mgr", "TASK", "Terminal", "sys.hotkey", "System: Task Manager", "System", "Ctrl+Shift+Esc"],
+    ["Vol Up", "+2%", "Volume2", "audio.volume_up", "Audio: Volume Up", "Media", ""],
+    ["Mute Mic", "MIC", "MicOff", "audio.mute_mic", "Audio: Mute Microphone", "Media", ""],
+    ["Play", "MUSIC", "Music", "media.play_pause", "Media: Play / Pause", "Media", ""],
+    ["Music", "PAGE", "Music", "profile.switch_page", "Navigation: Music Page", "Navigation", "Music"],
+  ], ["DESK", "Show desktop", "sys.show_desktop", "#A6AFC4"]);
 
   return {
     devices: [
@@ -86,7 +233,7 @@ const fallbackBootstrap = (): FullBootstrapPayload => {
         pid: 0x3013,
         vidPidHex: "0300:3013",
         driverName: "CrtHidDriver v1.0 (Verified Disassembly)",
-        protocolFamily: "CRT-64B-HID",
+        protocolFamily: "CRT-1024B-HID",
         verifiedDriver: true,
         connected: true,
         isSimulator: false,
@@ -95,7 +242,7 @@ const fallbackBootstrap = (): FullBootstrapPayload => {
         hidPath: "\\\\?\\hid#vid_0300&pid_3013&mi_00",
         assignedProfileId: "profile-streaming",
         brightness: 85,
-        keys: { rows: 2, cols: 5, count: 10, pixelWidth: 85, pixelHeight: 85, rotation: 180 },
+        keys: { rows: 2, cols: 5, count: 10, pixelWidth: 112, pixelHeight: 112, rotation: 180 },
         touchStrip: { zones: 4, pixelWidth: 800, pixelHeight: 100, supportsSwipe: true },
         encoders: { count: 4, supportsPush: true, detentsPerRevolution: 24 },
         supportsBrightness: true,
@@ -195,16 +342,17 @@ const fallbackBootstrap = (): FullBootstrapPayload => {
       },
     ],
     profiles: [
-      { id: "profile-streaming", name: "Streaming", icon: "Radio", colorStrip: "#8B5CF6", targetDeviceId: "ajazz-akp05e-pro", pages: [basePage], lastModifiedMs: now },
-      { id: "profile-gaming", name: "Gaming", icon: "Gamepad2", colorStrip: "#35C98B", targetDeviceId: "ajazz-akp05e-pro", pages: [JSON.parse(JSON.stringify(basePage))], lastModifiedMs: now },
-      { id: "profile-editing", name: "Editing", icon: "Film", colorStrip: "#56B9F2", targetDeviceId: "ajazz-akp05e-pro", pages: [JSON.parse(JSON.stringify(basePage))], lastModifiedMs: now },
-      { id: "profile-work", name: "Work", icon: "Briefcase", colorStrip: "#F4B860", targetDeviceId: "ajazz-akp05e-pro", pages: [JSON.parse(JSON.stringify(basePage))], lastModifiedMs: now },
-      { id: "profile-default", name: "Default", icon: "Layers", colorStrip: "#A6AFC4", targetDeviceId: "ajazz-akp05e-pro", pages: [JSON.parse(JSON.stringify(basePage))], lastModifiedMs: now },
+      { id: "profile-streaming", name: "Streaming", icon: "Radio", colorStrip: "#8B5CF6", targetDeviceId: "ajazz-akp05e-pro", pages: [basePage, desktopPage, musicPage], lastModifiedMs: now },
+      { id: "profile-gaming", name: "Gaming", icon: "Gamepad2", colorStrip: "#35C98B", targetDeviceId: "ajazz-akp05e-pro", pages: [gamePage, musicPage, desktopPage], lastModifiedMs: now },
+      { id: "profile-editing", name: "Editing", icon: "Film", colorStrip: "#56B9F2", targetDeviceId: "ajazz-akp05e-pro", pages: [editPage, musicPage, desktopPage], lastModifiedMs: now },
+      { id: "profile-work", name: "Work", icon: "Briefcase", colorStrip: "#F4B860", targetDeviceId: "ajazz-akp05e-pro", pages: [workPage, musicPage, desktopPage], lastModifiedMs: now },
+      { id: "profile-default", name: "Default", icon: "Layers", colorStrip: "#A6AFC4", targetDeviceId: "ajazz-akp05e-pro", pages: [homePage, musicPage, desktopPage], lastModifiedMs: now },
     ],
     autoSwitchRules: [
       { id: "rule-obs", processName: "obs64.exe", windowTitleContains: "OBS", targetProfileId: "profile-streaming", priority: 1, enabled: true },
       { id: "rule-resolve", processName: "Resolve.exe", windowTitleContains: "DaVinci Resolve", targetProfileId: "profile-editing", priority: 2, enabled: true },
       { id: "rule-code", processName: "Code.exe", windowTitleContains: "Visual Studio Code", targetProfileId: "profile-work", priority: 3, enabled: true },
+      { id: "rule-spotify", processName: "Spotify.exe", windowTitleContains: "", targetProfileId: "profile-streaming", priority: 4, enabled: false },
     ],
     macros: [
       {
@@ -297,8 +445,174 @@ const fallbackBootstrap = (): FullBootstrapPayload => {
     savedLocallyAtMs: now,
     appliedToDeviceAtMs: now,
     recentInputEvents: [],
+    mediaLibrary: [],
+    face: {
+      mediaPlaying: true,
+      mediaTitle: "Night Drive",
+      micMuted: false,
+      speakerMuted: false,
+      volumePercent: 72,
+    },
+    obs: { url: "ws://127.0.0.1:4455", password: "" },
   };
 };
+
+// Browser preview of Game Mode, so the screen can be checked without the desktop app.
+type MockTarget = [string, string, GameModeTarget["group"], string, boolean, number, number, string[], boolean, boolean];
+const MOCK_TARGETS: MockTarget[] = [
+  // id, label, group, note, defaultOn, memoryMb, processCount, services, reopens, force
+  ["zen", "Zen Browser", "apps", "Closes every Zen window and reopens it afterwards.", true, 4864, 20, [], true, true],
+  ["cursor", "Cursor", "apps", "This chat runs inside Cursor, so it ends when Cursor closes. Cursor keeps open if it asks about unsaved files.", true, 2117, 16, [], true, false],
+  ["antigravity", "Antigravity", "apps", "Also closes its language server. Stays open if it asks about unsaved files.", true, 1753, 15, [], true, false],
+  ["docker_wsl", "Docker Desktop + WSL", "apps", "Stops Docker and shuts the WSL VM down, which frees about 1.5 GB. Running containers stop.", true, 614, 7, [], true, true],
+  ["node", "Node dev servers", "apps", "Ends every node process except DeckForge's own dev tools. They are not reopened.", true, 674, 22, [], false, true],
+  ["qbit", "qBittorrent", "apps", "Torrents pause until it is reopened.", true, 596, 1, [], true, true],
+  ["syncthing", "Syncthing", "background", "File sync pauses while Game Mode is on.", true, 39, 2, [], true, true],
+  ["ai_claude", "Claude", "ai", "Closes the Claude app and stops its Cowork VM service.", true, 0, 0, ["CoworkVMService"], true, true],
+  ["ai_codex", "Codex / ChatGPT", "ai", "Closes the Codex and ChatGPT app and stops its sandbox service.", true, 0, 0, ["CodexSandboxService.OpenAI.Codex"], true, true],
+  ["ai_copilot", "Microsoft Copilot", "ai", "Closes the Copilot app.", true, 0, 0, [], true, true],
+  ["ai_gemini", "Gemini app", "ai", "Closes the Gemini desktop launcher.", true, 0, 0, [], true, true],
+  ["ai_local", "Ollama / LM Studio", "ai", "Stops local model servers and frees their GPU memory.", true, 0, 0, [], true, true],
+  ["mongo", "MongoDB", "background", "Database server service.", true, 0, 0, ["MongoDB"], false, true],
+  ["postgres", "PostgreSQL + PEM web server", "background", "PostgreSQL 18 and the EDB PEM Apache service.", true, 0, 0, ["postgresql-x64-18", "PEMHTTPD-x64"], false, true],
+  ["spooler", "Print Spooler", "background", "Printing is unavailable until Game Mode ends.", true, 0, 0, ["Spooler"], false, true],
+  ["bonjour", "Bonjour", "background", "Apple network discovery service.", true, 0, 0, ["Bonjour Service"], false, true],
+  ["sqlvss", "SQL Server VSS Writer", "background", "Backup helper for SQL Server.", true, 0, 0, ["SQLWriter"], false, true],
+  ["asc", "Advanced SystemCare", "background", "Stops its tray app and background service.", true, 13, 1, ["AdvancedSystemCareService19"], true, true],
+  ["pcmgr", "Microsoft PC Manager", "background", "Stops its background service and window.", true, 0, 0, ["PCManager Service Store"], false, true],
+  ["warp", "Cloudflare WARP", "background", "Drops the WARP VPN connection while Game Mode is on.", true, 0, 0, ["CloudflareWARP"], true, true],
+  ["spotify", "Spotify", "apps", "Music stops.", false, 1012, 8, [], true, true],
+  ["discord", "Discord", "apps", "You leave voice chat.", false, 821, 6, [], true, true],
+  ["steam", "Steam client", "apps", "Leave this on if the game starts from Steam.", false, 2205, 10, [], true, true],
+  ["dlmm", "Deadlock Mod Manager", "apps", "Mods stay as they are, the manager just closes.", false, 638, 1, [], true, true],
+  ["riotclient", "Riot Client launcher", "apps", "Closes the launcher only. Vanguard anti-cheat is never touched.", false, 90, 1, [], true, true],
+];
+
+const MOCK_PROCESSES: GameModeRunningApp[] = [
+  { name: "obsidian", count: 5, memoryMb: 612, path: "c:\\users\\you\\appdata\\local\\obsidian\\obsidian.exe", takenBy: null },
+  { name: "figma", count: 7, memoryMb: 540, path: "c:\\users\\you\\appdata\\local\\figma\\figma.exe", takenBy: null },
+  { name: "notion", count: 6, memoryMb: 488, path: "c:\\users\\you\\appdata\\local\\programs\\notion\\notion.exe", takenBy: null },
+  { name: "onedrive", count: 1, memoryMb: 210, path: "c:\\users\\you\\appdata\\local\\microsoft\\onedrive\\onedrive.exe", takenBy: null },
+  { name: "whatsapp", count: 4, memoryMb: 190, path: "c:\\program files\\windowsapps\\whatsapp\\whatsapp.exe", takenBy: null },
+  { name: "zen", count: 20, memoryMb: 4864, path: "c:\\program files\\zen browser\\zen.exe", takenBy: "Zen Browser" },
+  { name: "cursor", count: 16, memoryMb: 2117, path: "c:\\users\\you\\appdata\\local\\programs\\cursor\\cursor.exe", takenBy: "Cursor" },
+  { name: "spotify", count: 8, memoryMb: 1012, path: "c:\\users\\you\\appdata\\roaming\\spotify\\spotify.exe", takenBy: "Spotify" },
+];
+
+const MOCK_SERVICES: GameModeServicePick[] = [
+  { name: "Fax", display: "Fax" },
+  { name: "SharedAccess", display: "Internet Connection Sharing (ICS)" },
+  { name: "OneSyncSvc", display: "Sync Host" },
+  { name: "PhoneSvc", display: "Phone Service" },
+  { name: "WSearch", display: "Windows Search" },
+  { name: "SysMain", display: "SysMain" },
+];
+
+let mockHelperArmed = false;
+
+const mockScan = (): GameModeScan => ({
+  processes: MOCK_PROCESSES.filter((p) => !mockGameModeConfig.customTargets.some((c) => c.processes.includes(p.name))).concat(
+    MOCK_PROCESSES.filter((p) => mockGameModeConfig.customTargets.some((c) => c.processes.includes(p.name))).map((p) => ({
+      ...p,
+      takenBy: mockGameModeConfig.customTargets.find((c) => c.processes.includes(p.name))?.label ?? null,
+    })),
+  ),
+  services: MOCK_SERVICES.filter((s) => !mockGameModeConfig.customTargets.some((c) => c.services.includes(s.name))),
+  helper: { armed: mockHelperArmed, covers: mockHelperArmed },
+  targets: [
+    ...MOCK_TARGETS.map(([id, label, group, note, defaultOn, memoryMb, processCount, services, reopens, force]) => ({
+      id,
+      label,
+      group,
+      note,
+      defaultOn,
+      running: processCount > 0 || services.length > 0,
+      processCount,
+      memoryMb,
+      services: services.map((name) => ({ name, running: true })),
+      needsAdmin: services.length > 0,
+      reopens,
+      force,
+      custom: false,
+      processes: [] as string[],
+    })),
+    ...mockGameModeConfig.customTargets.map((c) => {
+      const running = MOCK_PROCESSES.filter((p) => c.processes.includes(p.name));
+      return {
+        id: c.id,
+        label: c.label,
+        group: c.group,
+        note: "Added by you.",
+        defaultOn: false,
+        running: running.length > 0 || c.services.length > 0,
+        processCount: running.reduce((sum, p) => sum + p.count, 0),
+        memoryMb: running.reduce((sum, p) => sum + p.memoryMb, 0),
+        services: c.services.map((name) => ({ name, running: true })),
+        needsAdmin: c.services.length > 0,
+        reopens: c.reopen,
+        force: true,
+        custom: true,
+        processes: c.processes,
+      };
+    }),
+  ],
+  tweaks: [
+    { id: "priority", label: "Raise the game's priority to High", note: "Applies to the full-screen game as soon as DeckForge sees it." },
+    { id: "pause_updates", label: "Pause Windows Update and Delivery Optimization", note: "Stops the update services while you play. Needs the admin helper." },
+  ],
+  ramTotalMb: 32154,
+  ramFreeMb: 8600,
+  processCount: 382,
+  powerPlan: "Bitsum Highest Performance",
+  bitsumFound: true,
+  isAdmin: false,
+  protected: [
+    "Riot Vanguard, FACEIT and other anti-cheat",
+    "NVIDIA drivers and overlay services",
+    "Audio routing (Voicemeeter, Focusrite) and Windows audio",
+    "Windows Defender and security services",
+    "Explorer, DWM and core Windows processes",
+    "Process Lasso",
+    "DeckForge itself",
+  ],
+});
+
+const mockEmptyStatus = (): GameModeStatus => ({
+  active: false,
+  busy: null,
+  mode: "",
+  startedAtMs: 0,
+  autoStarted: false,
+  game: null,
+  gamePid: 0,
+  closed: [],
+  stoppedServices: [],
+  failedServices: [],
+  helperUsed: false,
+  ramFreeBeforeMb: 0,
+  ramFreeAfterMb: 0,
+  processesBefore: 0,
+  processesAfter: 0,
+  powerPlan: "Bitsum Highest Performance",
+  notes: [],
+  lastEndedMs: 0,
+});
+
+let mockGameModeConfig: GameModeConfig = {
+  modes: [
+    { id: "default", name: "Default", targets: MOCK_TARGETS.filter((t) => t[4]).map((t) => t[0]), tweaks: ["priority", "pause_updates"] },
+  ],
+  activeMode: "default",
+  customTargets: [],
+  autoDetect: true,
+  settleSeconds: 20,
+  restore: "all",
+  elevate: "ask",
+  armOnLaunch: false,
+};
+let mockGameModeStatus: GameModeStatus = mockEmptyStatus();
+const mockGameModeListeners = new Set<(status: GameModeStatus) => void>();
+const emitMockGameMode = () => mockGameModeListeners.forEach((fn) => fn({ ...mockGameModeStatus }));
 
 export const deckforgeApi = {
   async getInitialState(): Promise<FullBootstrapPayload> {
@@ -366,6 +680,12 @@ export const deckforgeApi = {
     };
   },
 
+  async saveMacros(macros: MacroSequence[]): Promise<void> {
+    if (isTauriRuntime()) {
+      await invoke("save_macros", { macros });
+    }
+  },
+
   async executeMacroSequence(macroId: string): Promise<MacroRunReport> {
     if (isTauriRuntime()) {
       return await invoke<MacroRunReport>("execute_macro_sequence", { macroId });
@@ -407,6 +727,91 @@ export const deckforgeApi = {
     return fallbackBootstrap().telemetry;
   },
 
+  async setActiveContext(profileId: string, pageIndex: number): Promise<void> {
+    if (isTauriRuntime()) {
+      await invoke<void>("set_active_context", { profileId, pageIndex });
+    }
+  },
+
+  async holdAutoSwitch(): Promise<void> {
+    if (isTauriRuntime()) {
+      await invoke<void>("hold_auto_switch");
+    }
+  },
+
+  async saveAutoSwitchRules(rules: AutoSwitchRule[]): Promise<void> {
+    if (isTauriRuntime()) {
+      await invoke<void>("save_auto_switch_rules", { rules });
+    }
+  },
+
+  async saveObsSettings(settings: ObsSettings): Promise<void> {
+    if (isTauriRuntime()) {
+      await invoke<void>("save_obs_settings", { settings });
+    }
+  },
+
+  async onDeckFace(handler: (face: DeckFaceState) => void): Promise<UnlistenFn> {
+    if (isTauriRuntime()) {
+      return await listen<DeckFaceState>("deck-face", (event) => handler(event.payload));
+    }
+    return () => {};
+  },
+
+  async onDeckContext(handler: (ctx: DeckContextEvent) => void): Promise<UnlistenFn> {
+    if (isTauriRuntime()) {
+      return await listen<DeckContextEvent>("deck-context", (event) => handler(event.payload));
+    }
+    return () => {};
+  },
+
+  async stageScreenMedia(id: string, fileName: string, dataBase64: string): Promise<MediaPreview> {
+    if (isTauriRuntime()) {
+      return await invoke<MediaPreview>("stage_screen_media", { id, fileName, dataBase64 });
+    }
+    const gif = /\.gif$/i.test(fileName) || dataBase64.startsWith("R0lGOD");
+    return {
+      id,
+      fileName,
+      kind: gif ? "gif" : "image",
+      width: 0,
+      height: 0,
+      frameCount: 1,
+      sourceFrameCount: 1,
+      frameDelayMs: 100,
+      delaysMs: [100],
+      frames: [`data:${gif ? "image/gif" : "image/png"};base64,${dataBase64.split(",").pop()}`],
+    };
+  },
+
+  async stageFrameSequence(
+    id: string,
+    fileName: string,
+    framesBase64: string[],
+    delayMs: number
+  ): Promise<MediaPreview> {
+    if (isTauriRuntime()) {
+      return await invoke<MediaPreview>("stage_frame_sequence", {
+        id,
+        fileName,
+        framesBase64,
+        delayMs,
+      });
+    }
+    return {
+      id,
+      fileName,
+      kind: framesBase64.length > 1 ? "gif" : "image",
+      width: 112,
+      height: 112,
+      frameCount: framesBase64.length,
+      sourceFrameCount: framesBase64.length,
+      frameDelayMs: delayMs,
+      delaysMs: framesBase64.map(() => delayMs),
+      frames: framesBase64.map((f) => (f.startsWith("data:") ? f : `data:image/jpeg;base64,${f}`)),
+    };
+  },
+
   async onHardwareInput(cb: (evt: HardwareInputEvent) => void): Promise<UnlistenFn> {
     if (isTauriRuntime()) {
       return await listen<HardwareInputEvent>("hardware-input", (event) => {
@@ -414,5 +819,97 @@ export const deckforgeApi = {
       });
     }
     return () => {};
+  },
+
+  async gameModeScan(): Promise<GameModeScan> {
+    if (isTauriRuntime()) {
+      return await invoke<GameModeScan>("game_mode_scan");
+    }
+    return mockScan();
+  },
+
+  async gameModeGetConfig(): Promise<GameModeConfig> {
+    if (isTauriRuntime()) {
+      return await invoke<GameModeConfig>("game_mode_get_config");
+    }
+    return { ...mockGameModeConfig };
+  },
+
+  async gameModeSaveConfig(config: GameModeConfig): Promise<GameModeConfig> {
+    if (isTauriRuntime()) {
+      return await invoke<GameModeConfig>("game_mode_save_config", { config });
+    }
+    mockGameModeConfig = { ...config };
+    return { ...mockGameModeConfig };
+  },
+
+  async gameModeStatus(): Promise<GameModeStatus> {
+    if (isTauriRuntime()) {
+      return await invoke<GameModeStatus>("game_mode_status");
+    }
+    return { ...mockGameModeStatus };
+  },
+
+  async gameModeArmHelper(): Promise<string> {
+    if (isTauriRuntime()) {
+      return await invoke<string>("game_mode_arm_helper");
+    }
+    window.setTimeout(() => {
+      mockHelperArmed = true;
+      emitMockGameMode();
+    }, 700);
+    return "Starting the admin helper";
+  },
+
+  async gameModeSet(enabled: boolean, mode?: string): Promise<string> {
+    if (isTauriRuntime()) {
+      return await invoke<string>("game_mode_set", { enabled, mode: mode ?? null });
+    }
+    mockGameModeStatus = { ...mockGameModeStatus, busy: enabled ? "Starting Game Mode" : "Ending Game Mode" };
+    emitMockGameMode();
+    window.setTimeout(() => {
+      if (enabled) {
+        const scan = mockScan();
+        const chosen =
+          mockGameModeConfig.modes.find((m) => m.id === mode) ??
+          mockGameModeConfig.modes.find((m) => m.id === mockGameModeConfig.activeMode) ??
+          mockGameModeConfig.modes[0];
+        const picked = scan.targets.filter((t) => chosen.targets.includes(t.id));
+        const closed = picked
+          .filter((t) => t.processCount > 0)
+          .map((t) => ({ id: t.id, label: t.label, memoryMb: t.memoryMb, processes: t.processCount, reopen: t.reopens ? "exe" : "no" }));
+        const stopped = picked.flatMap((t) => t.services.map((s) => s.name));
+        mockGameModeStatus = {
+          ...mockEmptyStatus(),
+          active: true,
+          mode: chosen.name,
+          startedAtMs: Date.now(),
+          closed,
+          stoppedServices: stopped,
+          helperUsed: stopped.length > 0,
+          ramFreeBeforeMb: 8600,
+          ramFreeAfterMb: 8600 + closed.reduce((sum, c) => sum + c.memoryMb, 0),
+          processesBefore: 382,
+          processesAfter: 382 - closed.reduce((sum, c) => sum + c.processes, 0),
+          notes: [
+            `Closed ${closed.length} apps and stopped ${stopped.length} services (browser preview, nothing was touched).`,
+          ],
+        };
+      } else {
+        mockGameModeStatus = { ...mockEmptyStatus(), lastEndedMs: Date.now(), notes: ["Reopened the apps it closed (browser preview)."] };
+      }
+      emitMockGameMode();
+    }, 900);
+    return enabled ? "Starting Game Mode" : "Ending Game Mode";
+  },
+
+  async onGameMode(handler: (status: GameModeStatus) => void): Promise<UnlistenFn> {
+    if (isTauriRuntime()) {
+      return await listen<GameModeStatus>("game-mode", (event) => handler(event.payload));
+    }
+    mockGameModeListeners.add(handler);
+    return () => {
+      mockGameModeListeners.delete(handler);
+    };
   },
 };

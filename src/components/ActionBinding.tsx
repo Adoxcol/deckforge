@@ -1,0 +1,161 @@
+import React from "react";
+import type { ObsSettings } from "../types/deckforge";
+
+export interface ActionChoice {
+  id: string;
+  actionLabel: string;
+  defaultParam: string;
+}
+
+const PRESETS = ["Ctrl+Shift+M", "Win+Shift+S", "Win+D", "Alt+F4", "VK_MEDIA_PLAY_PAUSE"];
+
+export function actionNeedsParam(id: string): boolean {
+  return (
+    id === "custom.hotkey" ||
+    id === "sys.hotkey" ||
+    id.startsWith("custom.") ||
+    id === "profile.switch_page" ||
+    id === "profile.switch" ||
+    id === "macro.run"
+  );
+}
+
+export function splitStoredBinding(
+  stored: string,
+  param: string | undefined,
+  knownIds: string[]
+): { actionId: string; actionParam: string } {
+  const extra = param ?? "";
+  if (knownIds.includes(stored)) return { actionId: stored, actionParam: extra };
+  return { actionId: "custom.hotkey", actionParam: stored || extra };
+}
+
+function paramLabel(actionId: string): string {
+  if (actionId.includes("launch")) return "Application / file path";
+  if (actionId.includes("shell")) return "PowerShell / command";
+  if (actionId.includes("url")) return "Website URL";
+  if (actionId.includes("http")) return "Webhook URL";
+  if (actionId.includes("text")) return "Text to paste";
+  if (actionId === "profile.switch_page") return "Page";
+  if (actionId === "profile.switch") return "Profile";
+  if (actionId === "macro.run") return "Macro";
+  if (actionId === "custom.hotkey" || actionId === "sys.hotkey") return "Shortcut";
+  return "Parameter";
+}
+
+export const ActionBinding: React.FC<{
+  label: string;
+  actionId: string;
+  actionParam: string;
+  choices: ActionChoice[];
+  recording: boolean;
+  onRecord: () => void;
+  onChange: (actionId: string, actionParam: string) => void;
+  paramOptions?: { value: string; label: string }[];
+}> = ({ label, actionId, actionParam, choices, recording, onRecord, onChange, paramOptions }) => {
+  const showParam = actionNeedsParam(actionId);
+  const showRecord = actionId === "custom.hotkey" || actionId === "sys.hotkey";
+  const showPresets = showRecord;
+  return (
+    <div className="p-2.5 rounded-lg bg-[#151925] border border-[#272D3D] flex flex-col gap-2">
+      <label className="text-[11px] font-semibold text-[#F4F5FA]">{label}</label>
+      <select
+        value={choices.some((choice) => choice.id === actionId) ? actionId : actionId || "custom.hotkey"}
+        onChange={(event) => {
+          const next = event.target.value;
+          const choice = choices.find((item) => item.id === next);
+          onChange(next, actionNeedsParam(next) ? choice?.defaultParam ?? "" : "");
+        }}
+        className="w-full h-8 px-2 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+      >
+        {!choices.some((choice) => choice.id === actionId) && actionId && (
+          <option value={actionId}>{actionId}</option>
+        )}
+        {choices.map((choice) => (
+          <option key={choice.id} value={choice.id}>
+            {choice.actionLabel}
+          </option>
+        ))}
+      </select>
+      {showParam && paramOptions && paramOptions.length > 0 ? (
+        <select
+          value={actionParam}
+          onChange={(event) => onChange(actionId, event.target.value)}
+          className="w-full h-8 px-2 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+        >
+          {!paramOptions.some((option) => option.value === actionParam) && actionParam && (
+          <option value={actionParam}>{actionParam}</option>
+        )}
+        {paramOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      ) : showParam ? (
+        <>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10.5px] text-[#A6AFC4]">{paramLabel(actionId)}</span>
+            {showRecord && (
+              <button
+                type="button"
+                onClick={onRecord}
+                className={`px-2 py-0.5 rounded text-[10.5px] font-semibold cursor-pointer ${
+                  recording
+                    ? "bg-[#F16B79] text-white animate-pulse"
+                    : "bg-[#30244F] text-[#8B5CF6] border border-[#8B5CF6]/50"
+                }`}
+              >
+                {recording ? "Press any key..." : "Record keybind"}
+              </button>
+            )}
+          </div>
+          <input
+            value={actionParam}
+            onChange={(event) => onChange(actionId, event.target.value)}
+            placeholder="Ctrl+Shift+M, notepad.exe, https://..."
+            className="w-full h-8 px-2.5 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs font-mono text-[#F4F5FA] outline-none"
+          />
+          {showPresets && (
+            <div className="flex flex-wrap gap-1">
+              {PRESETS.map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => onChange(actionId === "sys.hotkey" ? "sys.hotkey" : "custom.hotkey", preset)}
+                  className="px-1.5 py-0.5 rounded bg-[#10131D] border border-[#272D3D] text-[10px] font-mono text-[#A6AFC4] cursor-pointer"
+                >
+                  {preset}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
+      ) : null}
+    </div>
+  );
+};
+
+export const ObsConnection: React.FC<{
+  obsSettings: ObsSettings;
+  onSave: (settings: ObsSettings) => void;
+}> = ({ obsSettings, onSave }) => (
+  <div className="p-2.5 rounded-lg bg-[#151925] border border-[#272D3D] flex flex-col gap-2">
+    <div className="text-[11px] font-semibold text-[#F4F5FA]">OBS WebSocket</div>
+    <p className="text-[10.5px] leading-relaxed text-[#A6AFC4]">
+      In OBS, open Tools, then WebSocket Server Settings, and turn the server on. The usual address is ws://127.0.0.1:4455.
+    </p>
+    <input
+      value={obsSettings.url}
+      onChange={(event) => onSave({ ...obsSettings, url: event.target.value })}
+      className="w-full h-8 px-2.5 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs font-mono text-[#F4F5FA] outline-none"
+    />
+    <input
+      type="password"
+      value={obsSettings.password}
+      placeholder="Password, if OBS has one"
+      onChange={(event) => onSave({ ...obsSettings, password: event.target.value })}
+      className="w-full h-8 px-2.5 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+    />
+  </div>
+);

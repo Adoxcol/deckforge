@@ -44,12 +44,33 @@ export interface DeviceDescriptor {
   lastSeenMs: number;
 }
 
+export interface ScreenMediaConfig {
+  mediaId: string;
+  fit: "cover" | "contain" | "stretch";
+  loopPlayback: boolean;
+  speed: number;
+}
+
+export interface MediaPreview {
+  id: string;
+  fileName: string;
+  kind: string;
+  width: number;
+  height: number;
+  frameCount: number;
+  sourceFrameCount: number;
+  frameDelayMs: number;
+  delaysMs: number[];
+  frames: string[];
+}
+
 export interface KeyConfig {
   index: number;
   title: string;
   subtitle: string;
   iconName: string;
   customImageDataUrl?: string;
+  media?: ScreenMediaConfig | null;
   actionId: string;
   actionLabel: string;
   actionCategory: string;
@@ -68,6 +89,8 @@ export interface TouchZoneConfig {
   valueText: string;
   tapActionId: string;
   accentColor: string;
+  tapActionParam?: string;
+  media?: ScreenMediaConfig | null;
 }
 
 export interface EncoderConfig {
@@ -77,6 +100,9 @@ export interface EncoderConfig {
   cwAction: string;
   ccwAction: string;
   pushAction: string;
+  cwParam?: string;
+  ccwParam?: string;
+  pushParam?: string;
 }
 
 export interface ProfilePage {
@@ -85,6 +111,7 @@ export interface ProfilePage {
   keys: KeyConfig[];
   touchZones: TouchZoneConfig[];
   encoders: EncoderConfig[];
+  stripMedia?: ScreenMediaConfig | null;
 }
 
 export interface Profile {
@@ -188,12 +215,162 @@ export interface HardwareInputEvent {
     | "rotaryKnobPush"
     | "touchStripTap"
     | "touchStripSwipe"
+    | "touchStripPoint"
     | "unknown";
   controlIndex: number;
   stateCode: number;
   pressed: boolean;
   rawHex: string;
   timestampMs: number;
+}
+
+export interface DeckFaceState {
+  mediaPlaying: boolean | null;
+  mediaTitle: string;
+  micMuted: boolean | null;
+  speakerMuted: boolean | null;
+  volumePercent: number | null;
+  gameMode?: boolean | null;
+  gameModeBusy?: boolean;
+}
+
+export type GameModeGroup = "apps" | "ai" | "background";
+
+export interface GameModeServiceInfo {
+  name: string;
+  running: boolean;
+}
+
+export interface GameModeTarget {
+  id: string;
+  label: string;
+  group: GameModeGroup;
+  note: string;
+  defaultOn: boolean;
+  running: boolean;
+  processCount: number;
+  memoryMb: number;
+  services: GameModeServiceInfo[];
+  needsAdmin: boolean;
+  reopens: boolean;
+  force: boolean;
+  /** Added by the user, so it can be edited and removed. */
+  custom: boolean;
+  processes: string[];
+}
+
+export interface GameModeRunningApp {
+  name: string;
+  count: number;
+  memoryMb: number;
+  path: string;
+  /** Label of a target that already closes this program. */
+  takenBy: string | null;
+}
+
+export interface GameModeServicePick {
+  name: string;
+  display: string;
+}
+
+export interface GameModeHelperStatus {
+  /** The admin helper is running, so services stop without a prompt. */
+  armed: boolean;
+  /** It already knows every service the current config can stop. */
+  covers: boolean;
+}
+
+export interface GameModeTweak {
+  id: string;
+  label: string;
+  note: string;
+}
+
+export interface GameModeScan {
+  targets: GameModeTarget[];
+  tweaks: GameModeTweak[];
+  ramTotalMb: number;
+  ramFreeMb: number;
+  processCount: number;
+  powerPlan: string;
+  bitsumFound: boolean;
+  isAdmin: boolean;
+  protected: string[];
+  processes: GameModeRunningApp[];
+  services: GameModeServicePick[];
+  helper: GameModeHelperStatus;
+}
+
+/** One Game Mode: a name plus the targets and tweaks it uses. */
+export interface GameModeMode {
+  id: string;
+  name: string;
+  targets: string[];
+  tweaks: string[];
+}
+
+/** A program or service the user added from what is running. */
+export interface GameModeCustomTarget {
+  id: string;
+  label: string;
+  group: "apps" | "background";
+  processes: string[];
+  services: string[];
+  graceful: boolean;
+  reopen: boolean;
+}
+
+export interface GameModeConfig {
+  modes: GameModeMode[];
+  /** Used for auto start and for a deck key without a mode. */
+  activeMode: string;
+  customTargets: GameModeCustomTarget[];
+  autoDetect: boolean;
+  settleSeconds: number;
+  restore: "all" | "settings" | "none";
+  elevate: "ask" | "skip";
+  armOnLaunch: boolean;
+}
+
+export interface GameModeClosedApp {
+  id: string;
+  label: string;
+  memoryMb: number;
+  processes: number;
+  reopen: string;
+}
+
+export interface GameModeStatus {
+  active: boolean;
+  busy: string | null;
+  /** Name of the mode that is running. */
+  mode: string;
+  startedAtMs: number;
+  autoStarted: boolean;
+  game: string | null;
+  gamePid: number;
+  closed: GameModeClosedApp[];
+  stoppedServices: string[];
+  failedServices: string[];
+  helperUsed: boolean;
+  ramFreeBeforeMb: number;
+  ramFreeAfterMb: number;
+  processesBefore: number;
+  processesAfter: number;
+  powerPlan: string;
+  notes: string[];
+  lastEndedMs: number;
+}
+
+export interface ObsSettings {
+  url: string;
+  password: string;
+}
+
+export interface DeckContextEvent {
+  profileId: string;
+  pageIndex: number;
+  message: string;
 }
 
 export interface FullBootstrapPayload {
@@ -208,6 +385,9 @@ export interface FullBootstrapPayload {
   savedLocallyAtMs: number;
   appliedToDeviceAtMs: number | null;
   recentInputEvents: HardwareInputEvent[];
+  mediaLibrary: MediaPreview[];
+  face?: DeckFaceState;
+  obs?: ObsSettings;
 }
 
 export interface SyncKeyResult {
@@ -253,4 +433,5 @@ export type NavScreenId =
   | "plugins"
   | "macros"
   | "icons"
+  | "gamemode"
   | "settings";

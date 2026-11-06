@@ -1,9 +1,16 @@
+mod audio;
+mod obs;
+mod window;
+
 use crate::db::MacroSequence;
 use crate::drivers::hal::now_ms;
+pub use audio::{read_audio_face, toggle_microphone_mute, toggle_speaker_mute, AudioFace};
+pub use obs::{run_obs_action, ObsSettings};
+pub use window::{foreground_window, ForegroundWindow};
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 use std::time::Instant;
-use sysinfo::System;
+use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, RefreshKind, System};
 
 #[cfg(target_os = "windows")]
 use std::os::windows::process::CommandExt;
@@ -15,9 +22,12 @@ const CREATE_NO_WINDOW: u32 = 0x08000000;
 #[link(name = "user32")]
 extern "system" {
     fn keybd_event(bVk: u8, bScan: u8, dwFlags: u32, dwExtraInfo: usize);
+    fn MapVirtualKeyW(code: u32, map_type: u32) -> u32;
 }
 
+const KEYEVENTF_EXTENDEDKEY: u32 = 0x0001;
 const KEYEVENTF_KEYUP: u32 = 0x0002;
+const MAPVK_VK_TO_VSC: u32 = 0;
 
 // Standard Windows Virtual-Key Codes
 const VK_BACK: u8 = 0x08;
@@ -87,13 +97,226 @@ pub struct MacroRunReport {
     pub step_results: Vec<MacroStepResult>,
 }
 
+fn is_media_vk(vk: u8) -> bool {
+    (0xAD..=0xB3).contains(&vk)
+}
+
+/// Hardware scan codes. `MapVirtualKey` returns 0 for these, and Spotify ignores that tap.
+fn media_scan_code(vk: u8) -> u8 {
+    match vk {
+        0xAD => 0x20, // mute
+        0xAE => 0x2E, // volume down
+        0xAF => 0x30, // volume up
+        0xB0 => 0x19, // next track
+        0xB1 => 0x10, // previous track
+        0xB2 => 0x24, // stop
+        0xB3 => 0x22, // play/pause
+        _ => 0,
+    }
+}
+
 /// Sends a single Virtual-Key tap (`key down` + `key up`) on Windows.
+/// Volume and media keys are extended keys. Spotify ignores a play/pause tap that
+/// arrives without that flag, or whose down and up are in the same instant.
 pub fn send_vk_tap(vk: u8) {
     #[cfg(target_os = "windows")]
     unsafe {
-        keybd_event(vk, 0, 0, 0);
-        keybd_event(vk, 0, KEYEVENTF_KEYUP, 0);
+        let known = media_scan_code(vk);
+        let scan = if known != 0 {
+            known
+        } else {
+            MapVirtualKeyW(vk as u32, MAPVK_VK_TO_VSC) as u8
+        };
+        let extra = if is_media_vk(vk) { KEYEVENTF_EXTENDEDKEY } else { 0 };
+        keybd_event(vk, scan, extra, 0);
+        if is_media_vk(vk) {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        keybd_event(vk, scan, extra | KEYEVENTF_KEYUP, 0);
     }
+}
+
+#[derive(Clone, Copy)]
+enum MediaTransport {
+    Toggle,
+    Next,
+    Previous,
+    Stop,
+}
+
+impl MediaTransport {
+    fn vk(self) -> u8 {
+        match self {
+            Self::Toggle => VK_MEDIA_PLAY_PAUSE,
+            Self::Next => VK_MEDIA_NEXT_TRACK,
+            Self::Previous => VK_MEDIA_PREV_TRACK,
+            Self::Stop => VK_MEDIA_STOP,
+        }
+    }
+}
+
+/// Controls the Windows media session. Spotify is chosen when it is open, even if
+/// another app played more recently. This Spotify build ignores keyboard media keys.
+pub fn toggle_media_play_pause() -> String {
+    run_media_transport(MediaTransport::Toggle)
+}
+
+fn run_media_transport(kind: MediaTransport) -> String {
+    #[cfg(target_os = "windows")]
+    {
+        match control_media_session(kind) {
+            Ok(message) => return message,
+            Err(err) => {
+                send_vk_tap(kind.vk());
+                return format!("No media session ({err}). Sent the media key.");
+            }
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = kind;
+        "Media control is only available on Windows.".to_string()
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn pick_media_session(
+    manager: &windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager,
+) -> Result<
+    (
+        windows::Media::Control::GlobalSystemMediaTransportControlsSession,
+        String,
+    ),
+    String,
+> {
+    let sessions = manager.GetSessions().map_err(|e| e.to_string())?;
+    let count = sessions.Size().map_err(|e| e.to_string())?;
+
+    let mut spotify = None;
+    let mut other = None;
+    for i in 0..count {
+        let session = sessions.GetAt(i).map_err(|e| e.to_string())?;
+        let name = session
+            .SourceAppUserModelId()
+            .map(|id| id.to_string())
+            .unwrap_or_default();
+        if name.to_lowercase().contains("spotify") {
+            spotify = Some((session, name));
+            break;
+        }
+        if other.is_none() {
+            other = Some((session, name));
+        }
+    }
+
+    if let Some(found) = spotify {
+        Ok(found)
+    } else if let Ok(current) = manager.GetCurrentSession() {
+        let name = current
+            .SourceAppUserModelId()
+            .map(|id| id.to_string())
+            .unwrap_or_else(|_| "current app".to_string());
+        Ok((current, name))
+    } else if let Some(found) = other {
+        Ok(found)
+    } else {
+        Err("Spotify is not open".into())
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn control_media_session(kind: MediaTransport) -> Result<String, String> {
+    use windows::Media::Control::{
+        GlobalSystemMediaTransportControlsSessionManager,
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus,
+    };
+
+    let manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync()
+        .map_err(|e| e.to_string())?
+        .get()
+        .map_err(|e| e.to_string())?;
+    let (session, name) = pick_media_session(&manager)?;
+    let who = if name.to_lowercase().contains("spotify") {
+        "Spotify"
+    } else {
+        name.as_str()
+    };
+
+    let was_playing = session
+        .GetPlaybackInfo()
+        .and_then(|info| info.PlaybackStatus())
+        .ok()
+        == Some(GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing);
+
+    let accepted = match kind {
+        MediaTransport::Toggle => session.TryTogglePlayPauseAsync(),
+        MediaTransport::Next => session.TrySkipNextAsync(),
+        MediaTransport::Previous => session.TrySkipPreviousAsync(),
+        MediaTransport::Stop => session.TryStopAsync(),
+    }
+    .map_err(|e| e.to_string())?
+    .get()
+    .map_err(|e| e.to_string())?;
+    if !accepted {
+        return Err(format!("{who} refused the media command"));
+    }
+    Ok(match kind {
+        MediaTransport::Toggle => {
+            if was_playing {
+                format!("Paused {who}")
+            } else {
+                format!("Playing {who}")
+            }
+        }
+        MediaTransport::Next => format!("Next track on {who}"),
+        MediaTransport::Previous => format!("Previous track on {who}"),
+        MediaTransport::Stop => format!("Stopped {who}"),
+    })
+}
+
+/// Reads the current media session without changing it.
+pub fn read_media_face() -> (Option<bool>, String) {
+    #[cfg(target_os = "windows")]
+    {
+        read_media_face_windows()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        (None, String::new())
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn read_media_face_windows() -> (Option<bool>, String) {
+    use windows::Media::Control::{
+        GlobalSystemMediaTransportControlsSessionManager,
+        GlobalSystemMediaTransportControlsSessionPlaybackStatus,
+    };
+    let manager = match GlobalSystemMediaTransportControlsSessionManager::RequestAsync() {
+        Ok(op) => match op.get() {
+            Ok(manager) => manager,
+            Err(_) => return (None, String::new()),
+        },
+        Err(_) => return (None, String::new()),
+    };
+    let session = match pick_media_session(&manager) {
+        Ok((session, _)) => session,
+        Err(_) => return (None, String::new()),
+    };
+    let playing = session
+        .GetPlaybackInfo()
+        .ok()
+        .and_then(|info| info.PlaybackStatus().ok())
+        == Some(GlobalSystemMediaTransportControlsSessionPlaybackStatus::Playing);
+    let title = session
+        .TryGetMediaPropertiesAsync()
+        .ok()
+        .and_then(|op| op.get().ok())
+        .and_then(|props| props.Title().ok())
+        .map(|t| t.to_string())
+        .filter(|t| !t.is_empty())
+        .unwrap_or_else(|| if playing { "Playing".to_string() } else { "Paused".to_string() });
+    (Some(playing), title)
 }
 
 /// Parses a human-readable chord string such as `"Win+D"`, `"Ctrl+Shift+M"`, `"Alt+F4"`, `"VK_MEDIA_PLAY_PAUSE"`
@@ -106,20 +329,16 @@ pub fn send_hotkey_chord(chord: &str) -> Result<String, String> {
 
     match trimmed.to_uppercase().as_str() {
         "VK_MEDIA_PLAY_PAUSE" | "MEDIA_PLAY_PAUSE" => {
-            send_vk_tap(VK_MEDIA_PLAY_PAUSE);
-            return Ok("Sent VK_MEDIA_PLAY_PAUSE (0xB3)".to_string());
+            return Ok(run_media_transport(MediaTransport::Toggle));
         }
         "VK_MEDIA_NEXT_TRACK" | "MEDIA_NEXT" => {
-            send_vk_tap(VK_MEDIA_NEXT_TRACK);
-            return Ok("Sent VK_MEDIA_NEXT_TRACK (0xB0)".to_string());
+            return Ok(run_media_transport(MediaTransport::Next));
         }
         "VK_MEDIA_PREV_TRACK" | "MEDIA_PREV" => {
-            send_vk_tap(VK_MEDIA_PREV_TRACK);
-            return Ok("Sent VK_MEDIA_PREV_TRACK (0xB1)".to_string());
+            return Ok(run_media_transport(MediaTransport::Previous));
         }
         "VK_MEDIA_STOP" => {
-            send_vk_tap(VK_MEDIA_STOP);
-            return Ok("Sent VK_MEDIA_STOP (0xB2)".to_string());
+            return Ok(run_media_transport(MediaTransport::Stop));
         }
         "VK_VOLUME_UP" | "VOLUME_UP" => {
             send_vk_tap(VK_VOLUME_UP);
@@ -293,34 +512,103 @@ pub fn launch_app_or_url(target: &str) -> Result<String, String> {
     Ok(format!("Launched `{}`", clean))
 }
 
-/// Gracefully stops the official `StreamDock.exe` process so it stops flooding `VID_0300&PID_3013`
-/// and releases exclusive read access on `MI_00`.
+/// True for the vendor's own app and its watcher: `Stream Dock AJAZZ.exe`,
+/// `StreamDockWatcher.exe`, `StreamDock.exe`. Spaces are ignored because the Ajazz build
+/// names its program "Stream Dock AJAZZ.exe", which a plain `streamdock` match misses.
+fn is_official_streamdock_process(name: &str) -> bool {
+    let compact: String = name.to_lowercase().chars().filter(|c| !c.is_whitespace()).collect();
+    compact.contains("streamdock") && !compact.contains("deckforge")
+}
+
+/// Process ids and names of the official Stream Dock app that are running right now.
+pub fn official_streamdock_processes() -> Vec<(u32, String)> {
+    let mut sys = System::new_with_specifics(RefreshKind::nothing());
+    sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
+    sys.processes()
+        .iter()
+        .filter_map(|(pid, proc)| {
+            let name = proc.name().to_string_lossy().to_string();
+            is_official_streamdock_process(&name).then(|| (pid.as_u32(), name))
+        })
+        .collect()
+}
+
+/// Force-stops the official Stream Dock app and its watcher so it stops redrawing the deck
+/// and stops answering key presses. A forced stop is deliberate: when the app quits by
+/// itself it sends the deck a disconnect command, and the deck goes black.
+/// Returns the names that were stopped.
+pub fn kill_official_streamdock() -> Vec<String> {
+    let mut stopped: Vec<String> = Vec::new();
+    #[cfg(target_os = "windows")]
+    {
+        // The watcher restarts the app, so end it first.
+        let mut running = official_streamdock_processes();
+        running.sort_by_key(|(_, name)| !name.to_lowercase().contains("watcher"));
+        for (pid, name) in running {
+            let mut cmd = Command::new("taskkill");
+            cmd.args(["/F", "/T", "/PID", &pid.to_string()]);
+            cmd.creation_flags(CREATE_NO_WINDOW);
+            if cmd.output().map(|o| o.status.success()).unwrap_or(false) && !stopped.contains(&name) {
+                stopped.push(name);
+            }
+        }
+    }
+    stopped
+}
+
+/// Stops the official Stream Dock app on request (the "take over" button).
 pub fn stop_official_streamdock_app() -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
-        let mut cmd = Command::new("taskkill");
-        cmd.args(["/F", "/IM", "StreamDock.exe", "/T"]);
-        cmd.creation_flags(CREATE_NO_WINDOW);
-        let output = cmd
-            .output()
-            .map_err(|e| format!("Failed to run taskkill: {}", e))?;
-
-        if output.status.success() {
-            return Ok(
-                "Stopped official StreamDock.exe process tree — DeckForge now has clean, uncontested access to Ajazz AKP05E Pro (0300:3013)!".to_string()
-            );
-        } else {
-            return Ok("Official StreamDock.exe is already stopped.".to_string());
+        let stopped = kill_official_streamdock();
+        if stopped.is_empty() {
+            return Ok("The official Stream Dock app is not running.".to_string());
         }
+        return Ok(format!(
+            "Stopped {}. DeckForge now has the deck to itself.",
+            stopped.join(", ")
+        ));
     }
     #[cfg(not(target_os = "windows"))]
     Ok("Not on Windows".to_string())
 }
 
+pub fn process_is_running(name: &str) -> bool {
+    let needle = name.trim().trim_end_matches(".exe").to_lowercase();
+    if needle.is_empty() {
+        return false;
+    }
+    let mut sys = System::new_with_specifics(RefreshKind::nothing().with_processes(ProcessRefreshKind::nothing()));
+    sys.refresh_processes(ProcessesToUpdate::All, true);
+    sys.processes().values().any(|proc| {
+        let current = proc.name().to_string_lossy().to_lowercase();
+        current == needle || current == format!("{needle}.exe") || current.strip_suffix(".exe") == Some(needle.as_str())
+    })
+}
+
+/// A macro wait uses the step parameter, and never blocks longer than three seconds.
+pub fn macro_delay_ms(parameter: &str) -> u64 {
+    parameter.trim().parse::<u64>().unwrap_or(100).min(3_000)
+}
+
 pub fn collect_system_telemetry() -> SystemTelemetrySnapshot {
-    let mut sys = System::new_all();
-    sys.refresh_cpu_all();
+    static SYS: std::sync::OnceLock<std::sync::Mutex<System>> = std::sync::OnceLock::new();
+    let slot = SYS.get_or_init(|| {
+        std::sync::Mutex::new(System::new_with_specifics(
+            RefreshKind::nothing()
+                .with_memory(sysinfo::MemoryRefreshKind::everything())
+                .with_cpu(sysinfo::CpuRefreshKind::everything())
+                .with_processes(ProcessRefreshKind::nothing()),
+        ))
+    });
+    let mut sys = slot.lock().unwrap_or_else(|e| e.into_inner());
     sys.refresh_memory();
+    sys.refresh_cpu_usage();
+    sys.refresh_processes_specifics(
+        ProcessesToUpdate::All,
+        true,
+        ProcessRefreshKind::nothing(),
+    );
 
     let cpu_usage_percent = sys.global_cpu_usage();
     let total_mem = sys.total_memory() as f64 / (1024.0 * 1024.0 * 1024.0);
@@ -335,7 +623,7 @@ pub fn collect_system_telemetry() -> SystemTelemetrySnapshot {
     let mut obs_running = false;
     for proc in sys.processes().values() {
         let name = proc.name().to_string_lossy().to_lowercase();
-        if name.contains("streamdock") {
+        if is_official_streamdock_process(&name) {
             official_streamdock_running = true;
         }
         if name.contains("obs64") || name == "obs.exe" {
@@ -361,27 +649,16 @@ pub fn execute_key_action_live(
     action_label: &str,
     action_param: &str,
     execute_os_effects: bool,
+    obs: &ObsSettings,
 ) -> ActionExecutionResult {
     let start = Instant::now();
 
     let msg = if execute_os_effects {
         match action_id {
-            "media.play_pause" => {
-                send_vk_tap(VK_MEDIA_PLAY_PAUSE);
-                "Executed Win32 VK_MEDIA_PLAY_PAUSE (0xB3)".to_string()
-            }
-            "media.next" => {
-                send_vk_tap(VK_MEDIA_NEXT_TRACK);
-                "Executed Win32 VK_MEDIA_NEXT_TRACK (0xB0)".to_string()
-            }
-            "media.prev" => {
-                send_vk_tap(VK_MEDIA_PREV_TRACK);
-                "Executed Win32 VK_MEDIA_PREV_TRACK (0xB1)".to_string()
-            }
-            "media.stop" => {
-                send_vk_tap(VK_MEDIA_STOP);
-                "Executed Win32 VK_MEDIA_STOP (0xB2)".to_string()
-            }
+            "media.play_pause" => run_media_transport(MediaTransport::Toggle),
+            "media.next" => run_media_transport(MediaTransport::Next),
+            "media.prev" => run_media_transport(MediaTransport::Previous),
+            "media.stop" => run_media_transport(MediaTransport::Stop),
             "audio.volume_up" => {
                 send_vk_tap(VK_VOLUME_UP);
                 "Executed Win32 VK_VOLUME_UP (0xAF)".to_string()
@@ -390,9 +667,20 @@ pub fn execute_key_action_live(
                 send_vk_tap(VK_VOLUME_DOWN);
                 "Executed Win32 VK_VOLUME_DOWN (0xAE)".to_string()
             }
-            "audio.mute_mic" | "audio.volume_mute" => {
-                send_vk_tap(VK_VOLUME_MUTE);
-                "Executed Win32 VK_VOLUME_MUTE (0xAD)".to_string()
+            "audio.mute_mic" => toggle_microphone_mute()
+                .unwrap_or_else(|e| format!("Microphone mute failed: {e}")),
+            "audio.volume_mute" => toggle_speaker_mute()
+                .unwrap_or_else(|e| format!("Speaker mute failed: {e}")),
+            "obs.start_stream" | "obs.toggle_record" | "obs.save_replay" | "obs.next_scene" | "obs.prev_scene" => {
+                run_obs_action(obs, action_id).unwrap_or_else(|e| format!("OBS failed: {e}"))
+            }
+            "profile.next_page" | "profile.prev_page" | "profile.switch_page" | "profile.switch" => {
+                "Page change is handled by the deck".to_string()
+            }
+            "macro.run" => "Macro run is handled by the deck".to_string(),
+            "sys.game_mode" => "Game Mode is handled by the deck. Press the key on the deck, or use the Game Mode tab.".to_string(),
+            "twitch.chat_marker" | "youtube.go_live" | "plugin.sd_bridge" | "macro.run_sequence" => {
+                format!("{action_label} is not connected. Use a hotkey, an app, OBS, media, or a page.")
             }
             "audio.open_mixer" => {
                 let _ = launch_app_or_url("sndvol.exe");
@@ -435,7 +723,7 @@ pub fn execute_key_action_live(
                         format!("Executed `{}` ({})", action_label, action_param)
                     })
                 } else {
-                    format!("Dispatched `{}` ({})", action_label, action_param)
+                    format!("`{action_label}` is not connected. Pick a hotkey, an app, OBS, media, or a page.")
                 }
             }
         }
@@ -461,11 +749,11 @@ pub fn run_macro_sequence_test(seq: &MacroSequence, execute_os_effects: bool) ->
         let step_start = Instant::now();
         let detail = match step.step_type.as_str() {
             "Delay" => {
-                let ms = step.parameter.parse::<u64>().unwrap_or(100).min(1000);
+                let ms = macro_delay_ms(&step.parameter);
                 if execute_os_effects {
-                    std::thread::sleep(std::time::Duration::from_millis(ms.min(250)));
+                    std::thread::sleep(std::time::Duration::from_millis(ms));
                 }
-                format!("Completed {}ms timer wait", ms)
+                format!("Waited {ms}ms")
             }
             "Shortcut" => {
                 if execute_os_effects {
@@ -503,5 +791,17 @@ pub fn run_macro_sequence_test(seq: &MacroSequence, execute_os_effects: bool) ->
         macro_name: seq.name.clone(),
         total_elapsed_ms: start.elapsed().as_millis().max(2) as u64,
         step_results: results,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::macro_delay_ms;
+
+    #[test]
+    fn macro_waits_use_the_parameter_and_stay_bounded() {
+        assert_eq!(macro_delay_ms("500"), 500);
+        assert_eq!(macro_delay_ms("9000"), 3_000);
+        assert_eq!(macro_delay_ms("nope"), 100);
     }
 }

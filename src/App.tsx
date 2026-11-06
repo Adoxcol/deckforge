@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Copy,
   Cpu,
+  Gamepad2,
   Download,
   Edit3,
   Eye,
@@ -15,6 +16,7 @@ import {
   HelpCircle,
   Layers,
   LayoutGrid,
+  LayoutTemplate,
   Maximize2,
   Palette,
   Play,
@@ -36,33 +38,90 @@ import {
   Wand2,
   Zap,
 } from "lucide-react";
-import { deckforgeApi } from "./bridge/tauriBridge";
+import { deckforgeApi, isTauriRuntime } from "./bridge/tauriBridge";
 import { AVAILABLE_ICON_NAMES, DeckIcon } from "./components/DeckIcon";
+import { ActionBinding, ObsConnection, actionNeedsParam, splitStoredBinding } from "./components/ActionBinding";
+import { IconStudio } from "./components/IconStudio";
+import { GameModeStudio } from "./components/GameModeStudio";
+import { MacroStudio } from "./components/MacroStudio";
+import { PageTemplates } from "./components/PageTemplates";
+import { MediaConfigurator } from "./components/MediaConfigurator";
+import { ScreenFace } from "./components/ScreenFace";
 import type {
   AutoSwitchRule,
+  DeckFaceState,
   DeviceDescriptor,
   DiagnosticEntry,
   FrameCacheStats,
+  EncoderConfig,
   KeyConfig,
   LegacyStreamDockSummary,
   MacroRunReport,
   MacroSequence,
+  MediaPreview,
+  ObsSettings,
   NavScreenId,
   Profile,
+  ProfilePage,
+  ScreenMediaConfig,
   SystemTelemetrySnapshot,
+  TouchZoneConfig,
 } from "./types/deckforge";
 
 interface ActionTemplate {
   id: string;
   title: string;
   subtitle: string;
-  category: "Custom" | "Streaming" | "OBS" | "Twitch" | "YouTube" | "Media" | "System" | "Plugins";
+  category: "Custom" | "OBS" | "Media" | "System" | "Navigation" | "Macro";
   iconName: string;
   actionLabel: string;
   defaultParam: string;
   accentColor: string;
   bgColor: string;
   description: string;
+}
+
+type ScreenTarget = "key" | "zone" | "strip";
+
+function errorText(err: unknown): string {
+  if (typeof err === "string") return err;
+  if (err && typeof err === "object" && "message" in err) {
+    return String((err as { message: unknown }).message);
+  }
+  return "Could not read that image";
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+function buildPulseFrames(): string[] {
+  const frames: string[] = [];
+  for (let i = 0; i < 8; i += 1) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 112;
+    canvas.height = 112;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) continue;
+    ctx.fillStyle = "#1A1028";
+    ctx.fillRect(0, 0, 112, 112);
+    const radius = 22 + Math.sin((i / 8) * Math.PI * 2) * 10;
+    ctx.fillStyle = `hsl(${262 + i * 8} 85% 64%)`;
+    ctx.beginPath();
+    ctx.arc(56, 46, Math.max(8, radius), 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#F4F5FA";
+    ctx.font = "bold 14px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("PULSE", 56, 96);
+    frames.push(canvas.toDataURL("image/jpeg", 0.86));
+  }
+  return frames;
 }
 
 const ACTION_CATALOG: ActionTemplate[] = [
@@ -140,101 +199,377 @@ const ACTION_CATALOG: ActionTemplate[] = [
   },
   {
     id: "obs.start_stream",
-    title: "Start Stream",
+    title: "Stream",
     subtitle: "LIVE",
     category: "OBS",
     iconName: "Radio",
-    actionLabel: "OBS: Start Streaming",
-    defaultParam: "ws://127.0.0.1:4455 • Main",
+    actionLabel: "OBS: Toggle stream",
+    defaultParam: "",
     accentColor: "#F16B79",
     bgColor: "#2A1521",
-    description: "Control OBS (stream, record, scenes, replay buffer)",
+    description: "Start or stop the OBS stream",
   },
   {
-    id: "twitch.chat_marker",
-    title: "Twitch",
-    subtitle: "CHAT",
-    category: "Twitch",
-    iconName: "MessageSquare",
-    actionLabel: "Twitch: Stream Marker & Raid",
-    defaultParam: "Create Marker + Clip",
-    accentColor: "#8B5CF6",
-    bgColor: "#231B38",
-    description: "Chat, stream info, raids, commercial breaks",
-  },
-  {
-    id: "youtube.go_live",
-    title: "YouTube",
-    subtitle: "LIVE",
-    category: "YouTube",
-    iconName: "Play",
-    actionLabel: "YouTube: Manage Broadcast",
-    defaultParam: "Studio Live Control",
+    id: "obs.toggle_record",
+    title: "Record",
+    subtitle: "REC",
+    category: "OBS",
+    iconName: "CircleDot",
+    actionLabel: "OBS: Toggle recording",
+    defaultParam: "",
     accentColor: "#F16B79",
-    bgColor: "#2B1419",
-    description: "Go live, manage stream markers, poll viewers",
+    bgColor: "#2A1521",
+    description: "Start or stop OBS recording",
   },
   {
-    id: "sys.show_desktop",
-    title: "System",
-    subtitle: "WIN+D",
-    category: "System",
-    iconName: "LayoutGrid",
-    actionLabel: "System: Apps, Media & Shortcuts",
-    defaultParam: "Win+D",
+    id: "obs.next_scene",
+    title: "Scene +",
+    subtitle: "NEXT",
+    category: "OBS",
+    iconName: "Clapperboard",
+    actionLabel: "OBS: Next scene",
+    defaultParam: "",
     accentColor: "#56B9F2",
     bgColor: "#132235",
-    description: "Apps, media, volume, shortcuts, window focus",
+    description: "Move to the next OBS scene",
   },
   {
-    id: "macro.run_sequence",
-    title: "Tools",
-    subtitle: "MACRO",
-    category: "Streaming",
-    iconName: "Zap",
-    actionLabel: "Tools: Multi-Step Macro Sequence",
-    defaultParam: "macro-go-live",
-    accentColor: "#F4B860",
-    bgColor: "#2A2215",
-    description: "Clipboard, text, delays, conditional scripts",
+    id: "obs.prev_scene",
+    title: "Scene -",
+    subtitle: "PREV",
+    category: "OBS",
+    iconName: "Film",
+    actionLabel: "OBS: Previous scene",
+    defaultParam: "",
+    accentColor: "#56B9F2",
+    bgColor: "#132235",
+    description: "Move to the previous OBS scene",
   },
   {
-    id: "plugin.sd_bridge",
-    title: "Plugins",
-    subtitle: "EXT",
-    category: "Plugins",
-    iconName: "Puzzle",
-    actionLabel: "Plugins: .sdPlugin & Elgato Bridge",
-    defaultParam: "com.mirabox.streamdock.system.sdPlugin",
+    id: "obs.save_replay",
+    title: "Clip",
+    subtitle: "CLIP",
+    category: "OBS",
+    iconName: "Scissors",
+    actionLabel: "OBS: Save replay",
+    defaultParam: "",
+    accentColor: "#8B5CF6",
+    bgColor: "#231B38",
+    description: "Save the OBS replay buffer",
+  },
+  {
+    id: "media.play_pause",
+    title: "Play",
+    subtitle: "PLAY",
+    category: "Media",
+    iconName: "Music",
+    actionLabel: "Media: Play / pause",
+    defaultParam: "",
     accentColor: "#35C98B",
     bgColor: "#112822",
-    description: "Community plugins and sandboxed extensions",
+    description: "Play or pause Spotify, or the current media app",
+  },
+  {
+    id: "media.next",
+    title: "Next",
+    subtitle: "NEXT",
+    category: "Media",
+    iconName: "Play",
+    actionLabel: "Media: Next track",
+    defaultParam: "",
+    accentColor: "#35C98B",
+    bgColor: "#112822",
+    description: "Skip to the next track",
+  },
+  {
+    id: "media.prev",
+    title: "Previous",
+    subtitle: "PREV",
+    category: "Media",
+    iconName: "Play",
+    actionLabel: "Media: Previous track",
+    defaultParam: "",
+    accentColor: "#35C98B",
+    bgColor: "#112822",
+    description: "Go back to the previous track",
   },
   {
     id: "audio.mute_mic",
     title: "Mute Mic",
-    subtitle: "MUTE",
+    subtitle: "MIC",
     category: "Media",
     iconName: "MicOff",
-    actionLabel: "Audio: Toggle Microphone Mute",
-    defaultParam: "Default Capture Endpoint",
+    actionLabel: "Audio: Mute microphone",
+    defaultParam: "",
     accentColor: "#F16B79",
     bgColor: "#2A1521",
-    description: "Instant hardware/OS microphone mute toggle",
+    description: "Mute or unmute the microphone",
   },
   {
-    id: "media.play_pause",
-    title: "Spotify",
-    subtitle: "PLAY",
+    id: "audio.volume_mute",
+    title: "Mute Sound",
+    subtitle: "MUTE",
     category: "Media",
-    iconName: "Music",
-    actionLabel: "Media: Play / Pause Track",
-    defaultParam: "VK_MEDIA_PLAY_PAUSE",
+    iconName: "Volume2",
+    actionLabel: "Audio: Mute speakers",
+    defaultParam: "",
+    accentColor: "#F4B860",
+    bgColor: "#2A2215",
+    description: "Mute or unmute the speakers",
+  },
+  {
+    id: "audio.volume_up",
+    title: "Vol Up",
+    subtitle: "VOL",
+    category: "Media",
+    iconName: "Volume2",
+    actionLabel: "Audio: Volume up",
+    defaultParam: "",
     accentColor: "#35C98B",
     bgColor: "#112822",
-    description: "Control Spotify and system media transport",
+    description: "Raise the speaker volume",
+  },
+  {
+    id: "audio.volume_down",
+    title: "Vol Down",
+    subtitle: "VOL",
+    category: "Media",
+    iconName: "Volume2",
+    actionLabel: "Audio: Volume down",
+    defaultParam: "",
+    accentColor: "#35C98B",
+    bgColor: "#112822",
+    description: "Lower the speaker volume",
+  },
+  {
+    id: "audio.open_mixer",
+    title: "Mixer",
+    subtitle: "MIX",
+    category: "Media",
+    iconName: "Sliders",
+    actionLabel: "Audio: Open volume mixer",
+    defaultParam: "",
+    accentColor: "#8B5CF6",
+    bgColor: "#231B38",
+    description: "Open the Windows volume mixer",
+  },
+  {
+    id: "profile.next_page",
+    title: "Next Page",
+    subtitle: "PAGE",
+    category: "Navigation",
+    iconName: "Layers",
+    actionLabel: "Page: Next page",
+    defaultParam: "",
+    accentColor: "#8B5CF6",
+    bgColor: "#231B38",
+    description: "Show the next page on the deck",
+  },
+  {
+    id: "profile.prev_page",
+    title: "Previous Page",
+    subtitle: "PAGE",
+    category: "Navigation",
+    iconName: "Layers",
+    actionLabel: "Page: Previous page",
+    defaultParam: "",
+    accentColor: "#8B5CF6",
+    bgColor: "#231B38",
+    description: "Show the previous page on the deck",
+  },
+  {
+    id: "profile.switch_page",
+    title: "Open Page",
+    subtitle: "PAGE",
+    category: "Navigation",
+    iconName: "LayoutGrid",
+    actionLabel: "Page: Open a page",
+    defaultParam: "Page 2",
+    accentColor: "#8B5CF6",
+    bgColor: "#231B38",
+    description: "Jump to a page by name",
+  },
+  {
+    id: "profile.switch",
+    title: "Open Profile",
+    subtitle: "PROFILE",
+    category: "Navigation",
+    iconName: "Layers",
+    actionLabel: "Profile: Switch profile",
+    defaultParam: "profile-streaming",
+    accentColor: "#56B9F2",
+    bgColor: "#132235",
+    description: "Switch the whole deck to another profile",
+  },
+  {
+    id: "macro.run",
+    title: "Run Macro",
+    subtitle: "MACRO",
+    category: "Macro",
+    iconName: "Zap",
+    actionLabel: "Macro: Run sequence",
+    defaultParam: "macro-go-live",
+    accentColor: "#8B5CF6",
+    bgColor: "#231B38",
+    description: "Run a saved macro chain",
+  },
+  {
+    id: "sys.show_desktop",
+    title: "Desktop",
+    subtitle: "WIN+D",
+    category: "System",
+    iconName: "Monitor",
+    actionLabel: "System: Show desktop",
+    defaultParam: "Win+D",
+    accentColor: "#56B9F2",
+    bgColor: "#132235",
+    description: "Show the desktop",
+  },
+  {
+    id: "sys.screenshot",
+    title: "Screenshot",
+    subtitle: "SNAP",
+    category: "System",
+    iconName: "Camera",
+    actionLabel: "System: Screenshot",
+    defaultParam: "Win+Shift+S",
+    accentColor: "#56B9F2",
+    bgColor: "#132235",
+    description: "Open the snipping tool",
+  },
+  {
+    id: "sys.task_manager",
+    title: "Task Manager",
+    subtitle: "TASK",
+    category: "System",
+    iconName: "Terminal",
+    actionLabel: "System: Task Manager",
+    defaultParam: "Ctrl+Shift+Esc",
+    accentColor: "#8B5CF6",
+    bgColor: "#231B38",
+    description: "Open Task Manager",
+  },
+  {
+    id: "sys.lock_pc",
+    title: "Lock",
+    subtitle: "LOCK",
+    category: "System",
+    iconName: "Shield",
+    actionLabel: "System: Lock PC",
+    defaultParam: "",
+    accentColor: "#F4B860",
+    bgColor: "#2A2215",
+    description: "Lock Windows",
+  },
+  {
+    id: "sys.game_mode",
+    title: "Game Mode",
+    subtitle: "BOOST",
+    category: "System",
+    iconName: "Zap",
+    actionLabel: "System: Game Mode",
+    defaultParam: "",
+    accentColor: "#F4B860",
+    bgColor: "#2A2215",
+    description: "Close the apps you picked, keep Bitsum on, and put it all back when you press again",
+  },
+  {
+    id: "brightness.up",
+    title: "Brighter",
+    subtitle: "LIGHT",
+    category: "System",
+    iconName: "Lightbulb",
+    actionLabel: "Deck: Brightness up",
+    defaultParam: "",
+    accentColor: "#F4B860",
+    bgColor: "#2A2215",
+    description: "Raise the deck backlight",
+  },
+  {
+    id: "brightness.down",
+    title: "Dimmer",
+    subtitle: "LIGHT",
+    category: "System",
+    iconName: "Lightbulb",
+    actionLabel: "Deck: Brightness down",
+    defaultParam: "",
+    accentColor: "#F4B860",
+    bgColor: "#2A2215",
+    description: "Lower the deck backlight",
+  },
+  {
+    id: "brightness.toggle",
+    title: "Backlight",
+    subtitle: "LIGHT",
+    category: "System",
+    iconName: "Lightbulb",
+    actionLabel: "Deck: Toggle backlight",
+    defaultParam: "",
+    accentColor: "#F4B860",
+    bgColor: "#2A2215",
+    description: "Turn the deck backlight on or off",
   },
 ];
+
+type LiveLook = { title: string; icon: string; level: number | null; muted: boolean };
+
+function liveKeyLook(actionId: string, title: string, icon: string, face: DeckFaceState | null): LiveLook {
+  const still = { title, icon, level: null, muted: false };
+  if (!face) return still;
+  if (actionId === "media.play_pause" && (face.mediaPlaying != null || face.mediaTitle.trim())) {
+    const track = face.mediaTitle.trim() || (face.mediaPlaying ? "Playing" : "Paused");
+    return { title: track, icon: face.mediaPlaying ? "Pause" : "Play", level: null, muted: false };
+  }
+  if (actionId === "audio.mute_mic" && face.micMuted != null) {
+    return face.micMuted
+      ? { title: "Muted", icon: "MicOff", level: null, muted: true }
+      : { title: "Mic Live", icon: "Mic", level: null, muted: false };
+  }
+  if (
+    (actionId === "audio.volume_up" || actionId === "audio.volume_down" || actionId === "audio.volume_mute") &&
+    face.volumePercent != null
+  ) {
+    return {
+      title: face.speakerMuted ? "Muted" : `${face.volumePercent}%`,
+      icon,
+      level: face.volumePercent,
+      muted: face.speakerMuted === true,
+    };
+  }
+  return still;
+}
+
+function LevelMeter({ percent, accent, muted }: { percent: number; accent: string; muted: boolean }) {
+  const filled = Math.round((Math.max(0, Math.min(100, percent)) / 100) * 8);
+  return (
+    <span className="flex w-full gap-0.5 px-1">
+      {Array.from({ length: 8 }, (_, index) => (
+        <span
+          key={index}
+          className="h-1 flex-1 rounded-sm"
+          style={{ background: index < filled && !muted ? accent : "#272D3D" }}
+        />
+      ))}
+    </span>
+  );
+}
+
+function liveZoneValue(actionId: string, value: string, face: DeckFaceState | null) {
+  if (!face) return value;
+  if (actionId === "media.play_pause" && face.mediaPlaying != null) {
+    return face.mediaPlaying ? face.mediaTitle || "Playing" : "Paused";
+  }
+  if (actionId === "audio.mute_mic" && face.micMuted != null) {
+    return face.micMuted ? "Muted" : "Live";
+  }
+  if (
+    (actionId === "audio.volume_up" || actionId === "audio.volume_down" || actionId === "audio.volume_mute") &&
+    face.volumePercent != null
+  ) {
+    return face.speakerMuted ? `${face.volumePercent}% muted` : `${face.volumePercent}%`;
+  }
+  return value;
+}
 
 export const App: React.FC = () => {
   const [activeScreen, setActiveScreen] = useState<NavScreenId>("workspace");
@@ -258,11 +593,16 @@ export const App: React.FC = () => {
   const [selectedProfileId, setSelectedProfileId] = useState<string>("profile-streaming");
   const [selectedPageIdx, setSelectedPageIdx] = useState<number>(0);
   const [selectedKeyIdx, setSelectedKeyIdx] = useState<number>(0);
+  const [surface, setSurface] = useState<"key" | "zone" | "strip" | "encoder">("key");
+  const [surfaceIndex, setSurfaceIndex] = useState(0);
+  const [mediaLibrary, setMediaLibrary] = useState<Record<string, MediaPreview>>({});
+  const fileRef = useRef<HTMLInputElement>(null);
   const [inspectorTab, setInspectorTab] = useState<"Action" | "Appearance" | "Behavior">("Action");
   const [actionCategoryFilter, setActionCategoryFilter] = useState<string>("All");
   const [actionSearch, setActionSearch] = useState<string>("");
   const [canvasZoom, setCanvasZoom] = useState<number>(100);
   const [clipboardKey, setClipboardKey] = useState<KeyConfig | null>(null);
+  const [templatesOpen, setTemplatesOpen] = useState<boolean>(false);
 
   // Sync & Persistence States (Spec Section 1 & 14: Distinguish Saved Locally vs Applied to Device)
   const [savedLocally, setSavedLocally] = useState<boolean>(true);
@@ -280,6 +620,8 @@ export const App: React.FC = () => {
   const [settingsCategory, setSettingsCategory] = useState<string>("General");
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
   const [livePressedKeyIdx, setLivePressedKeyIdx] = useState<number | null>(null);
+  const [face, setFace] = useState<DeckFaceState | null>(null);
+  const [obsSettings, setObsSettings] = useState<ObsSettings>({ url: "ws://127.0.0.1:4455", password: "" });
 
   const triggerToast = (text: string, kind: "success" | "info" | "warning" = "success") => {
     setToastMessage({ text, kind });
@@ -298,19 +640,24 @@ export const App: React.FC = () => {
       setFrameStats(data.frameCacheStats);
       setLegacySummary(data.legacySummary);
       setTelemetry(data.telemetry);
+      setMediaLibrary(Object.fromEntries((data.mediaLibrary || []).map((item) => [item.id, item])));
+      if (data.face) setFace(data.face);
+      if (data.obs) setObsSettings(data.obs);
     });
 
     let unlistenFn: (() => void) | null = null;
     deckforgeApi.onHardwareInput((evt) => {
+      if (evt.kind === "unknown" || !evt.pressed) {
+        if (evt.kind === "lcdKey") setLivePressedKeyIdx(null);
+        return;
+      }
       if (evt.kind === "lcdKey") {
-        setLivePressedKeyIdx(evt.pressed ? evt.controlIndex : null);
-        if (evt.pressed) {
-          setSelectedKeyIdx(evt.controlIndex);
-          triggerToast(
-            `Physical Key #${evt.controlIndex + 1} Pressed (${evt.rawHex})`,
-            "success"
-          );
-        }
+        setLivePressedKeyIdx(evt.controlIndex);
+        setSelectedKeyIdx(evt.controlIndex);
+        triggerToast(
+          `Physical Key #${evt.controlIndex + 1} Pressed (${evt.rawHex})`,
+          "success"
+        );
       } else {
         triggerToast(
           `Physical Input: ${evt.kind} #${evt.controlIndex + 1} (${evt.rawHex})`,
@@ -320,6 +667,18 @@ export const App: React.FC = () => {
     }).then((fn) => {
       unlistenFn = fn;
     });
+    let faceUnlisten: (() => void) | null = null;
+    let contextUnlisten: (() => void) | null = null;
+    deckforgeApi.onDeckFace((next) => setFace(next)).then((fn) => {
+      faceUnlisten = fn;
+    });
+    deckforgeApi.onDeckContext((ctx) => {
+      setSelectedProfileId(ctx.profileId);
+      setSelectedPageIdx(ctx.pageIndex);
+      triggerToast(ctx.message, "info");
+    }).then((fn) => {
+      contextUnlisten = fn;
+    });
 
     const timer = window.setInterval(() => {
       deckforgeApi.getTelemetry().then(setTelemetry).catch(() => {});
@@ -327,8 +686,15 @@ export const App: React.FC = () => {
     return () => {
       window.clearInterval(timer);
       if (unlistenFn) unlistenFn();
+      if (faceUnlisten) faceUnlisten();
+      if (contextUnlisten) contextUnlisten();
     };
   }, []);
+
+  useEffect(() => {
+    if (!isTauriRuntime()) return;
+    deckforgeApi.setActiveContext(selectedProfileId, selectedPageIdx).catch(() => {});
+  }, [selectedProfileId, selectedPageIdx]);
 
   const handleTakeOverHardware = async () => {
     const msg = await deckforgeApi.takeOverFromOfficialApp();
@@ -354,7 +720,7 @@ export const App: React.FC = () => {
     );
   };
 
-  const [isRecordingHotkey, setIsRecordingHotkey] = useState(false);
+  const [hotkeyTarget, setHotkeyTarget] = useState<"key" | "zone" | "cw" | "ccw" | "push" | null>(null);
   const [customActions, setCustomActions] = useState<ActionTemplate[]>([]);
 
   const allActionTemplates = useMemo(
@@ -365,7 +731,7 @@ export const App: React.FC = () => {
   // Keyboard shortcuts (Ctrl+S, Ctrl+Z, Ctrl+Y) + Live Hotkey Recorder
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (isRecordingHotkey) {
+      if (hotkeyTarget) {
         e.preventDefault();
         e.stopPropagation();
         if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) {
@@ -388,16 +754,28 @@ export const App: React.FC = () => {
           keyMap[e.key] || (e.key.length === 1 ? e.key.toUpperCase() : e.key);
         parts.push(keyLabel);
         const combo = parts.join("+");
-        updateSelectedKey({
-          subtitle: combo,
-          actionParam: combo,
-          actionId: activeKey?.actionId === "none" ? "custom.hotkey" : activeKey?.actionId,
-          actionLabel:
-            activeKey?.actionId === "none"
-              ? "Custom: Keyboard Shortcut / Hotkey"
-              : activeKey?.actionLabel,
-        });
-        setIsRecordingHotkey(false);
+        if (hotkeyTarget === "key") {
+          updateSelectedKey({
+            subtitle: combo,
+            actionParam: combo,
+            actionId: activeKey?.actionId === "none" || activeKey?.actionId === "custom.hotkey" ? "custom.hotkey" : activeKey?.actionId,
+            actionLabel:
+              activeKey?.actionId === "none" || activeKey?.actionId === "custom.hotkey"
+                ? "Custom: Keyboard Shortcut / Hotkey"
+                : activeKey?.actionLabel,
+          });
+        } else if (hotkeyTarget === "zone" && activeZone) {
+          updateSelectedZone(activeZone.index, { tapActionId: "custom.hotkey", tapActionParam: combo });
+        } else if (activeEncoder && (hotkeyTarget === "cw" || hotkeyTarget === "ccw" || hotkeyTarget === "push")) {
+          const patch =
+            hotkeyTarget === "cw"
+              ? { cwAction: "custom.hotkey", cwParam: combo }
+              : hotkeyTarget === "ccw"
+              ? { ccwAction: "custom.hotkey", ccwParam: combo }
+              : { pushAction: "custom.hotkey", pushParam: combo };
+          updateSelectedEncoder(activeEncoder.index, patch);
+        }
+        setHotkeyTarget(null);
         triggerToast(`Recorded shortcut: ${combo}`, "success");
         return;
       }
@@ -416,9 +794,15 @@ export const App: React.FC = () => {
     return () => window.removeEventListener("keydown", onKeyDown, true);
   });
 
+  const connectedDevices = useMemo(() => devices.filter((d) => d.connected), [devices]);
+
   const activeDevice = useMemo(
-    () => devices.find((d) => d.id === selectedDeviceId) || devices[0],
-    [devices, selectedDeviceId]
+    () =>
+      connectedDevices.find((d) => d.id === selectedDeviceId) ||
+      connectedDevices[0] ||
+      devices.find((d) => d.id === selectedDeviceId) ||
+      devices[0],
+    [connectedDevices, devices, selectedDeviceId]
   );
 
   const activeProfile = useMemo(
@@ -435,6 +819,85 @@ export const App: React.FC = () => {
     if (!activePage) return null;
     return activePage.keys[selectedKeyIdx] || activePage.keys[0] || null;
   }, [activePage, selectedKeyIdx]);
+
+  const paramOptionsFor = (actionId: string) => {
+    if (actionId === "profile.switch_page" && activeProfile) {
+      return activeProfile.pages.map((page) => ({ value: page.name, label: page.name }));
+    }
+    if (actionId === "profile.switch") {
+      return profiles.map((profile) => ({ value: profile.id, label: profile.name }));
+    }
+    if (actionId === "macro.run") {
+      return macros.map((macro) => ({ value: macro.id, label: macro.name }));
+    }
+    return undefined;
+  };
+
+  const saveRules = (rules: AutoSwitchRule[]) => {
+    setAutoSwitchRules(rules);
+    deckforgeApi.saveAutoSwitchRules(rules).catch(() => {});
+  };
+
+  const saveObs = (settings: ObsSettings) => {
+    setObsSettings(settings);
+    deckforgeApi.saveObsSettings(settings).catch(() => {});
+  };
+
+  const persistMacros = (next: MacroSequence[]) => {
+    setMacros(next);
+    deckforgeApi.saveMacros(next).catch(() => {});
+  };
+
+  const assignMacroToKey = async (macro: MacroSequence) => {
+    if (!activeProfile || !activePage || !activeKey) {
+      triggerToast("Select a key on the deck first", "warning");
+      return;
+    }
+    pushUndoSnapshot();
+    const nextProfiles = profiles.map((prof) => {
+      if (prof.id !== activeProfile.id) return prof;
+      return {
+        ...prof,
+        lastModifiedMs: Date.now(),
+        pages: prof.pages.map((page, pageIndex) => {
+          if (pageIndex !== selectedPageIdx) return page;
+          return {
+            ...page,
+            keys: page.keys.map((key) =>
+              key.index === activeKey.index
+                ? {
+                    ...key,
+                    title: macro.name,
+                    subtitle: "MACRO",
+                    iconName: "Zap",
+                    actionId: "macro.run",
+                    actionLabel: `Macro: ${macro.name}`,
+                    actionCategory: "Macro",
+                    actionParam: macro.id,
+                    accentColor: "#8B5CF6",
+                    bgColor: "#231B38",
+                  }
+                : key
+            ),
+          };
+        }),
+      };
+    });
+    setProfiles(nextProfiles);
+    await deckforgeApi.saveMacros(macros);
+    await deckforgeApi.saveProfiles(nextProfiles);
+    setSavedLocally(true);
+    triggerToast(`${macro.name} is on key ${activeKey.index + 1}`, "success");
+  };
+
+  const activeZone =
+    activePage?.touchZones.find((zone) => zone.index === surfaceIndex) ||
+    activePage?.touchZones[0] ||
+    null;
+  const activeEncoder =
+    activePage?.encoders.find((enc) => enc.index === surfaceIndex) ||
+    activePage?.encoders[0] ||
+    null;
 
   const pushUndoSnapshot = () => {
     setUndoStack((prev) => [...prev.slice(-19), JSON.parse(JSON.stringify(profiles))]);
@@ -477,6 +940,163 @@ export const App: React.FC = () => {
             return {
               ...pg,
               keys: pg.keys.map((k) => (k.index === activeKey.index ? { ...k, ...patch } : k)),
+            };
+          }),
+        };
+      })
+    );
+  };
+
+  const clipFor = (cfg?: ScreenMediaConfig | null) => (cfg ? mediaLibrary[cfg.mediaId] ?? null : null);
+
+  const assignMedia = (target: ScreenTarget, index: number, cfg: ScreenMediaConfig | null) => {
+    if (!activeProfile || !activePage) return;
+    pushUndoSnapshot();
+    setProfiles((prev) =>
+      prev.map((prof) => {
+        if (prof.id !== activeProfile.id) return prof;
+        return {
+          ...prof,
+          lastModifiedMs: Date.now(),
+          pages: prof.pages.map((pg, pIdx) => {
+            if (pIdx !== selectedPageIdx) return pg;
+            if (target === "strip") return { ...pg, stripMedia: cfg };
+            if (target === "zone") {
+              return {
+                ...pg,
+                touchZones: pg.touchZones.map((zone) =>
+                  zone.index === index ? { ...zone, media: cfg } : zone
+                ),
+              };
+            }
+            return {
+              ...pg,
+              keys: pg.keys.map((key) =>
+                key.index === index
+                  ? {
+                      ...key,
+                      media: cfg,
+                      backgroundStyle: cfg
+                        ? "Image"
+                        : key.backgroundStyle === "Image"
+                        ? "Gradient"
+                        : key.backgroundStyle,
+                    }
+                  : key
+              ),
+            };
+          }),
+        };
+      })
+    );
+    setSurface(target);
+    setSurfaceIndex(index);
+    if (target === "key") setSelectedKeyIdx(index);
+  };
+
+  const currentMedia = (): ScreenMediaConfig | null => {
+    if (!activePage) return null;
+    if (surface === "zone") return activePage.touchZones.find((zone) => zone.index === surfaceIndex)?.media ?? null;
+    if (surface === "strip") return activePage.stripMedia ?? null;
+    return activeKey?.media ?? null;
+  };
+
+  const patchCurrentMedia = (patch: Partial<ScreenMediaConfig>) => {
+    const current = currentMedia();
+    if (!current || surface === "encoder") return;
+    const index = surface === "key" ? activeKey?.index ?? selectedKeyIdx : surfaceIndex;
+    assignMedia(surface, index, { ...current, ...patch });
+  };
+
+  const ingestFile = async (file: File, target: ScreenTarget, index: number) => {
+    if (!file.type.startsWith("image/") && !/\.(gif|png|jpe?g|webp|bmp)$/i.test(file.name)) {
+      triggerToast("Use a PNG, JPEG, WebP, or GIF", "warning");
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      triggerToast("Image must be 8 MB or smaller", "warning");
+      return;
+    }
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const preview = await deckforgeApi.stageScreenMedia(
+        `media-${Date.now()}`,
+        file.name,
+        bytesToBase64(bytes)
+      );
+      setMediaLibrary((prev) => ({ ...prev, [preview.id]: preview }));
+      assignMedia(target, index, {
+        mediaId: preview.id,
+        fit: "cover",
+        loopPlayback: true,
+        speed: 1,
+      });
+      triggerToast(
+        `${preview.fileName} fitted · ${preview.frameCount} frame${preview.frameCount === 1 ? "" : "s"}`,
+        "success"
+      );
+    } catch (err) {
+      triggerToast(errorText(err), "warning");
+    }
+  };
+
+  const useSampleAnimation = async (target: ScreenTarget, index: number) => {
+    try {
+      const frames = buildPulseFrames();
+      const preview = await deckforgeApi.stageFrameSequence(
+        `pulse-${Date.now()}`,
+        "Pulse.gif",
+        frames.map((frame) => frame.split(",").pop() || ""),
+        90
+      );
+      setMediaLibrary((prev) => ({ ...prev, [preview.id]: preview }));
+      assignMedia(target, index, {
+        mediaId: preview.id,
+        fit: "cover",
+        loopPlayback: true,
+        speed: 1,
+      });
+      triggerToast("Sample pulse animation added. Apply to Device to play it on the screens.", "success");
+    } catch (err) {
+      triggerToast(errorText(err), "warning");
+    }
+  };
+
+  const updateSelectedZone = (index: number, patch: Partial<TouchZoneConfig>) => {
+    if (!activeProfile) return;
+    pushUndoSnapshot();
+    setProfiles((prev) =>
+      prev.map((prof) => {
+        if (prof.id !== activeProfile.id) return prof;
+        return {
+          ...prof,
+          pages: prof.pages.map((pg, pIdx) => {
+            if (pIdx !== selectedPageIdx) return pg;
+            return {
+              ...pg,
+              touchZones: pg.touchZones.map((zone) =>
+                zone.index === index ? { ...zone, ...patch } : zone
+              ),
+            };
+          }),
+        };
+      })
+    );
+  };
+
+  const updateSelectedEncoder = (index: number, patch: Partial<EncoderConfig>) => {
+    if (!activeProfile) return;
+    pushUndoSnapshot();
+    setProfiles((prev) =>
+      prev.map((prof) => {
+        if (prof.id !== activeProfile.id) return prof;
+        return {
+          ...prof,
+          pages: prof.pages.map((pg, pIdx) => {
+            if (pIdx !== selectedPageIdx) return pg;
+            return {
+              ...pg,
+              encoders: pg.encoders.map((enc) => (enc.index === index ? { ...enc, ...patch } : enc)),
             };
           }),
         };
@@ -532,6 +1152,8 @@ export const App: React.FC = () => {
       actionParam: "",
       accentColor: "#394158",
       bgColor: "#151925",
+      media: null,
+      backgroundStyle: "Gradient",
     });
     await deckforgeApi.clearDeviceKey(activeDevice.id, activeKey.index + 1);
     triggerToast(`Cleared key #${activeKey.index + 1} (CRT\\0\\0CLE)`, "info");
@@ -578,6 +1200,45 @@ export const App: React.FC = () => {
     setSelectedPageIdx(activeProfile.pages.length);
     setSavedLocally(false);
     triggerToast(`Added ${newPage.name}`, "info");
+  };
+
+  const handleAddPageFromTemplate = (page: ProfilePage) => {
+    if (!activeProfile) return;
+    pushUndoSnapshot();
+    const unique: ProfilePage = {
+      ...page,
+      id: `${page.id}-${Date.now()}`,
+    };
+    setProfiles((prev) =>
+      prev.map((p) =>
+        p.id === activeProfile.id ? { ...p, lastModifiedMs: Date.now(), pages: [...p.pages, unique] } : p
+      )
+    );
+    setSelectedPageIdx(activeProfile.pages.length);
+    setSelectedKeyIdx(0);
+    setSurface("key");
+    setTemplatesOpen(false);
+    triggerToast(`Added "${unique.name}". Press Apply to Device to see it on the deck.`, "success");
+  };
+
+  const handleReplacePageFromTemplate = (page: ProfilePage) => {
+    if (!activeProfile || !activePage) return;
+    pushUndoSnapshot();
+    setProfiles((prev) =>
+      prev.map((p) =>
+        p.id === activeProfile.id
+          ? {
+              ...p,
+              lastModifiedMs: Date.now(),
+              pages: p.pages.map((pg, idx) => (idx === selectedPageIdx ? { ...page, id: pg.id } : pg)),
+            }
+          : p
+      )
+    );
+    setSelectedKeyIdx(0);
+    setSurface("key");
+    setTemplatesOpen(false);
+    triggerToast(`Replaced the page with "${page.name}". Ctrl+Z undoes it.`, "success");
   };
 
   const handleBatchApplyStyleToPage = () => {
@@ -635,12 +1296,40 @@ export const App: React.FC = () => {
 
   return (
     <div className="h-screen w-screen bg-[#0B0D14] text-[#F4F5FA] flex flex-col overflow-hidden select-none">
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/png,image/jpeg,image/gif,image/webp,image/bmp,.gif"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (!file) return;
+          if (surface === "encoder") {
+            triggerToast("Choose a key or touch screen first", "warning");
+            return;
+          }
+          const target: ScreenTarget = surface === "zone" || surface === "strip" ? surface : "key";
+          const index = target === "key" ? activeKey.index : surfaceIndex;
+          void ingestFile(file, target, index);
+        }}
+      />
       {/* Transient Top-Right Toast (Spec Section 11.5) */}
       {toastMessage && (
         <div className="fixed top-14 right-5 z-50 flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-[#1C2130] border border-[#8B5CF6]/60 shadow-2xl text-xs font-medium text-[#F4F5FA]">
           <span className="w-2 h-2 rounded-full bg-[#35C98B]" />
           <span>{toastMessage.text}</span>
         </div>
+      )}
+      {templatesOpen && (
+        <PageTemplates
+          currentPage={activePage}
+          profileName={activeProfile.name}
+          onAdd={handleAddPageFromTemplate}
+          onReplace={handleReplacePageFromTemplate}
+          onClose={() => setTemplatesOpen(false)}
+          notify={triggerToast}
+        />
       )}
 
       {/* 1. GLOBAL TOP NAVIGATION BAR (48px — Spec Section 3 & Reference Screenshot) */}
@@ -672,6 +1361,7 @@ export const App: React.FC = () => {
               { id: "devices", label: "Devices", icon: Usb },
               { id: "macros", label: "Macro Studio", icon: Zap },
               { id: "icons", label: "Icon Studio", icon: Palette },
+              { id: "gamemode", label: "Game Mode", icon: Gamepad2 },
               { id: "settings", label: "Settings", icon: Settings },
             ] as Array<{ id: NavScreenId; label: string; icon: React.ComponentType<{ size?: number }> }>
           ).map((tab) => {
@@ -680,7 +1370,13 @@ export const App: React.FC = () => {
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveScreen(tab.id)}
+                onClick={() => {
+                  setActiveScreen(tab.id);
+                  if (tab.id === "icons") {
+                    setSurface("key");
+                    setSurfaceIndex(activeKey.index);
+                  }
+                }}
                 className={`h-9 px-3.5 rounded-md text-[12.5px] font-medium flex items-center gap-2 transition-all cursor-pointer border ${
                   isActive
                     ? "bg-[#30244F] text-[#F4F5FA] border-[#8B5CF6]/50 shadow-[inset_0_-2px_0_#8B5CF6]"
@@ -762,34 +1458,19 @@ export const App: React.FC = () => {
               </div>
 
               <div className="flex flex-col gap-1.5">
-                {devices.map((dev) => {
-                  const isSel = dev.id === activeDevice.id;
-                  return (
+                {connectedDevices.length === 0 ? (
+                  <div className="px-2.5 py-3 rounded-lg border border-dashed border-[#272D3D] text-[11px] leading-relaxed text-[#707B94]">
+                    No device connected. Plug in a deck, then rescan.
+                  </div>
+                ) : (
+                  connectedDevices.map((dev) => (
                     <div
                       key={dev.id}
-                      onClick={() => {
-                        setSelectedDeviceId(dev.id);
-                        setSelectedKeyIdx(0);
-                      }}
-                      className={`p-2 rounded-lg border flex items-center gap-2.5 cursor-pointer transition-all ${
-                        isSel
-                          ? "bg-[#30244F] border-[#8B5CF6]/60 shadow-[0_0_16px_rgba(139,92,246,0.2)]"
-                          : "bg-[#151925]/60 border-transparent hover:bg-[#151925] hover:border-[#272D3D]"
-                      }`}
+                      className="p-2 rounded-lg border flex items-center gap-2.5 bg-[#30244F] border-[#8B5CF6]/60 shadow-[0_0_16px_rgba(139,92,246,0.2)]"
                     >
-                      {/* Mini Key Grid Thumbnail */}
-                      <div
-                        className={`w-8 h-6 rounded bg-[#111522] border p-1 grid grid-cols-5 gap-0.5 shrink-0 ${
-                          isSel ? "border-[#8B5CF6]" : "border-[#394158]"
-                        }`}
-                      >
+                      <div className="w-8 h-6 rounded bg-[#111522] border border-[#8B5CF6] p-1 grid grid-cols-5 gap-0.5 shrink-0">
                         {Array.from({ length: 10 }).map((_, idx) => (
-                          <span
-                            key={idx}
-                            className={`rounded-[1px] ${
-                              isSel ? "bg-[#8B5CF6]" : "bg-[#707B94]/60"
-                            }`}
-                          />
+                          <span key={idx} className="rounded-[1px] bg-[#8B5CF6]" />
                         ))}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -797,19 +1478,13 @@ export const App: React.FC = () => {
                           {dev.modelName}
                         </div>
                         <div className="flex items-center gap-1.5 text-[10.5px]">
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              dev.connected ? "bg-[#35C98B]" : "bg-[#707B94]"
-                            }`}
-                          />
-                          <span className={dev.connected ? "text-[#35C98B]" : "text-[#707B94]"}>
-                            {dev.connected ? "Connected" : `${dev.keys.count} keys`}
-                          </span>
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#35C98B]" />
+                          <span className="text-[#35C98B]">Connected</span>
                         </div>
                       </div>
                     </div>
-                  );
-                })}
+                  ))
+                )}
               </div>
             </div>
 
@@ -833,6 +1508,7 @@ export const App: React.FC = () => {
                     <div
                       key={prof.id}
                       onClick={() => {
+                        deckforgeApi.holdAutoSwitch().catch(() => {});
                         setSelectedProfileId(prof.id);
                         setSelectedPageIdx(0);
                         setSelectedKeyIdx(0);
@@ -857,6 +1533,80 @@ export const App: React.FC = () => {
                 })}
               </div>
             </div>
+
+            <div className="flex flex-col gap-2">
+              <div className="text-[12px] font-semibold text-[#F4F5FA]">When an app is in front</div>
+              <p className="text-[10.5px] leading-relaxed text-[#707B94]">
+                The saved profile for that app is sent to the deck. Save after you edit a page.
+              </p>
+              {autoSwitchRules.map((rule) => (
+                <div key={rule.id} className="flex flex-col gap-1 rounded-lg border border-[#272D3D] p-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={rule.enabled}
+                      onChange={(event) =>
+                        saveRules(autoSwitchRules.map((item) => (item.id === rule.id ? { ...item, enabled: event.target.checked } : item)))
+                      }
+                    />
+                    <input
+                      value={rule.processName}
+                      onChange={(event) =>
+                        saveRules(autoSwitchRules.map((item) => (item.id === rule.id ? { ...item, processName: event.target.value } : item)))
+                      }
+                      className="min-w-0 flex-1 h-7 px-2 rounded-md bg-[#111522] border border-[#272D3D] text-[11px] font-mono text-[#F4F5FA] outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => saveRules(autoSwitchRules.filter((item) => item.id !== rule.id))}
+                      className="text-[11px] text-[#A6AFC4] cursor-pointer"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                  <input
+                    value={rule.windowTitleContains}
+                    placeholder="Window title contains (optional)"
+                    onChange={(event) =>
+                      saveRules(autoSwitchRules.map((item) => (item.id === rule.id ? { ...item, windowTitleContains: event.target.value } : item)))
+                    }
+                    className="h-7 px-2 rounded-md bg-[#111522] border border-[#272D3D] text-[11px] text-[#F4F5FA] outline-none"
+                  />
+                  <select
+                    value={rule.targetProfileId}
+                    onChange={(event) =>
+                      saveRules(autoSwitchRules.map((item) => (item.id === rule.id ? { ...item, targetProfileId: event.target.value } : item)))
+                    }
+                    className="h-7 px-2 rounded-md bg-[#111522] border border-[#272D3D] text-[11px] text-[#F4F5FA] outline-none"
+                  >
+                    {profiles.map((profile) => (
+                      <option key={profile.id} value={profile.id}>
+                        {profile.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  saveRules([
+                    ...autoSwitchRules,
+                    {
+                      id: `rule-${Date.now()}`,
+                      processName: "Spotify.exe",
+                      windowTitleContains: "",
+                      targetProfileId: profiles[0]?.id ?? "profile-streaming",
+                      priority: autoSwitchRules.length + 1,
+                      enabled: true,
+                    },
+                  ])
+                }
+                className="h-7 rounded-md border border-[#272D3D] text-[11px] text-[#A6AFC4] cursor-pointer"
+              >
+                Add app rule
+              </button>
+            </div>
           </aside>
 
           {/* CENTER WORKSPACE COLUMN: Toolbar + Hardware Bezel + Bottom Action Library Drawer */}
@@ -873,20 +1623,28 @@ export const App: React.FC = () => {
                 <div className="flex items-center gap-2 bg-[#111522] border border-[#272D3D] rounded-md px-2.5 h-9">
                   <LayoutGrid size={14} className="text-[#A6AFC4]" />
                   <span className="text-xs text-[#A6AFC4]">Device:</span>
-                  <select
-                    value={activeDevice.id}
-                    onChange={(e) => {
-                      setSelectedDeviceId(e.target.value);
-                      setSelectedKeyIdx(0);
-                    }}
-                    className="bg-transparent text-xs font-semibold text-[#F4F5FA] outline-none cursor-pointer"
-                  >
-                    {devices.map((d) => (
-                      <option key={d.id} value={d.id} className="bg-[#151925] text-[#F4F5FA]">
-                        {d.modelName} ({d.keys.count} keys)
-                      </option>
-                    ))}
-                  </select>
+                  {connectedDevices.length > 1 ? (
+                    <select
+                      value={activeDevice.id}
+                      onChange={(e) => {
+                        setSelectedDeviceId(e.target.value);
+                        setSelectedKeyIdx(0);
+                        setSurface("key");
+                        setSurfaceIndex(0);
+                      }}
+                      className="bg-transparent text-xs font-semibold text-[#F4F5FA] outline-none cursor-pointer"
+                    >
+                      {connectedDevices.map((d) => (
+                        <option key={d.id} value={d.id} className="bg-[#151925] text-[#F4F5FA]">
+                          {d.modelName} ({d.keys.count} keys)
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-xs font-semibold text-[#F4F5FA]">
+                      {connectedDevices[0]?.modelName ?? "None connected"}
+                    </span>
+                  )}
                 </div>
 
                 {/* Zoom / Fit Controls */}
@@ -940,20 +1698,34 @@ export const App: React.FC = () => {
                   }}
                 >
                   {activePage.keys.slice(0, activeDevice.keys.count).map((k) => {
-                    const isSelected = k.index === activeKey.index;
+                    const isSelected = surface === "key" && k.index === activeKey.index;
                     const isLivePressed = livePressedKeyIdx === k.index;
+                    const clip = clipFor(k.media);
+                    const look = liveKeyLook(k.actionId, k.title, k.iconName, k.media ? null : face);
                     return (
                       <button
                         key={k.index}
-                        onClick={() => setSelectedKeyIdx(k.index)}
+                        onClick={() => {
+                          setSurface("key");
+                          setSurfaceIndex(k.index);
+                          setSelectedKeyIdx(k.index);
+                        }}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          const file = event.dataTransfer.files?.[0];
+                          if (file) void ingestFile(file, "key", k.index);
+                        }}
                         style={{
                           borderRadius: `${k.cornerRadius}px`,
                           background:
-                            k.backgroundStyle === "Gradient"
+                            clip
+                              ? "#0B0D14"
+                              : k.backgroundStyle === "Gradient"
                               ? `radial-gradient(circle at 50% 28%, ${k.accentColor}44, ${k.bgColor})`
                               : k.bgColor,
                         }}
-                        className={`aspect-[1/0.9] border p-2 flex flex-col items-center justify-center gap-1.5 relative cursor-pointer transition-all group ${
+                        className={`aspect-[1/0.9] border p-2 flex flex-col items-center justify-center gap-1.5 relative overflow-hidden cursor-pointer transition-all group ${
                           isLivePressed
                             ? "border-2 border-[#35C98B] shadow-[0_0_24px_rgba(53,201,139,0.75)] scale-95"
                             : isSelected
@@ -961,27 +1733,45 @@ export const App: React.FC = () => {
                             : "border-[#272D3D] hover:border-[#394158] hover:-translate-y-0.5"
                         }`}
                       >
-                        <div
-                          className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105"
-                          style={{
-                            backgroundColor: `${k.accentColor}22`,
-                            border: `1px solid ${k.accentColor}55`,
-                          }}
-                        >
-                          <DeckIcon name={k.iconName} size={18} color={k.accentColor} />
-                        </div>
-                        {k.showTitle && (
-                          <span
-                            className={`font-semibold text-[#F4F5FA] truncate max-w-full leading-tight ${
-                              k.titleSize === "Small"
-                                ? "text-[10px]"
-                                : k.titleSize === "Large"
-                                ? "text-[13px]"
-                                : "text-[11.5px]"
-                            }`}
-                          >
-                            {k.title}
-                          </span>
+                        {clip ? (
+                          <ScreenFace
+                            clip={clip}
+                            config={k.media}
+                            iconName={look.icon}
+                            accent={k.accentColor}
+                            title={look.title}
+                            showTitle={k.showTitle}
+                            titleSize={k.titleSize}
+                            className="absolute inset-0"
+                          />
+                        ) : (
+                          <>
+                            <div
+                              className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105"
+                              style={{
+                                backgroundColor: `${k.accentColor}22`,
+                                border: `1px solid ${k.accentColor}55`,
+                              }}
+                            >
+                              <DeckIcon name={look.icon} size={18} color={k.accentColor} />
+                            </div>
+                            {k.showTitle && (
+                              <span
+                                className={`font-semibold text-[#F4F5FA] truncate max-w-full leading-tight ${
+                                  k.titleSize === "Small"
+                                    ? "text-[10px]"
+                                    : k.titleSize === "Large"
+                                    ? "text-[13px]"
+                                    : "text-[11.5px]"
+                                }`}
+                              >
+                                {look.title}
+                              </span>
+                            )}
+                            {look.level != null && (
+                              <LevelMeter percent={look.level} accent={k.accentColor} muted={look.muted} />
+                            )}
+                          </>
                         )}
                       </button>
                     );
@@ -990,31 +1780,76 @@ export const App: React.FC = () => {
 
                 {/* Secondary Touch Strip (if supported by device, e.g., Ajazz AKP05E Pro) */}
                 {activeDevice.touchStrip && (
-                  <div className="grid grid-cols-4 gap-2 bg-[#0B0D14] border border-[#272D3D] rounded-xl p-2">
-                    {activePage.touchZones.slice(0, activeDevice.touchStrip.zones).map((tz) => (
-                      <div
-                        key={tz.index}
-                        onClick={() =>
-                          triggerToast(
-                            `Touch Strip Zone #${tz.index + 1} (${tz.label}): CRT\\0\\0DRA ready`,
-                            "info"
-                          )
-                        }
-                        className="px-2.5 py-1.5 rounded-lg bg-[#151925] border border-[#272D3D] hover:border-[#8B5CF6]/60 cursor-pointer flex items-center justify-between"
-                      >
-                        <div>
-                          <div className="text-[9.5px] font-bold text-[#707B94] tracking-wider">
-                            {tz.label}
-                          </div>
+                  <div className="flex flex-col gap-1.5">
+                    <button
+                      onClick={() => setSurface("strip")}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        const file = event.dataTransfer.files?.[0];
+                        if (file) void ingestFile(file, "strip", 0);
+                      }}
+                      className={`h-7 rounded-md border text-[10.5px] font-semibold cursor-pointer ${
+                        surface === "strip"
+                          ? "border-[#8B5CF6] bg-[#30244F] text-white"
+                          : "border-[#272D3D] bg-[#111522] text-[#A6AFC4]"
+                      }`}
+                    >
+                      Whole touch strip · {activeDevice.touchStrip.pixelWidth}×{activeDevice.touchStrip.pixelHeight}
+                      {activePage.stripMedia ? " · image" : ""}
+                    </button>
+                    <div
+                      className="grid gap-2 bg-[#0B0D14] border border-[#272D3D] rounded-xl p-2"
+                      style={{ gridTemplateColumns: `repeat(${activeDevice.touchStrip.zones}, minmax(0, 1fr))` }}
+                    >
+                      {activePage.touchZones.slice(0, activeDevice.touchStrip.zones).map((tz) => {
+                        const zoneClip = clipFor(tz.media);
+                        const zoneSelected = surface === "zone" && surfaceIndex === tz.index;
+                        const zoneValue = liveZoneValue(tz.tapActionId, tz.valueText, tz.media ? null : face);
+                        return (
                           <div
-                            className="text-[11px] font-mono font-semibold"
-                            style={{ color: tz.accentColor }}
+                            key={tz.index}
+                            onClick={() => {
+                              setSurface("zone");
+                              setSurfaceIndex(tz.index);
+                            }}
+                            onDragOver={(event) => event.preventDefault()}
+                            onDrop={(event) => {
+                              event.preventDefault();
+                              const file = event.dataTransfer.files?.[0];
+                              if (file) void ingestFile(file, "zone", tz.index);
+                            }}
+                            className={`relative min-h-14 overflow-hidden px-2.5 py-1.5 rounded-lg bg-[#151925] border cursor-pointer flex items-center justify-between ${
+                              zoneSelected ? "border-[#8B5CF6]" : "border-[#272D3D] hover:border-[#8B5CF6]/60"
+                            }`}
                           >
-                            {tz.valueText}
+                            {zoneClip ? (
+                              <ScreenFace
+                                clip={zoneClip}
+                                config={tz.media}
+                                iconName="Image"
+                                accent={tz.accentColor}
+                                title={tz.label}
+                                showTitle
+                                className="absolute inset-0"
+                              />
+                            ) : (
+                              <div>
+                                <div className="text-[9.5px] font-bold text-[#707B94] tracking-wider">
+                                  {tz.label}
+                                </div>
+                                <div
+                                  className="text-[11px] font-mono font-semibold"
+                                  style={{ color: tz.accentColor }}
+                                >
+                                  {zoneValue}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      </div>
-                    ))}
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
@@ -1026,16 +1861,26 @@ export const App: React.FC = () => {
                       gridTemplateColumns: `repeat(${activeDevice.encoders.count}, minmax(0, 1fr))`,
                     }}
                   >
-                    {activePage.encoders.slice(0, activeDevice.encoders.count).map((enc) => (
+                    {activePage.encoders.slice(0, activeDevice.encoders.count).map((enc) => {
+                      const volumeKnob = [enc.cwAction, enc.ccwAction, enc.pushAction].some((action) =>
+                        action.includes("volume")
+                      );
+                      const knobValue =
+                        volumeKnob && face?.volumePercent != null
+                          ? `${face.volumePercent}%${face.speakerMuted ? " muted" : ""}`
+                          : enc.valueText;
+                      return (
                       <div
                         key={enc.index}
-                        onClick={() =>
-                          triggerToast(
-                            `Rotary Knob K${enc.index + 1}: CCW=${enc.ccwAction} | Push=${enc.pushAction} | CW=${enc.cwAction}`,
-                            "info"
-                          )
-                        }
-                        className="px-2.5 py-1.5 rounded-xl bg-[#111522] border border-[#272D3D] hover:border-[#8B5CF6]/60 flex items-center gap-2.5 cursor-pointer"
+                        onClick={() => {
+                          setSurface("encoder");
+                          setSurfaceIndex(enc.index);
+                        }}
+                        className={`px-2.5 py-1.5 rounded-xl bg-[#111522] border flex items-center gap-2.5 cursor-pointer ${
+                          surface === "encoder" && surfaceIndex === enc.index
+                            ? "border-[#8B5CF6]"
+                            : "border-[#272D3D] hover:border-[#8B5CF6]/60"
+                        }`}
                       >
                         <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#394158] to-[#10131D] border border-dashed border-[#A6AFC4]/60 shrink-0" />
                         <div className="min-w-0">
@@ -1043,27 +1888,46 @@ export const App: React.FC = () => {
                             {enc.label}
                           </div>
                           <div className="text-[9.5px] font-mono text-[#A6AFC4] truncate">
-                            {enc.valueText}
+                            {knobValue}
                           </div>
+                          {volumeKnob && face?.volumePercent != null && (
+                            <LevelMeter percent={face.volumePercent} accent="#35C98B" muted={face.speakerMuted === true} />
+                          )}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
+              </div>
+
+              <div className="text-[11px] text-[#707B94]">
+                {activeDevice.keys.count} LCD screens · {activeDevice.keys.pixelWidth}×{activeDevice.keys.pixelHeight}px
+                {activeDevice.keys.rotation ? ` · ${activeDevice.keys.rotation}°` : ""}
+                {activeDevice.touchStrip
+                  ? ` · strip ${activeDevice.touchStrip.pixelWidth}×${activeDevice.touchStrip.pixelHeight}`
+                  : ""}
+                . Drop a GIF onto any screen.
               </div>
 
               {/* Page Switcher Bar below the Deck Bezel */}
               <div className="flex items-center gap-1.5">
                 <div className="flex items-center bg-[#151925] border border-[#272D3D] rounded-md h-7 px-1">
                   <button
-                    onClick={() => setSelectedPageIdx((p) => Math.max(0, p - 1))}
+                    onClick={() => {
+                      deckforgeApi.holdAutoSwitch().catch(() => {});
+                      setSelectedPageIdx((p) => Math.max(0, p - 1));
+                    }}
                     className="px-1.5 text-[#A6AFC4] hover:text-white cursor-pointer"
                   >
                     <ChevronLeft size={13} />
                   </button>
                   <select
                     value={selectedPageIdx}
-                    onChange={(e) => setSelectedPageIdx(Number(e.target.value))}
+                    onChange={(e) => {
+                      deckforgeApi.holdAutoSwitch().catch(() => {});
+                      setSelectedPageIdx(Number(e.target.value));
+                    }}
                     className="bg-transparent text-xs font-medium text-[#F4F5FA] px-2 outline-none cursor-pointer"
                   >
                     {activeProfile.pages.map((pg, idx) => (
@@ -1073,9 +1937,10 @@ export const App: React.FC = () => {
                     ))}
                   </select>
                   <button
-                    onClick={() =>
-                      setSelectedPageIdx((p) => Math.min(activeProfile.pages.length - 1, p + 1))
-                    }
+                    onClick={() => {
+                      deckforgeApi.holdAutoSwitch().catch(() => {});
+                      setSelectedPageIdx((p) => Math.min(activeProfile.pages.length - 1, p + 1));
+                    }}
                     className="px-1.5 text-[#A6AFC4] hover:text-white cursor-pointer"
                   >
                     <ChevronRight size={13} />
@@ -1089,6 +1954,14 @@ export const App: React.FC = () => {
                 >
                   <Plus size={13} />
                 </button>
+                <button
+                  onClick={() => setTemplatesOpen(true)}
+                  title="Page templates"
+                  aria-label="Page templates"
+                  className="h-7 px-2 rounded-md bg-[#151925] border border-[#272D3D] hover:border-[#8B5CF6] text-[#A6AFC4] hover:text-white flex items-center justify-center gap-1.5 text-[11px] font-medium cursor-pointer"
+                >
+                  <LayoutTemplate size={13} /> Templates
+                </button>
               </div>
             </div>
 
@@ -1097,7 +1970,7 @@ export const App: React.FC = () => {
               {/* Left Category Filter Rail */}
               <div className="border-r border-[#272D3D] pr-3 flex flex-col gap-0.5 overflow-y-auto">
                 <div className="text-[11px] font-semibold text-[#A6AFC4] px-2 mb-1">Actions</div>
-                {["All", "Custom", "Streaming", "OBS", "Twitch", "YouTube", "Media", "System", "Plugins"].map(
+                {["All", "Custom", "Macro", "OBS", "Media", "System", "Navigation"].map(
                   (cat) => {
                     const isAct = actionCategoryFilter === cat;
                     return (
@@ -1137,6 +2010,26 @@ export const App: React.FC = () => {
                     <div
                       key={act.id}
                       onClick={() => {
+                        if (surface === "zone" && activeZone) {
+                          updateSelectedZone(activeZone.index, {
+                            label: act.title,
+                            valueText: act.subtitle,
+                            tapActionId: act.id,
+                            tapActionParam: actionNeedsParam(act.id) ? act.defaultParam : "",
+                            accentColor: act.accentColor,
+                          });
+                          triggerToast(`Assigned "${act.title}" to zone #${activeZone.index + 1}`, "info");
+                          return;
+                        }
+                        if (surface === "encoder" && activeEncoder) {
+                          updateSelectedEncoder(activeEncoder.index, {
+                            label: act.title,
+                            pushAction: act.id,
+                            pushParam: actionNeedsParam(act.id) ? act.defaultParam : "",
+                          });
+                          triggerToast(`Assigned "${act.title}" to the knob press`, "info");
+                          return;
+                        }
                         updateSelectedKey({
                           title: act.title,
                           subtitle: act.subtitle,
@@ -1186,25 +2079,65 @@ export const App: React.FC = () => {
           <aside className="bg-[#10131D] border-l border-[#272D3D] p-4 flex flex-col justify-between overflow-y-auto">
             <div className="flex flex-col gap-3.5">
               <div className="flex items-center justify-between">
-                <h2 className="text-[14px] font-bold text-[#F4F5FA]">Button Properties</h2>
+                <h2 className="text-[14px] font-bold text-[#F4F5FA]">
+                  {surface === "zone"
+                    ? "Touch Zone"
+                    : surface === "strip"
+                    ? "Touch Strip"
+                    : surface === "encoder"
+                    ? "Rotary Encoder"
+                    : "Button Properties"}
+                </h2>
                 <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#151925] border border-[#272D3D] text-[#A6AFC4]">
-                  Key #{activeKey.index + 1}
+                  {surface === "zone"
+                    ? `Zone #${(activeZone?.index ?? 0) + 1}`
+                    : surface === "strip"
+                    ? `${activeDevice.touchStrip?.pixelWidth ?? 0}×${activeDevice.touchStrip?.pixelHeight ?? 0}`
+                    : surface === "encoder"
+                    ? `Knob #${(activeEncoder?.index ?? 0) + 1}`
+                    : `Key #${activeKey.index + 1}`}
                 </span>
               </div>
 
-              {/* Preview Tile + Title Input Row */}
+              {surface === "key" && (
               <div className="flex items-center gap-3">
                 <div
                   style={{
                     borderRadius: `${activeKey.cornerRadius}px`,
                     background:
-                      activeKey.backgroundStyle === "Gradient"
+                      clipFor(activeKey.media)
+                        ? "#0B0D14"
+                        : activeKey.backgroundStyle === "Gradient"
                         ? `radial-gradient(circle at 50% 30%, ${activeKey.accentColor}55, ${activeKey.bgColor})`
                         : activeKey.bgColor,
                   }}
-                  className="w-15 h-15 border border-[#8B5CF6] flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(139,92,246,0.25)]"
+                  className="relative w-16 h-16 overflow-hidden border border-[#8B5CF6] flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(139,92,246,0.25)]"
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    const file = event.dataTransfer.files?.[0];
+                    if (file) void ingestFile(file, "key", activeKey.index);
+                  }}
                 >
-                  <DeckIcon name={activeKey.iconName} size={26} color={activeKey.accentColor} />
+                  {clipFor(activeKey.media) ? (
+                    <ScreenFace
+                      clip={clipFor(activeKey.media)}
+                      config={activeKey.media}
+                      iconName={activeKey.iconName}
+                      accent={activeKey.accentColor}
+                      title={activeKey.title}
+                      showTitle={activeKey.showTitle}
+                      titleSize={activeKey.titleSize}
+                      iconSize={26}
+                      className="absolute inset-0"
+                    />
+                  ) : (
+                    <DeckIcon
+                      name={liveKeyLook(activeKey.actionId, activeKey.title, activeKey.iconName, activeKey.media ? null : face).icon}
+                      size={26}
+                      color={activeKey.accentColor}
+                    />
+                  )}
                 </div>
                 <div className="flex-1">
                   <label className="block text-[11.5px] text-[#A6AFC4] mb-1">Title</label>
@@ -1213,90 +2146,178 @@ export const App: React.FC = () => {
                     onChange={(e) => updateSelectedKey({ title: e.target.value })}
                     className="w-full h-9 px-2.5 rounded-md bg-[#111522] border border-[#272D3D] focus:border-[#8B5CF6] text-xs text-[#F4F5FA] outline-none"
                   />
+                  {(() => {
+                    const look = liveKeyLook(activeKey.actionId, activeKey.title, activeKey.iconName, activeKey.media ? null : face);
+                    if (look.title === activeKey.title && look.level == null) return null;
+                    return (
+                      <div className="mt-1.5 flex flex-col gap-1">
+                        <div className="text-[10.5px] text-[#35C98B] truncate">Live · {look.title}</div>
+                        {look.level != null && <LevelMeter percent={look.level} accent={activeKey.accentColor} muted={look.muted} />}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
+              )}
 
-              {/* Action Selector */}
-              <div>
-                <label className="block text-[11.5px] text-[#A6AFC4] mb-1">Action Type</label>
-                <select
-                  value={activeKey.actionId}
-                  onChange={(e) => {
-                    const tpl = allActionTemplates.find((a) => a.id === e.target.value);
-                    if (tpl) {
-                      updateSelectedKey({
-                        actionId: tpl.id,
-                        actionLabel: tpl.actionLabel,
-                        actionCategory: tpl.category,
-                        actionParam: tpl.defaultParam,
-                        iconName: tpl.iconName,
-                        accentColor: tpl.accentColor,
-                        bgColor: tpl.bgColor,
-                      });
-                    }
+              {surface !== "encoder" && (
+                <MediaConfigurator
+                  title={
+                    surface === "strip"
+                      ? "Strip image"
+                      : surface === "zone"
+                      ? "Zone image"
+                      : "Key screen"
+                  }
+                  pixelLabel={
+                    surface === "strip" || surface === "zone"
+                      ? `Touch strip ${activeDevice.touchStrip?.pixelWidth ?? 0}×${activeDevice.touchStrip?.pixelHeight ?? 0}px`
+                      : `Key ${activeDevice.keys.pixelWidth}×${activeDevice.keys.pixelHeight}px · ${activeDevice.keys.rotation}°`
+                  }
+                  config={currentMedia()}
+                  clip={clipFor(currentMedia())}
+                  onUpload={() => fileRef.current?.click()}
+                  onSample={() => {
+                    const target: ScreenTarget = surface === "zone" || surface === "strip" ? surface : "key";
+                    const index = target === "key" ? activeKey.index : surfaceIndex;
+                    void useSampleAnimation(target, index);
                   }}
-                  className="w-full h-9 px-2.5 rounded-md bg-[#111522] border border-[#272D3D] focus:border-[#8B5CF6] text-xs text-[#F4F5FA] outline-none cursor-pointer"
-                >
-                  {allActionTemplates.map((a) => (
-                    <option key={a.id} value={a.id} className="bg-[#151925]">
-                      {a.actionLabel}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Custom Action Parameter + Live Keybind Recorder */}
-              <div className="p-2.5 rounded-lg bg-[#151925] border border-[#272D3D] flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold text-[#F4F5FA]">
-                    {activeKey.actionId.includes("launch")
-                      ? "Application / File Path (.exe)"
-                      : activeKey.actionId.includes("shell")
-                      ? "PowerShell / CLI Script"
-                      : activeKey.actionId.includes("url")
-                      ? "Website URL"
-                      : activeKey.actionId.includes("http")
-                      ? "HTTP Webhook Endpoint"
-                      : activeKey.actionId.includes("text")
-                      ? "Text Snippet to Paste"
-                      : "Shortcut / Command Parameter"}
-                  </span>
-                  <button
-                    onClick={() => setIsRecordingHotkey((r) => !r)}
-                    className={`px-2 py-0.5 rounded text-[10.5px] font-semibold cursor-pointer transition-all ${
-                      isRecordingHotkey
-                        ? "bg-[#F16B79] text-white animate-pulse"
-                        : "bg-[#30244F] text-[#8B5CF6] border border-[#8B5CF6]/50 hover:text-white"
-                    }`}
-                  >
-                    {isRecordingHotkey ? "Press Any Key..." : "● Record Keybind"}
-                  </button>
-                </div>
-                <input
-                  value={activeKey.actionParam}
-                  onChange={(e) => updateSelectedKey({ actionParam: e.target.value })}
-                  placeholder="e.g. Ctrl+Shift+M, notepad.exe, https://..."
-                  className="w-full h-8 px-2.5 rounded-md bg-[#0B0D14] border border-[#272D3D] focus:border-[#8B5CF6] text-xs font-mono text-[#F4F5FA] outline-none"
+                  onChange={patchCurrentMedia}
+                  onClear={() => {
+                    const target: ScreenTarget = surface === "zone" || surface === "strip" ? surface : "key";
+                    const index = target === "key" ? activeKey.index : surfaceIndex;
+                    assignMedia(target, index, null);
+                  }}
                 />
-                <div className="flex flex-wrap gap-1">
-                  {["Ctrl+Shift+M", "Win+Shift+S", "Win+D", "Alt+F4", "VK_MEDIA_PLAY_PAUSE"].map(
-                    (preset) => (
-                      <button
-                        key={preset}
-                        onClick={() =>
-                          updateSelectedKey({
-                            actionParam: preset,
-                            subtitle: preset,
-                          })
-                        }
-                        className="px-1.5 py-0.5 rounded bg-[#10131D] border border-[#272D3D] hover:border-[#8B5CF6] text-[10px] font-mono text-[#A6AFC4] hover:text-white cursor-pointer"
-                      >
-                        {preset}
-                      </button>
-                    )
+              )}
+
+              {surface === "zone" && activeZone && (
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11.5px] text-[#A6AFC4]">Zone label</label>
+                  <input
+                    value={activeZone.label}
+                    onChange={(e) => updateSelectedZone(activeZone.index, { label: e.target.value })}
+                    className="w-full h-8 px-2.5 rounded-md bg-[#111522] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+                  />
+                  <label className="text-[11.5px] text-[#A6AFC4]">Value text</label>
+                  <input
+                    value={activeZone.valueText}
+                    onChange={(e) => updateSelectedZone(activeZone.index, { valueText: e.target.value })}
+                    className="w-full h-8 px-2.5 rounded-md bg-[#111522] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+                  />
+                  <ActionBinding
+                    label="Tap"
+                    actionId={activeZone.tapActionId}
+                    actionParam={activeZone.tapActionParam ?? ""}
+                    choices={allActionTemplates}
+                    recording={hotkeyTarget === "zone"}
+                    onRecord={() => setHotkeyTarget("zone")}
+                    onChange={(actionId, actionParam) => {
+                      const tpl = allActionTemplates.find((item) => item.id === actionId);
+                      updateSelectedZone(activeZone.index, {
+                        tapActionId: actionId,
+                        tapActionParam: actionParam,
+                        ...(tpl && actionId !== activeZone.tapActionId
+                          ? { label: tpl.title, valueText: tpl.subtitle, accentColor: tpl.accentColor }
+                          : {}),
+                      });
+                    }}
+                    paramOptions={paramOptionsFor(activeZone.tapActionId)}
+                  />
+                  {activeZone.tapActionId.startsWith("obs.") && (
+                    <ObsConnection obsSettings={obsSettings} onSave={saveObs} />
                   )}
                 </div>
-              </div>
+              )}
+
+              {surface === "strip" && (
+                <p className="text-[11px] leading-relaxed text-[#A6AFC4]">
+                  A full-strip image covers all zones. Leave it empty to keep the zone cards, and upload a GIF on an individual zone if only that part should animate.
+                </p>
+              )}
+
+              {surface === "encoder" && activeEncoder && (
+                <div className="flex flex-col gap-2">
+                  <label className="text-[11.5px] text-[#A6AFC4]">Label</label>
+                  <input
+                    value={activeEncoder.label}
+                    onChange={(e) => updateSelectedEncoder(activeEncoder.index, { label: e.target.value })}
+                    className="w-full h-8 px-2.5 rounded-md bg-[#111522] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+                  />
+                  {(["cw", "ccw", "push"] as const).map((field) => {
+                    const stored = field === "cw" ? activeEncoder.cwAction : field === "ccw" ? activeEncoder.ccwAction : activeEncoder.pushAction;
+                    const param = field === "cw" ? activeEncoder.cwParam : field === "ccw" ? activeEncoder.ccwParam : activeEncoder.pushParam;
+                    const split = splitStoredBinding(stored, param, allActionTemplates.map((item) => item.id));
+                    return (
+                      <ActionBinding
+                        key={field}
+                        label={field === "cw" ? "Turn right" : field === "ccw" ? "Turn left" : "Press"}
+                        actionId={split.actionId}
+                        actionParam={split.actionParam}
+                        choices={allActionTemplates}
+                        recording={hotkeyTarget === field}
+                        onRecord={() => setHotkeyTarget(field)}
+                        onChange={(actionId, actionParam) => {
+                          const patch =
+                            field === "cw"
+                              ? { cwAction: actionId, cwParam: actionParam }
+                              : field === "ccw"
+                              ? { ccwAction: actionId, ccwParam: actionParam }
+                              : { pushAction: actionId, pushParam: actionParam };
+                          updateSelectedEncoder(activeEncoder.index, patch);
+                        }}
+                        paramOptions={paramOptionsFor(split.actionId)}
+                      />
+                    );
+                  })}
+                  {[activeEncoder.cwAction, activeEncoder.ccwAction, activeEncoder.pushAction].some((action) =>
+                    action.startsWith("obs.")
+                  ) && <ObsConnection obsSettings={obsSettings} onSave={saveObs} />}
+                </div>
+              )}
+
+              {surface === "key" && (
+              <>
+              <ActionBinding
+                label="Action"
+                actionId={activeKey.actionId}
+                actionParam={activeKey.actionParam}
+                choices={allActionTemplates}
+                recording={hotkeyTarget === "key"}
+                onRecord={() => setHotkeyTarget("key")}
+                onChange={(actionId, actionParam) => {
+                  const tpl = allActionTemplates.find((item) => item.id === actionId);
+                  const macro = actionId === "macro.run" ? macros.find((item) => item.id === actionParam) : undefined;
+                  updateSelectedKey({
+                    actionId,
+                    actionParam,
+                    ...(macro
+                      ? {
+                          title: macro.name,
+                          subtitle: "MACRO",
+                          actionLabel: `Macro: ${macro.name}`,
+                          actionCategory: "Macro",
+                          iconName: "Zap",
+                          accentColor: "#8B5CF6",
+                          bgColor: "#231B38",
+                        }
+                      : tpl && actionId !== activeKey.actionId
+                      ? {
+                          actionLabel: tpl.actionLabel,
+                          actionCategory: tpl.category,
+                          iconName: tpl.iconName,
+                          accentColor: tpl.accentColor,
+                          bgColor: tpl.bgColor,
+                          subtitle: actionNeedsParam(actionId) ? actionParam : tpl.subtitle,
+                        }
+                      : {}),
+                  });
+                }}
+                paramOptions={paramOptionsFor(activeKey.actionId)}
+              />
+              {activeKey.actionId.startsWith("obs.") && (
+                <ObsConnection obsSettings={obsSettings} onSave={saveObs} />
+              )}
 
               {/* Segmented Tabs: General (Action) | Icon (Appearance) | Style (Behavior) */}
               <div className="grid grid-cols-3 bg-[#111522] border border-[#272D3D] p-0.5 rounded-md">
@@ -1366,6 +2387,7 @@ export const App: React.FC = () => {
                     >
                       <option value="Gradient">Gradient</option>
                       <option value="Solid">Solid Surface</option>
+                      <option value="Image">Image / GIF</option>
                     </select>
                   </div>
 
@@ -1496,9 +2518,11 @@ export const App: React.FC = () => {
                   </div>
                 </div>
               )}
+              </>
+              )}
             </div>
 
-            {/* Bottom Inspector Buttons: Test Action + Clear Key */}
+            {surface === "key" && (
             <div className="flex flex-col gap-2 pt-3 border-t border-[#272D3D]">
               <button
                 onClick={handleTestSelectedAction}
@@ -1515,6 +2539,7 @@ export const App: React.FC = () => {
                 <span>Clear Key</span>
               </button>
             </div>
+            )}
           </aside>
         </div>
       )}
@@ -1524,7 +2549,7 @@ export const App: React.FC = () => {
         <div className="flex-1 grid grid-cols-[310px_1fr] overflow-hidden">
           <aside className="bg-[#10131D] border-r border-[#272D3D] p-4 flex flex-col gap-3 overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold">Detected & Simulated Hardware</h2>
+              <h2 className="text-sm font-bold">Connected</h2>
               <button
                 onClick={() => {
                   deckforgeApi.refreshUsbDevices().then(setDevices);
@@ -1535,41 +2560,52 @@ export const App: React.FC = () => {
                 <RefreshCw size={13} />
               </button>
             </div>
-            {devices.map((dev) => (
-              <div
-                key={dev.id}
-                onClick={() => setSelectedDeviceId(dev.id)}
-                className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                  dev.id === activeDevice.id
-                    ? "bg-[#30244F] border-[#8B5CF6]"
-                    : "bg-[#151925] border-[#272D3D] hover:border-[#394158]"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs">{dev.modelName}</span>
-                  <span
-                    className={`text-[10.5px] px-2 py-0.5 rounded font-medium ${
-                      dev.connected
-                        ? "bg-[#35C98B]/15 text-[#35C98B]"
-                        : "bg-[#272D3D] text-[#A6AFC4]"
-                    }`}
-                  >
-                    {dev.connected ? "● Connected" : "Simulator"}
-                  </span>
-                </div>
-                <div className="text-[11px] font-mono text-[#A6AFC4] mt-1">
-                  USB VID:PID {dev.vidPidHex} • {dev.protocolFamily}
-                </div>
-                <div className="text-[11px] text-[#707B94] mt-1">
-                  {dev.keys.rows}×{dev.keys.cols} Keys ({dev.keys.pixelWidth}px)
-                  {dev.touchStrip ? ` • ${dev.touchStrip.zones}-Zone Strip` : ""}
-                  {dev.encoders ? ` • ${dev.encoders.count} Encoders` : ""}
-                </div>
+            {connectedDevices.length === 0 ? (
+              <div className="px-3 py-4 rounded-lg border border-dashed border-[#272D3D] text-[11px] leading-relaxed text-[#707B94]">
+                No device connected. Plug in a deck, then rescan.
               </div>
-            ))}
+            ) : (
+              connectedDevices.map((dev) => (
+                <div
+                  key={dev.id}
+                  onClick={() => {
+                    setSelectedDeviceId(dev.id);
+                    setSelectedKeyIdx(0);
+                    setSurface("key");
+                    setSurfaceIndex(0);
+                  }}
+                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                    dev.id === activeDevice.id
+                      ? "bg-[#30244F] border-[#8B5CF6]"
+                      : "bg-[#151925] border-[#272D3D] hover:border-[#394158]"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs">{dev.modelName}</span>
+                    <span className="text-[10.5px] px-2 py-0.5 rounded font-medium bg-[#35C98B]/15 text-[#35C98B]">
+                      ● Connected
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-mono text-[#A6AFC4] mt-1">
+                    USB VID:PID {dev.vidPidHex} • {dev.protocolFamily}
+                  </div>
+                  <div className="text-[11px] text-[#707B94] mt-1">
+                    {dev.keys.rows}×{dev.keys.cols} Keys ({dev.keys.pixelWidth}px)
+                    {dev.touchStrip ? ` • ${dev.touchStrip.zones}-Zone Strip` : ""}
+                    {dev.encoders ? ` • ${dev.encoders.count} Encoders` : ""}
+                  </div>
+                </div>
+              ))
+            )}
           </aside>
 
           <main className="p-6 overflow-y-auto flex flex-col gap-5">
+            {connectedDevices.length === 0 ? (
+              <p className="text-sm text-[#A6AFC4]">
+                Plug in a deck to see its driver, brightness, and diagnostics.
+              </p>
+            ) : (
+            <>
             <div className="flex items-center justify-between border-b border-[#272D3D] pb-4">
               <div>
                 <h1 className="text-xl font-bold">{activeDevice.modelName}</h1>
@@ -1695,13 +2731,16 @@ export const App: React.FC = () => {
                   HID Path: {activeDevice.hidPath || "Virtual Simulator Bus"}
                 </div>
                 <div className="text-xs text-[#A6AFC4]">
-                  Key Resolution: {activeDevice.keys.pixelWidth}×{activeDevice.keys.pixelHeight}px @{" "}
-                  {activeDevice.keys.rotation}° • Official StreamDock.exe Conflict:{" "}
-                  {telemetry?.officialStreamdockRunning
-                    ? "Running (Recommend closing official app for exclusive HID read)"
-                    : "None (Clean Bus)"}
+                  Key screens: {activeDevice.keys.count} × {activeDevice.keys.pixelWidth}×{activeDevice.keys.pixelHeight}px @{" "}
+                  {activeDevice.keys.rotation}°
+                  {activeDevice.touchStrip
+                    ? ` • Touch strip ${activeDevice.touchStrip.pixelWidth}×${activeDevice.touchStrip.pixelHeight}px`
+                    : ""}
+                  . PNG, JPEG, WebP, and GIF uploads are fitted to those pixels. GIF playback is paced at 80ms or slower.
                 </div>
               </div>
+            )}
+            </>
             )}
           </main>
         </div>
@@ -1799,206 +2838,66 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* 5. SCREEN 05: MACRO STUDIO (Spec Section 8) */}
       {activeScreen === "macros" && (
-        <div className="flex-1 grid grid-cols-[240px_1fr_300px] overflow-hidden">
-          <aside className="bg-[#10131D] border-r border-[#272D3D] p-4 flex flex-col gap-2">
-            <div className="text-xs font-bold text-[#A6AFC4] mb-1">Macro Sequences</div>
-            {macros.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => {
-                  setSelectedMacroId(m.id);
-                  setSelectedMacroStepIdx(0);
-                }}
-                className={`text-left p-2.5 rounded-lg border cursor-pointer ${
-                  m.id === selectedMacroId
-                    ? "bg-[#30244F] border-[#8B5CF6] text-white"
-                    : "bg-[#151925] border-[#272D3D] text-[#A6AFC4]"
-                }`}
-              >
-                <div className="text-xs font-bold">{m.name}</div>
-                <div className="text-[10.5px] text-[#707B94] mt-0.5">{m.steps.length} steps</div>
-              </button>
-            ))}
-          </aside>
-
-          <main className="p-6 overflow-y-auto flex flex-col gap-4">
-            {(() => {
-              const activeMacro = macros.find((m) => m.id === selectedMacroId) || macros[0];
-              if (!activeMacro) return null;
-              return (
-                <>
-                  <div className="flex items-center justify-between border-b border-[#272D3D] pb-3">
-                    <div>
-                      <h1 className="text-lg font-bold">{activeMacro.name}</h1>
-                      <p className="text-xs text-[#A6AFC4]">{activeMacro.description}</p>
-                    </div>
-                    <button
-                      onClick={async () => {
-                        const rep = await deckforgeApi.executeMacroSequence(activeMacro.id);
-                        setMacroRunReport(rep);
-                        triggerToast(
-                          `Macro "${rep.macroName}" completed in ${rep.totalElapsedMs}ms`,
-                          "success"
-                        );
-                      }}
-                      className="h-9 px-4 rounded-md bg-[#8B5CF6] hover:bg-[#9D75F8] text-xs font-semibold text-white flex items-center gap-2 cursor-pointer"
-                    >
-                      <Play size={13} />
-                      <span>Test Macro</span>
-                    </button>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    {activeMacro.steps.map((st, idx) => (
-                      <div
-                        key={st.id}
-                        onClick={() => setSelectedMacroStepIdx(idx)}
-                        className={`p-3 rounded-lg border flex items-center justify-between cursor-pointer ${
-                          idx === selectedMacroStepIdx
-                            ? "bg-[#1C2130] border-[#8B5CF6]"
-                            : "bg-[#151925] border-[#272D3D]"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="w-6 h-6 rounded bg-[#30244F] text-[#8B5CF6] text-xs font-bold flex items-center justify-center">
-                            {idx + 1}
-                          </span>
-                          <div>
-                            <div className="text-xs font-bold">{st.label}</div>
-                            <div className="text-[11px] font-mono text-[#A6AFC4]">
-                              Type: {st.stepType} • Param: {st.parameter}
-                            </div>
-                          </div>
-                        </div>
-                        <span className="text-[11px] font-mono text-[#707B94]">
-                          Timeout: {st.timeoutMs}ms
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {macroRunReport && (
-                    <div className="p-3.5 rounded-xl bg-[#10131D] border border-[#35C98B]/50 font-mono text-xs">
-                      <div className="font-bold text-[#35C98B] mb-2">
-                        ✓ Test Run Log: {macroRunReport.macroName} ({macroRunReport.totalElapsedMs}
-                        ms)
-                      </div>
-                      {macroRunReport.stepResults.map((sr) => (
-                        <div key={sr.stepId} className="text-[#A6AFC4] py-0.5">
-                          [{sr.status}] {sr.label} — {sr.detail} ({sr.elapsedMs}ms)
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </main>
-
-          <aside className="bg-[#10131D] border-l border-[#272D3D] p-4 flex flex-col gap-3">
-            <div className="text-sm font-bold">Step Inspector</div>
-            <p className="text-xs text-[#A6AFC4]">
-              All macro steps run with bounded timeouts, cancellation tokens, and explicit OS
-              permission guards.
-            </p>
-            <div className="p-3 rounded-lg bg-[#151925] border border-[#272D3D] text-xs flex flex-col gap-1.5">
-              <div className="text-[#A6AFC4]">Auto-Switch Foreground Rules Active:</div>
-              {autoSwitchRules.map((r) => (
-                <div key={r.id} className="font-mono text-[11px] text-[#35C98B]">
-                  When {r.processName} → {r.targetProfileId.replace("profile-", "")}
-                </div>
-              ))}
-            </div>
-          </aside>
-        </div>
+        <MacroStudio
+          macros={macros}
+          profiles={profiles}
+          selectedMacroId={selectedMacroId}
+          selectedStepIdx={selectedMacroStepIdx}
+          runReport={macroRunReport}
+          activeKeyLabel={activeKey ? `key ${activeKey.index + 1}` : null}
+          onSelectMacro={setSelectedMacroId}
+          onSelectStep={setSelectedMacroStepIdx}
+          onChange={persistMacros}
+          onRun={async (macro) => {
+            const next = macros.some((item) => item.id === macro.id)
+              ? macros.map((item) => (item.id === macro.id ? macro : item))
+              : [macro, ...macros];
+            setMacros(next);
+            await deckforgeApi.saveMacros(next);
+            const report = await deckforgeApi.executeMacroSequence(macro.id);
+            setMacroRunReport(report);
+            triggerToast(
+              `${report.macroName} finished in ${report.totalElapsedMs}ms`,
+              report.stepResults.some((step) => step.status !== "Passed") ? "warning" : "success"
+            );
+          }}
+          onAssign={(macro) => {
+            void assignMacroToKey(macro);
+          }}
+        />
       )}
 
       {/* 6. SCREEN 06: ICON STUDIO (Spec Section 9) */}
       {activeScreen === "icons" && (
-        <div className="flex-1 grid grid-cols-[260px_1fr_300px] overflow-hidden">
-          <aside className="bg-[#10131D] border-r border-[#272D3D] p-4 overflow-y-auto">
-            <div className="text-xs font-bold text-[#A6AFC4] mb-2">
-              Built-in Vector Icon Browser
-            </div>
-            <div className="grid grid-cols-4 gap-2">
-              {AVAILABLE_ICON_NAMES.map((ico) => (
-                <button
-                  key={ico}
-                  onClick={() => updateSelectedKey({ iconName: ico })}
-                  className={`h-11 rounded-lg border flex flex-col items-center justify-center gap-1 cursor-pointer ${
-                    activeKey.iconName === ico
-                      ? "bg-[#30244F] border-[#8B5CF6]"
-                      : "bg-[#151925] border-[#272D3D] hover:border-[#394158]"
-                  }`}
-                >
-                  <DeckIcon name={ico} size={18} />
-                </button>
-              ))}
-            </div>
-          </aside>
-
-          <main className="flex flex-col items-center justify-center gap-6 p-6">
-            <div className="flex items-center gap-8">
-              {/* High-Res Editor Preview */}
-              <div className="flex flex-col items-center gap-2">
-                <div
-                  style={{
-                    borderRadius: `${activeKey.cornerRadius * 2}px`,
-                    background: `radial-gradient(circle at 50% 28%, ${activeKey.accentColor}55, ${activeKey.bgColor})`,
-                  }}
-                  className="w-40 h-40 border-2 border-[#8B5CF6] flex flex-col items-center justify-center gap-3 shadow-2xl"
-                >
-                  <DeckIcon name={activeKey.iconName} size={52} color={activeKey.accentColor} />
-                  {activeKey.showTitle && (
-                    <span className="text-base font-bold">{activeKey.title}</span>
-                  )}
-                </div>
-                <span className="text-xs text-[#A6AFC4]">Vector Master Canvas</span>
-              </div>
-
-              {/* Hardware-Downsampled Preview (85x85px) */}
-              <div className="flex flex-col items-center gap-2">
-                <div
-                  style={{
-                    width: `${activeDevice.keys.pixelWidth}px`,
-                    height: `${activeDevice.keys.pixelHeight}px`,
-                    borderRadius: `${activeKey.cornerRadius}px`,
-                    background: `radial-gradient(circle at 50% 28%, ${activeKey.accentColor}55, ${activeKey.bgColor})`,
-                  }}
-                  className="border border-[#394158] flex flex-col items-center justify-center gap-1"
-                >
-                  <DeckIcon name={activeKey.iconName} size={24} color={activeKey.accentColor} />
-                  {activeKey.showTitle && (
-                    <span className="text-[11px] font-semibold truncate max-w-full px-1">
-                      {activeKey.title}
-                    </span>
-                  )}
-                </div>
-                <span className="text-xs text-[#707B94] font-mono">
-                  Hardware Output ({activeDevice.keys.pixelWidth}×{activeDevice.keys.pixelHeight}px)
-                </span>
-              </div>
-            </div>
-
-            <button
-              onClick={handleBatchApplyStyleToPage}
-              className="h-9 px-4 rounded-md bg-[#8B5CF6] hover:bg-[#9D75F8] text-xs font-semibold text-white cursor-pointer"
-            >
-              Batch Apply Style to All Keys on Current Page
-            </button>
-          </main>
-
-          <aside className="bg-[#10131D] border-l border-[#272D3D] p-4 flex flex-col gap-3">
-            <div className="text-sm font-bold">Key Appearance Controls</div>
-            <p className="text-xs text-[#A6AFC4]">
-              Rust <code>image</code> crate encodes baseline JPEG frames at quality 88 with{" "}
-              {activeDevice.keys.rotation}° hardware rotation.
-            </p>
-          </aside>
-        </div>
+        <IconStudio
+          keys={activePage.keys.slice(0, activeDevice.keys.count)}
+          columns={activeDevice.keys.cols}
+          selectedIndex={activeKey.index}
+          clip={clipFor(activeKey.media)}
+          pixelWidth={activeDevice.keys.pixelWidth}
+          pixelHeight={activeDevice.keys.pixelHeight}
+          onSelectKey={(index) => {
+            setSurface("key");
+            setSurfaceIndex(index);
+            setSelectedKeyIdx(index);
+          }}
+          onChange={updateSelectedKey}
+          onUpload={() => fileRef.current?.click()}
+          onSample={() => void useSampleAnimation("key", activeKey.index)}
+          onClearMedia={() => assignMedia("key", activeKey.index, null)}
+          onMediaPatch={(patch) => {
+            if (!activeKey.media) return;
+            assignMedia("key", activeKey.index, { ...activeKey.media, ...patch });
+          }}
+          onPaintPage={handleBatchApplyStyleToPage}
+          onApply={() => void handleApplyToDevice()}
+          onDropFile={(file) => void ingestFile(file, "key", activeKey.index)}
+        />
       )}
+
+      {/* GAME MODE: close what you don't need while playing */}
+      {activeScreen === "gamemode" && <GameModeStudio notify={triggerToast} />}
 
       {/* 7. SCREEN 07: SETTINGS (Spec Section 10) */}
       {activeScreen === "settings" && (
@@ -2103,12 +3002,18 @@ export const App: React.FC = () => {
           <span className="flex items-center gap-1.5">
             <span
               className={`w-2 h-2 rounded-full ${
-                activeDevice.connected ? "bg-[#35C98B]" : "bg-[#F4B860]"
+                connectedDevices.length > 0 ? "bg-[#35C98B]" : "bg-[#707B94]"
               }`}
             />
-            <strong className="text-[#F4F5FA]">{activeDevice.modelName}</strong>
-            <span>• {activeDevice.connected ? "Connected" : "Simulator"}</span>
-            <span>• {activeDevice.keys.count} keys</span>
+            <strong className="text-[#F4F5FA]">
+              {connectedDevices.length > 0 ? activeDevice.modelName : "No device connected"}
+            </strong>
+            {connectedDevices.length > 0 && (
+              <>
+                <span>• Connected</span>
+                <span>• {activeDevice.keys.count} keys</span>
+              </>
+            )}
           </span>
           <span>• Profile: {activeProfile.name}</span>
           <span className={savedLocally ? "text-[#35C98B]" : "text-[#F4B860]"}>

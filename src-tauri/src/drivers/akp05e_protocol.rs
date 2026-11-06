@@ -18,6 +18,9 @@ pub enum InputControlKind {
     RotaryKnobPush,
     TouchStripTap,
     TouchStripSwipe,
+    /// A finger position on the strip. The input worker turns a short one into a tap
+    /// and a long horizontal move into a page change.
+    TouchStripPoint,
     Unknown,
 }
 
@@ -31,6 +34,9 @@ pub struct HardwareInputEvent {
     pub pressed: bool,
     pub raw_hex: String,
     pub timestamp_ms: u64,
+    /// Horizontal position on the 800-wide strip. Zero when the report is not a finger point.
+    #[serde(default)]
+    pub x: u16,
 }
 
 /// Builds a 1025-byte Windows HID output report with Report ID `0x00` at byte 0
@@ -51,11 +57,19 @@ fn crt_base_report(cmd: &[u8]) -> [u8; HID_REPORT_LEN] {
     buf
 }
 
-/// `SDLibrary1.dll` @ `0x180024420` (`sendHandshakePack`): `"CRT\0\0HAN\0\0\x01"` (V4 AKP05E Pro sets payload[10] = 0x01)
+/// `"CRT\0\0HAN"`. Mirajazz names this `sleep()`: the panel stays dark until the
+/// next physical press wakes it. That is the click-to-black, click-again-to-light
+/// behavior. Refreshing pictures must not send it.
 pub fn build_handshake_packet() -> [u8; HID_REPORT_LEN] {
     let mut buf = crt_base_report(b"HAN");
     buf[11] = 0x01;
     buf
+}
+
+/// `"CRT\0\0DIS"`. The N4 / AKP05 protocol uses this to turn the screen on.
+/// Mirajazz sends it at the start of `initialize()`, before brightness.
+pub fn build_screen_on_packet() -> [u8; HID_REPORT_LEN] {
+    crt_base_report(b"DIS")
 }
 
 /// `SDLibrary1.dll` @ `0x180023440` (`sendGetHardwareFirmwareVersion`): `"CRT\0\0VER"`
@@ -76,6 +90,25 @@ pub fn build_brightness_packet(percent: u8) -> [u8; HID_REPORT_LEN] {
     buf
 }
 
+/// `"CRT\0\0MOD"` with ASCII `1` at payload byte 10.
+/// Button mode is what keeps the ten key images on the panel. The strip still
+/// reports taps (`0x40`–`0x43`) and left/right swipes (`0x38`/`0x39`).
+/// `SDLibrary1.dll` `addModeChangedCommand` takes this mode byte.
+pub fn build_button_mode_packet() -> [u8; HID_REPORT_LEN] {
+    let mut buf = crt_base_report(b"MOD");
+    buf[11] = b'1';
+    buf
+}
+
+/// `"CRT\0\0MOD"` with ASCII `2`. The official app calls this Touchbar Mode.
+/// On the AKP05E it replaces the key grid: the first press clears those images
+/// and the panel stays black until the host redraws it. DeckForge does not send this.
+pub fn build_touchbar_mode_packet() -> [u8; HID_REPORT_LEN] {
+    let mut buf = crt_base_report(b"MOD");
+    buf[11] = b'2';
+    buf
+}
+
 /// `SDLibrary1.dll` @ `0x18001cfb0` / `0x18001d0f0` (`getClearSingleButtonCommand` / `getClearAllKeysCommand`):
 /// `"CRT\0\0CLE\0\0\0<keyIdx>"` (`0xFF` = all keys, `0x01..=0x0A` = single LCD key).
 pub fn build_clear_key_packet(key_idx: u8) -> [u8; HID_REPORT_LEN] {
@@ -93,6 +126,25 @@ pub fn build_finish_packet() -> [u8; HID_REPORT_LEN] {
 /// `SDLibrary1.dll` @ `0x180022dc0` (`sendDisconnectCommand`): `"CRT\0\0DIS"`
 pub fn build_disconnect_packet() -> [u8; HID_REPORT_LEN] {
     crt_base_report(b"DIS")
+}
+
+/// AKP05E visual key (row-major, 0 = top left) → 1-based BAT image slot.
+///
+/// The face is one 800×480 panel, not ten independent screens plus a strip at y=0.
+/// Slots 1–4 are the four 176×112 touch windows. The top key row is 11–15.
+/// The bottom key row is 6–10. Sending the top row as 1–5 paints those icons
+/// onto the touch strip, and an 800×100 image at y=0 covers the real top keys.
+pub fn akp05e_key_image_slot(visual_index: u8) -> u8 {
+    match visual_index {
+        0..=4 => 11 + visual_index,
+        5..=9 => visual_index + 1,
+        other => other.saturating_add(1).max(1),
+    }
+}
+
+/// Touch-strip zone (0 = left) → 1-based BAT slot. The four windows are slots 1–4.
+pub fn akp05e_touch_zone_slot(zone_index: u8) -> u8 {
+    zone_index.saturating_add(1).min(4).max(1)
 }
 
 /// `SDLibrary1.dll` @ `0x180023e60` (`sendPicSizeCommand`):
@@ -158,8 +210,176 @@ pub fn build_touch_strip_packets(
     packets
 }
 
+/// AKP05E control byte (input report byte 9) → which key, knob, or touch window moved.
+/// Key codes 1–10 are the ten LCD keys in visual order. They are not the image-slot numbers.
+fn decode_akp05_input(code: u8, state: u8) -> Option<(InputControlKind, u8, bool)> {
+    let pressed = state != 0;
+    let decoded = match code {
+        0x01..=0x0A => (InputControlKind::LcdKey, code - 1, pressed),
+        0xA0 => (InputControlKind::RotaryKnobTurnCcw, 0, true),
+        0xA1 => (InputControlKind::RotaryKnobTurnCw, 0, true),
+        0x50 => (InputControlKind::RotaryKnobTurnCcw, 1, true),
+        0x51 => (InputControlKind::RotaryKnobTurnCw, 1, true),
+        0x90 => (InputControlKind::RotaryKnobTurnCcw, 2, true),
+        0x91 => (InputControlKind::RotaryKnobTurnCw, 2, true),
+        0x70 => (InputControlKind::RotaryKnobTurnCcw, 3, true),
+        0x71 => (InputControlKind::RotaryKnobTurnCw, 3, true),
+        // The strip and the knob clicks are one-shot. The state byte is often 0,
+        // and a following release must not toggle play/pause a second time.
+        0x40 => (InputControlKind::TouchStripTap, 0, true),
+        0x41 => (InputControlKind::TouchStripTap, 1, true),
+        0x42 => (InputControlKind::TouchStripTap, 2, true),
+        0x43 => (InputControlKind::TouchStripTap, 3, true),
+        0x38 => (InputControlKind::TouchStripSwipe, 0, true),
+        0x39 => (InputControlKind::TouchStripSwipe, 1, true),
+        0x37 => (InputControlKind::RotaryKnobPush, 0, true),
+        0x35 => (InputControlKind::RotaryKnobPush, 1, true),
+        0x33 => (InputControlKind::RotaryKnobPush, 2, true),
+        0x36 => (InputControlKind::RotaryKnobPush, 3, true),
+        0x00 => return None,
+        other => (InputControlKind::Unknown, other, pressed),
+    };
+    Some(decoded)
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StripGestureResult {
+    Ignore,
+    Tap(u8),
+    SwipeNext,
+    SwipePrev,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct StripGesture {
+    start_x: Option<u16>,
+    last_x: u16,
+}
+
+fn zone_for_strip_x(x: u16) -> u8 {
+    ((u32::from(x.min(799)) * 4) / 800).min(3) as u8
+}
+
+/// A finger-down starts a gesture. A short lift is a tap. A move of 80px or more
+/// changes the page: right goes forward, left goes back.
+pub fn observe_strip_point(gesture: &mut StripGesture, phase: u8, x: u16) -> StripGestureResult {
+    if x == 0 && phase != 0 {
+        return StripGestureResult::Ignore;
+    }
+    match phase {
+        1 => {
+            gesture.start_x = Some(x);
+            gesture.last_x = x;
+            StripGestureResult::Ignore
+        }
+        2 => {
+            if x == 0 {
+                return StripGestureResult::Ignore;
+            }
+            if gesture.start_x.is_none() {
+                gesture.start_x = Some(x);
+            }
+            gesture.last_x = x;
+            StripGestureResult::Ignore
+        }
+        _ => {
+            let start = gesture.start_x.take().unwrap_or(x);
+            let end = if x == 0 { gesture.last_x } else { x };
+            gesture.last_x = end;
+            if start == 0 {
+                return StripGestureResult::Ignore;
+            }
+            let delta = i32::from(end) - i32::from(start);
+            if delta.abs() >= 80 {
+                if delta > 0 {
+                    StripGestureResult::SwipeNext
+                } else {
+                    StripGestureResult::SwipePrev
+                }
+            } else {
+                StripGestureResult::Tap(zone_for_strip_x(start))
+            }
+        }
+    }
+}
+
+pub fn resolve_strip_point(gesture: &mut StripGesture, point: &HardwareInputEvent) -> Option<HardwareInputEvent> {
+    let result = observe_strip_point(gesture, point.state_code, point.x);
+    let (kind, index) = match result {
+        StripGestureResult::Ignore => return None,
+        StripGestureResult::Tap(zone) => (InputControlKind::TouchStripTap, zone),
+        StripGestureResult::SwipeNext => (InputControlKind::TouchStripSwipe, 1),
+        StripGestureResult::SwipePrev => (InputControlKind::TouchStripSwipe, 0),
+    };
+    Some(HardwareInputEvent {
+        kind,
+        control_index: index,
+        state_code: 1,
+        pressed: true,
+        ..point.clone()
+    })
+}
+
+fn raw_hex_prefix(payload: &[u8]) -> String {
+    payload
+        .iter()
+        .take(16)
+        .map(|b| format!("{:02X}", b))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn point_event(device_id: &str, payload: &[u8], timestamp_ms: u64, phase: u8, x: u16) -> HardwareInputEvent {
+    HardwareInputEvent {
+        device_id: device_id.to_string(),
+        kind: InputControlKind::TouchStripPoint,
+        control_index: 0,
+        state_code: phase,
+        pressed: phase != 0,
+        raw_hex: raw_hex_prefix(payload),
+        timestamp_ms,
+        x,
+    }
+}
+
+/// Touchbar mode reports the finger. `ACK\0\0OK` is down or up. `ARX` is a move.
+/// A command ack has the same OK header and an X of 0, so it stays ignored.
+fn touch_strip_point(device_id: &str, payload: &[u8], timestamp_ms: u64) -> Option<HardwareInputEvent> {
+    if payload.len() >= 12 && &payload[5..8] == b"ARX" {
+        let x = u16::from_be_bytes([payload[10], payload[11]]);
+        if x == 0 {
+            return None;
+        }
+        return Some(point_event(device_id, payload, timestamp_ms, 2, x));
+    }
+    if payload.len() < 13 || &payload[5..7] != b"OK" {
+        return None;
+    }
+    let x = u16::from_be_bytes([payload[11], payload[12]]);
+    if x == 0 {
+        return None;
+    }
+    Some(point_event(device_id, payload, timestamp_ms, payload[10], x))
+}
+
+fn find_known_control(payload: &[u8]) -> Option<(u8, u8)> {
+    let end = payload.len().min(24);
+    for i in 0..end {
+        let code = payload[i];
+        let known = matches!(
+            code,
+            0x33 | 0x35 | 0x36 | 0x37 | 0x38 | 0x39 | 0x40..=0x43 | 0x50 | 0x51 | 0x70 | 0x71 | 0x90 | 0x91 | 0xA0 | 0xA1
+        );
+        if known {
+            let state = payload.get(i + 1).copied().unwrap_or(1);
+            return Some((code, state));
+        }
+    }
+    None
+}
+
 /// `SDLibrary1.dll` @ `0x180021280` / `0x180021ce5` (`readDataFromHidDevice`):
-/// Parses an input report (e.g. 512/513-byte or 64/65-byte with Report ID) beginning with `"ACK\0\0OK"`.
+/// Parses an input report. Command acks are `"ACK\0\0OK"`. Presses are `"ACK"` plus the control code at byte 9.
 pub fn parse_input_report(device_id: &str, report: &[u8], timestamp_ms: u64) -> Option<HardwareInputEvent> {
     let payload = if !report.is_empty() && report[0] == 0x00 {
         &report[1..]
@@ -171,42 +391,25 @@ pub fn parse_input_report(device_id: &str, report: &[u8], timestamp_ms: u64) -> 
         return None;
     }
 
-    // Verify "ACK" at 0..3 and "OK" at 5..7
-    if &payload[0..3] != b"ACK" || &payload[5..7] != b"OK" {
+    // Button reports start with "ACK". A finished command is "ACK\0\0OK" with no control code.
+    // A touchbar-mode tap uses that same header: byte 10 is down/up and bytes 11–12 are the X.
+    let (control_id, state_code) = if &payload[0..3] == b"ACK" {
+        if payload.len() >= 12 && &payload[5..8] == b"ARX" {
+            return touch_strip_point(device_id, payload, timestamp_ms);
+        }
+        let control_id = payload[9];
+        let state_code = payload[10];
+        if control_id == 0 && payload.len() >= 7 && &payload[5..7] == b"OK" {
+            return touch_strip_point(device_id, payload, timestamp_ms);
+        }
+        (control_id, state_code)
+    } else if let Some(found) = find_known_control(payload) {
+        found
+    } else {
         return None;
-    }
-
-    let control_id = payload[9];
-    let state_code = payload[10];
-
-    let (kind, control_index, pressed) = match control_id {
-        0x01..=0x20 => (
-            InputControlKind::LcdKey,
-            control_id.saturating_sub(1),
-            state_code != 0x00,
-        ),
-        0x50..=0x5F => (
-            InputControlKind::RotaryKnobTurnCcw,
-            control_id - 0x50,
-            true,
-        ),
-        0x60..=0x6F => (
-            InputControlKind::RotaryKnobTurnCw,
-            control_id - 0x60,
-            true,
-        ),
-        0x30..=0x3F => (
-            InputControlKind::RotaryKnobPush,
-            control_id - 0x30,
-            state_code != 0x00,
-        ),
-        0x40..=0x4F => (
-            InputControlKind::TouchStripTap,
-            control_id - 0x40,
-            state_code != 0x00,
-        ),
-        _ => (InputControlKind::Unknown, control_id, state_code != 0x00),
     };
+
+    let (kind, control_index, pressed) = decode_akp05_input(control_id, state_code)?;
 
     let raw_hex = payload[0..16]
         .iter()
@@ -222,11 +425,12 @@ pub fn parse_input_report(device_id: &str, report: &[u8], timestamp_ms: u64) -> 
         pressed,
         raw_hex,
         timestamp_ms,
+        x: 0,
     })
 }
 
 /// Parses a `#RRGGBB` hex color string into `[u8; 3]`.
-fn parse_hex_color(hex: &str, default: [u8; 3]) -> [u8; 3] {
+pub(crate) fn parse_hex_color(hex: &str, default: [u8; 3]) -> [u8; 3] {
     let clean = hex.trim_start_matches('#');
     if clean.len() >= 6 {
         let r = u8::from_str_radix(&clean[0..2], 16).unwrap_or(default[0]);
@@ -290,7 +494,7 @@ fn glyph_5x7(ch: char) -> [u8; 7] {
     }
 }
 
-fn draw_text_centered(
+pub(crate) fn draw_text_centered(
     img: &mut RgbImage,
     text: &str,
     center_x: i32,
@@ -435,11 +639,68 @@ fn icon_stroke_hit(icon_name: &str, dx: f32, dy: f32) -> bool {
             let lower = dy >= -0.5 && dy <= 11.0 && (dx - (-dy * 0.55 + 2.0)).abs() < 2.0;
             upper || mid || lower
         }
+        "Pause" => {
+            let left = (-8.0..=-3.0).contains(&dx) && dy.abs() <= 9.0;
+            let right = (3.0..=8.0).contains(&dx) && dy.abs() <= 9.0;
+            left || right
+        }
+        "Play" => dx >= -6.0 && dx <= 8.0 && (dx + 6.0) >= dy.abs() * 0.9,
+        "Mic" => {
+            let capsule = dx.abs() <= 4.5 && (-11.0..=1.0).contains(&dy) && (dx.abs() >= 2.8 || (dy + 11.0).abs() < 1.8 || (dy - 1.0).abs() < 1.8);
+            let u_cup = (-2.0..=5.5).contains(&dy) && (dist - 7.8).abs() < 1.6;
+            let stand = (dx.abs() < 1.2 && (5.5..=10.5).contains(&dy)) || ((9.5..=11.2).contains(&dy) && dx.abs() <= 5.5);
+            capsule || u_cup || stand
+        }
         _ => {
             // Generic 2x2 grid icon
             let gx = (dx.abs() - 5.5).abs();
             let gy = (dy.abs() - 5.5).abs();
             gx <= 3.5 && gy <= 3.5 && (gx >= 2.0 || gy >= 2.0)
+        }
+    }
+}
+
+/// Rotates a panel bitmap into the orientation the device expects.
+/// 90° and 270° are applied only when the panel is square, so a wide touch strip
+/// is not sent with its width and height swapped.
+pub(crate) fn orient_for_panel(img: RgbImage, rotation: u16) -> RgbImage {
+    let (w, h) = img.dimensions();
+    let r = rotation % 360;
+    if (r == 90 || r == 270) && w != h {
+        return img;
+    }
+    match r {
+        90 => image::imageops::rotate90(&img),
+        180 => image::imageops::rotate180(&img),
+        270 => image::imageops::rotate270(&img),
+        _ => img,
+    }
+}
+
+fn paint_level_meter(img: &mut RgbImage, percent: u8, accent: [u8; 3]) {
+    let width = img.width() as i32;
+    let height = img.height() as i32;
+    let segments = 8;
+    let gap = 2;
+    let bar_w = (width * 72 / 100).max(32);
+    let seg_w = ((bar_w - gap * (segments - 1)) / segments).max(2);
+    let used = seg_w * segments + gap * (segments - 1);
+    let start_x = (width - used) / 2;
+    let y = height - 7;
+    let filled = ((percent.min(100) as i32) * segments + 99) / 100;
+    for index in 0..segments {
+        let x0 = start_x + index * (seg_w + gap);
+        let color = if index < filled {
+            Rgb([accent[0], accent[1], accent[2]])
+        } else {
+            Rgb([39, 45, 61])
+        };
+        for py in y..(y + 3).min(height) {
+            for px in x0..(x0 + seg_w).min(width) {
+                if px >= 0 && py >= 0 {
+                    img.put_pixel(px as u32, py as u32, color);
+                }
+            }
         }
     }
 }
@@ -458,6 +719,8 @@ pub fn encode_procedural_key_jpeg(
     icon_name: &str,
     title: &str,
     _key_index: u8,
+    rotation: u16,
+    level: Option<u8>,
 ) -> Vec<u8> {
     let accent = parse_hex_color(accent_hex, [139, 92, 246]);
     let bg = parse_hex_color(bg_hex, [21, 25, 37]);
@@ -531,10 +794,15 @@ pub fn encode_procedural_key_jpeg(
         }
     }
 
+    if let Some(percent) = level {
+        paint_level_meter(&mut img, percent, accent);
+    }
+
     // Draw centered white title text below the icon badge (matching the UI screenshot!)
     if !title.trim().is_empty() {
+        let lift = if level.is_some() { 8 } else { 0 };
         let scale = if title.len() <= 8 && width >= 96 { 2 } else { 1 };
-        let text_y = (height as i32) - if scale == 2 { 24 } else { 18 };
+        let text_y = (height as i32) - if scale == 2 { 24 } else { 18 } - lift;
         if scale == 1 && width >= 96 {
             // For longer titles like "Start Stream" or "Show Desktop", split into 2 lines at scale=2 if space-separated,
             // or render crisp 1-line scale=1/2 so it is super readable on the physical LCD!
@@ -544,7 +812,7 @@ pub fn encode_procedural_key_jpeg(
                     &mut img,
                     words[0],
                     (width / 2) as i32,
-                    (height as i32) - 31,
+                    (height as i32) - 31 - lift,
                     2,
                     Rgb([244, 245, 250]),
                 );
@@ -552,7 +820,7 @@ pub fn encode_procedural_key_jpeg(
                     &mut img,
                     words[1],
                     (width / 2) as i32,
-                    (height as i32) - 15,
+                    (height as i32) - 15 - lift,
                     2,
                     Rgb([244, 245, 250]),
                 );
@@ -578,10 +846,10 @@ pub fn encode_procedural_key_jpeg(
         }
     }
 
-    let rotated = image::imageops::rotate180(&img);
+    let oriented = orient_for_panel(img, rotation);
     let mut out = Cursor::new(Vec::with_capacity(8192));
     let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 92);
-    let _ = encoder.encode_image(&rotated);
+    let _ = encoder.encode_image(&oriented);
     out.into_inner()
 }
 
@@ -591,6 +859,7 @@ pub fn encode_touch_strip_jpeg(
     width: u32,
     height: u32,
     zones: &[(String, String, String)], // (title, value_text, accent_hex)
+    rotation: u16,
 ) -> Vec<u8> {
     let mut img: RgbImage = ImageBuffer::new(width, height);
     let bg = [13u8, 16u8, 24u8];
@@ -640,10 +909,10 @@ pub fn encode_touch_strip_jpeg(
         );
     }
 
-    let rotated = image::imageops::rotate180(&img);
+    let oriented = orient_for_panel(img, rotation);
     let mut out = Cursor::new(Vec::with_capacity(16384));
     let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, 90);
-    let _ = encoder.encode_image(&rotated);
+    let _ = encoder.encode_image(&oriented);
     out.into_inner()
 }
 
@@ -659,6 +928,8 @@ mod tests {
         assert_eq!(&han[1..6], b"CRT\0\0");
         assert_eq!(&han[6..9], b"HAN");
         assert_eq!(han[11], 0x01);
+        let wake = build_screen_on_packet();
+        assert_eq!(&wake[6..9], b"DIS");
 
         let lig = build_brightness_packet(85);
         assert_eq!(lig.len(), 1025);
@@ -668,6 +939,22 @@ mod tests {
 
         let lig_clamped = build_brightness_packet(250);
         assert_eq!(lig_clamped[11], 100);
+    }
+
+    #[test]
+    fn akp05e_image_slots_match_the_physical_face() {
+        assert_eq!(
+            (0..5).map(akp05e_key_image_slot).collect::<Vec<_>>(),
+            vec![11, 12, 13, 14, 15]
+        );
+        assert_eq!(
+            (5..10).map(akp05e_key_image_slot).collect::<Vec<_>>(),
+            vec![6, 7, 8, 9, 10]
+        );
+        assert_eq!(
+            (0..4).map(akp05e_touch_zone_slot).collect::<Vec<_>>(),
+            vec![1, 2, 3, 4]
+        );
     }
 
     #[test]
@@ -691,9 +978,106 @@ mod tests {
         report[6..8].copy_from_slice(b"OK");
         report[10] = 0x01; // Key #1 (1-based)
         report[11] = 0x01; // Pressed
-        let evt = parse_input_report("akp05e-0300-3013", &report, 12345).expect("valid ACK OK");
+        let evt = parse_input_report("akp05e-0300-3013", &report, 12345).expect("valid key press");
         assert_eq!(evt.kind, InputControlKind::LcdKey);
         assert_eq!(evt.control_index, 0);
         assert!(evt.pressed);
+    }
+
+    #[test]
+    fn command_ack_is_not_a_button() {
+        let mut report = [0u8; 32];
+        report[0..3].copy_from_slice(b"ACK");
+        report[5..7].copy_from_slice(b"OK");
+        assert!(parse_input_report("ajazz-akp05e-pro", &report, 1).is_none());
+    }
+
+    #[test]
+    fn spotify_touch_and_volume_knob_have_their_own_codes() {
+        let mut touch = [0u8; 32];
+        touch[0..3].copy_from_slice(b"ACK");
+        touch[9] = 0x40;
+        touch[10] = 0x00;
+        let evt = parse_input_report("ajazz-akp05e-pro", &touch, 1).unwrap();
+        assert_eq!(evt.kind, InputControlKind::TouchStripTap);
+        assert_eq!(evt.control_index, 0);
+        assert!(evt.pressed);
+
+        let mut knob = [0u8; 32];
+        knob[0..3].copy_from_slice(b"ACK");
+        knob[9] = 0xA1;
+        let turn = parse_input_report("ajazz-akp05e-pro", &knob, 1).unwrap();
+        assert_eq!(turn.kind, InputControlKind::RotaryKnobTurnCw);
+        assert_eq!(turn.control_index, 0);
+    }
+
+    #[test]
+    fn touchbar_tap_on_the_left_is_the_spotify_zone() {
+        let mut down = [0u8; 32];
+        down[0..3].copy_from_slice(b"ACK");
+        down[5..7].copy_from_slice(b"OK");
+        down[10] = 0x01;
+        down[12] = 40;
+        let down_evt = parse_input_report("ajazz-akp05e-pro", &down, 1).unwrap();
+        assert_eq!(down_evt.kind, InputControlKind::TouchStripPoint);
+        assert_eq!(down_evt.x, 40);
+
+        let mut gesture = StripGesture::default();
+        assert!(resolve_strip_point(&mut gesture, &down_evt).is_none());
+        down[10] = 0x00;
+        let release = parse_input_report("ajazz-akp05e-pro", &down, 2).unwrap();
+        let tap = resolve_strip_point(&mut gesture, &release).unwrap();
+        assert_eq!(tap.kind, InputControlKind::TouchStripTap);
+        assert_eq!(tap.control_index, 0);
+    }
+
+    #[test]
+    fn a_finger_drag_changes_the_page() {
+        let mut gesture = StripGesture::default();
+        assert_eq!(observe_strip_point(&mut gesture, 1, 40), StripGestureResult::Ignore);
+        assert_eq!(observe_strip_point(&mut gesture, 2, 420), StripGestureResult::Ignore);
+        assert_eq!(observe_strip_point(&mut gesture, 0, 460), StripGestureResult::SwipeNext);
+        assert_eq!(observe_strip_point(&mut gesture, 1, 700), StripGestureResult::Ignore);
+        assert_eq!(observe_strip_point(&mut gesture, 0, 80), StripGestureResult::SwipePrev);
+    }
+
+    #[test]
+    fn button_mode_keeps_the_key_images() {
+        let pkt = build_button_mode_packet();
+        assert_eq!(&pkt[6..9], b"MOD");
+        assert_eq!(pkt[11], b'1');
+        assert_ne!(pkt[11], build_touchbar_mode_packet()[11]);
+    }
+
+    #[test]
+    fn touchbar_mode_reports_the_finger() {
+        let pkt = build_touchbar_mode_packet();
+        assert_eq!(&pkt[6..9], b"MOD");
+        assert_eq!(pkt[11], b'2');
+
+        let mut move_pkt = [0u8; 32];
+        move_pkt[0..3].copy_from_slice(b"ACK");
+        move_pkt[5..8].copy_from_slice(b"ARX");
+        move_pkt[10] = 0x01;
+        move_pkt[11] = 0x2C;
+        let evt = parse_input_report("ajazz-akp05e-pro", &move_pkt, 1).unwrap();
+        assert_eq!(evt.kind, InputControlKind::TouchStripPoint);
+        assert_eq!(evt.state_code, 2);
+        assert_eq!(evt.x, 300);
+    }
+
+    #[test]
+    fn strip_swipe_is_left_or_right() {
+        let mut left = [0u8; 32];
+        left[0..3].copy_from_slice(b"ACK");
+        left[9] = 0x38;
+        let evt = parse_input_report("ajazz-akp05e-pro", &left, 1).unwrap();
+        assert_eq!(evt.kind, InputControlKind::TouchStripSwipe);
+        assert_eq!(evt.control_index, 0);
+        assert!(evt.pressed);
+
+        left[9] = 0x39;
+        let right = parse_input_report("ajazz-akp05e-pro", &left, 2).unwrap();
+        assert_eq!(right.control_index, 1);
     }
 }

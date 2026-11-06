@@ -5,6 +5,15 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ScreenMediaConfig {
+    pub media_id: String,
+    pub fit: String,
+    pub loop_playback: bool,
+    pub speed: f32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct KeyConfig {
     pub index: u8,
     pub title: String,
@@ -20,6 +29,8 @@ pub struct KeyConfig {
     pub title_size: String,
     pub background_style: String,
     pub corner_radius: u8,
+    #[serde(default)]
+    pub media: Option<ScreenMediaConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -30,6 +41,10 @@ pub struct TouchZoneConfig {
     pub value_text: String,
     pub tap_action_id: String,
     pub accent_color: String,
+    #[serde(default)]
+    pub tap_action_param: String,
+    #[serde(default)]
+    pub media: Option<ScreenMediaConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -41,6 +56,12 @@ pub struct EncoderConfig {
     pub cw_action: String,
     pub ccw_action: String,
     pub push_action: String,
+    #[serde(default)]
+    pub cw_param: String,
+    #[serde(default)]
+    pub ccw_param: String,
+    #[serde(default)]
+    pub push_param: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -51,6 +72,8 @@ pub struct ProfilePage {
     pub keys: Vec<KeyConfig>,
     pub touch_zones: Vec<TouchZoneConfig>,
     pub encoders: Vec<EncoderConfig>,
+    #[serde(default)]
+    pub strip_media: Option<ScreenMediaConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -143,7 +166,7 @@ pub fn default_keys() -> Vec<KeyConfig> {
         ("Audio Mixer", "MIX", "Sliders", "audio.open_mixer", "Audio: Open Volume Mixer (sndvol.exe)", "Media", "sndvol.exe", "#8B5CF6", "#231B38"),
         ("Spotify", "PLAY", "Music", "media.play_pause", "Media: Play / Pause Track", "Media", "VK_MEDIA_PLAY_PAUSE", "#35C98B", "#112822"),
         ("Settings", "WIN+I", "Settings", "sys.hotkey", "System: Windows Settings (Win+I)", "System", "Win+I", "#56B9F2", "#132235"),
-        ("Diagnostics", "SYS", "LayoutGrid", "profile.switch_page", "Navigation: Open Diagnostics Page", "System", "Page 2", "#8B5CF6", "#231B38"),
+        ("Desktop", "PAGE", "Monitor", "profile.switch_page", "Navigation: Open Desktop Page", "Navigation", "Desktop", "#56B9F2", "#132235"),
     ];
 
     let mut out = Vec::with_capacity(32);
@@ -164,6 +187,7 @@ pub fn default_keys() -> Vec<KeyConfig> {
             title_size: "Medium".to_string(),
             background_style: "Gradient".to_string(),
             corner_radius: 8,
+            media: None,
         });
     }
     out
@@ -177,13 +201,17 @@ pub fn default_touch_zones() -> Vec<TouchZoneConfig> {
             value_text: "▶ Play / Pause".to_string(),
             tap_action_id: "media.play_pause".to_string(),
             accent_color: "#35C98B".to_string(),
+            tap_action_param: String::new(),
+            media: None,
         },
         TouchZoneConfig {
             index: 1,
-            label: "CPU LOAD".to_string(),
-            value_text: "Live Telemetry".to_string(),
-            tap_action_id: "sys.hotkey".to_string(),
+            label: "NEXT PAGE".to_string(),
+            value_text: "Next page".to_string(),
+            tap_action_id: "profile.next_page".to_string(),
             accent_color: "#56B9F2".to_string(),
+            tap_action_param: String::new(),
+            media: None,
         },
         TouchZoneConfig {
             index: 2,
@@ -191,6 +219,8 @@ pub fn default_touch_zones() -> Vec<TouchZoneConfig> {
             value_text: "Open Audio".to_string(),
             tap_action_id: "audio.open_mixer".to_string(),
             accent_color: "#8B5CF6".to_string(),
+            tap_action_param: String::new(),
+            media: None,
         },
         TouchZoneConfig {
             index: 3,
@@ -198,6 +228,8 @@ pub fn default_touch_zones() -> Vec<TouchZoneConfig> {
             value_text: "Toggle Mute".to_string(),
             tap_action_id: "audio.mute_mic".to_string(),
             accent_color: "#F4B860".to_string(),
+            tap_action_param: String::new(),
+            media: None,
         },
     ]
 }
@@ -211,6 +243,9 @@ pub fn default_encoders() -> Vec<EncoderConfig> {
             cw_action: "audio.volume_up".to_string(),
             ccw_action: "audio.volume_down".to_string(),
             push_action: "audio.volume_mute".to_string(),
+            cw_param: String::new(),
+            ccw_param: String::new(),
+            push_param: String::new(),
         },
         EncoderConfig {
             index: 1,
@@ -219,6 +254,9 @@ pub fn default_encoders() -> Vec<EncoderConfig> {
             cw_action: "media.next".to_string(),
             ccw_action: "media.prev".to_string(),
             push_action: "media.play_pause".to_string(),
+            cw_param: String::new(),
+            ccw_param: String::new(),
+            push_param: String::new(),
         },
         EncoderConfig {
             index: 2,
@@ -227,6 +265,9 @@ pub fn default_encoders() -> Vec<EncoderConfig> {
             cw_action: "Right".to_string(),
             ccw_action: "Left".to_string(),
             push_action: "Space".to_string(),
+            cw_param: String::new(),
+            ccw_param: String::new(),
+            push_param: String::new(),
         },
         EncoderConfig {
             index: 3,
@@ -235,31 +276,249 @@ pub fn default_encoders() -> Vec<EncoderConfig> {
             cw_action: "brightness.up".to_string(),
             ccw_action: "brightness.down".to_string(),
             push_action: "brightness.toggle".to_string(),
+            cw_param: String::new(),
+            ccw_param: String::new(),
+            push_param: String::new(),
         },
     ]
 }
 
+type KeySpec = (
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+    &'static str,
+);
+
+fn paint_keys(specs: &[KeySpec], accent: &str, bg: &str) -> Vec<KeyConfig> {
+    let mut out = Vec::with_capacity(32);
+    for i in 0..32u8 {
+        let spec = specs[(i as usize) % specs.len()];
+        out.push(KeyConfig {
+            index: i,
+            title: spec.0.to_string(),
+            subtitle: spec.1.to_string(),
+            icon_name: spec.2.to_string(),
+            action_id: spec.3.to_string(),
+            action_label: spec.4.to_string(),
+            action_category: spec.5.to_string(),
+            action_param: spec.6.to_string(),
+            accent_color: accent.to_string(),
+            bg_color: bg.to_string(),
+            show_title: true,
+            title_size: "Medium".to_string(),
+            background_style: "Gradient".to_string(),
+            corner_radius: 8,
+            media: None,
+        });
+    }
+    out
+}
+
+fn zone(index: u8, label: &str, value: &str, action: &str, color: &str) -> TouchZoneConfig {
+    TouchZoneConfig {
+        index,
+        label: label.to_string(),
+        value_text: value.to_string(),
+        tap_action_id: action.to_string(),
+        accent_color: color.to_string(),
+        tap_action_param: String::new(),
+        media: None,
+    }
+}
+
+fn nav_zones(label: &str, value: &str, action: &str, color: &str) -> Vec<TouchZoneConfig> {
+    vec![
+        zone(0, label, value, action, color),
+        zone(1, "PREV PAGE", "Previous page", "profile.prev_page", "#56B9F2"),
+        zone(2, "PAGE", "Swipe to change", "profile.next_page", "#8B5CF6"),
+        zone(3, "NEXT PAGE", "Next page", "profile.next_page", "#F4B860"),
+    ]
+}
+
+fn make_page(id: &str, name: &str, keys: Vec<KeyConfig>, zones: Vec<TouchZoneConfig>) -> ProfilePage {
+    ProfilePage {
+        id: id.to_string(),
+        name: name.to_string(),
+        keys,
+        touch_zones: zones,
+        encoders: default_encoders(),
+        strip_media: None,
+    }
+}
+
+fn music_page() -> ProfilePage {
+    make_page(
+        "page-music",
+        "Music",
+        paint_keys(
+            &[
+                ("Play", "SPOTIFY", "Music", "media.play_pause", "Media: Play / Pause", "Media", ""),
+                ("Next", "TRACK", "Music", "media.next", "Media: Next Track", "Media", ""),
+                ("Previous", "TRACK", "Disc", "media.prev", "Media: Previous Track", "Media", ""),
+                ("Stop", "MEDIA", "Disc", "media.stop", "Media: Stop", "Media", ""),
+                ("Vol Up", "+2%", "Volume2", "audio.volume_up", "Audio: Volume Up", "Media", ""),
+                ("Vol Down", "-2%", "Volume2", "audio.volume_down", "Audio: Volume Down", "Media", ""),
+                ("Mute", "SOUND", "Volume2", "audio.volume_mute", "Audio: Mute Speakers", "Media", ""),
+                ("Mute Mic", "MIC", "MicOff", "audio.mute_mic", "Audio: Mute Microphone", "Media", ""),
+                ("Mixer", "AUDIO", "Volume2", "audio.open_mixer", "Audio: Open Mixer", "Media", ""),
+                ("Stream", "PAGE", "Radio", "profile.switch_page", "Navigation: Stream Page", "Navigation", "Page 1"),
+            ],
+            "#35C98B",
+            "#112822",
+        ),
+        nav_zones("SPOTIFY", "Play / Pause", "media.play_pause", "#35C98B"),
+    )
+}
+
+fn desktop_page() -> ProfilePage {
+    make_page(
+        "page-desktop",
+        "Desktop",
+        paint_keys(
+            &[
+                ("Screenshot", "SNAP", "Camera", "sys.screenshot", "System: Screenshot", "System", "Win+Shift+S"),
+                ("Desktop", "SHOW", "Monitor", "sys.show_desktop", "System: Show Desktop", "System", "Win+D"),
+                ("Task Mgr", "TASK", "Terminal", "sys.hotkey", "System: Task Manager", "System", "Ctrl+Shift+Esc"),
+                ("Files", "OPEN", "Folder", "sys.hotkey", "System: File Explorer", "System", "Win+E"),
+                ("Lock", "PC", "Zap", "sys.lock_pc", "System: Lock PC", "System", ""),
+                ("Settings", "WIN", "Settings", "sys.hotkey", "System: Windows Settings", "System", "Win+I"),
+                ("Vol Up", "+2%", "Volume2", "audio.volume_up", "Audio: Volume Up", "Media", ""),
+                ("Mute Mic", "MIC", "MicOff", "audio.mute_mic", "Audio: Mute Microphone", "Media", ""),
+                ("Brighter", "DECK", "Zap", "brightness.up", "Deck: Brightness Up", "System", ""),
+                ("Music", "PAGE", "Music", "profile.switch_page", "Navigation: Music Page", "Navigation", "Music"),
+            ],
+            "#56B9F2",
+            "#132235",
+        ),
+        nav_zones("SNAP", "Screenshot", "sys.screenshot", "#56B9F2"),
+    )
+}
+
+fn game_page() -> ProfilePage {
+    make_page(
+        "page-game",
+        "Game",
+        paint_keys(
+            &[
+                ("Mute Mic", "MIC", "MicOff", "audio.mute_mic", "Audio: Mute Microphone", "Media", ""),
+                ("Vol Up", "+2%", "Volume2", "audio.volume_up", "Audio: Volume Up", "Media", ""),
+                ("Vol Down", "-2%", "Volume2", "audio.volume_down", "Audio: Volume Down", "Media", ""),
+                ("Mute", "SOUND", "Volume2", "audio.volume_mute", "Audio: Mute Speakers", "Media", ""),
+                ("Play", "MUSIC", "Music", "media.play_pause", "Media: Play / Pause", "Media", ""),
+                ("Screenshot", "SNAP", "Camera", "sys.screenshot", "System: Screenshot", "System", "Win+Shift+S"),
+                ("Desktop", "SHOW", "Monitor", "sys.show_desktop", "System: Show Desktop", "System", "Win+D"),
+                ("Task Mgr", "TASK", "Terminal", "sys.hotkey", "System: Task Manager", "System", "Ctrl+Shift+Esc"),
+                ("Lock", "PC", "Zap", "sys.lock_pc", "System: Lock PC", "System", ""),
+                ("Music", "PAGE", "Music", "profile.switch_page", "Navigation: Music Page", "Navigation", "Music"),
+            ],
+            "#35C98B",
+            "#10241C",
+        ),
+        nav_zones("MIC", "Mute mic", "audio.mute_mic", "#35C98B"),
+    )
+}
+
+fn edit_page() -> ProfilePage {
+    make_page(
+        "page-edit",
+        "Edit",
+        paint_keys(
+            &[
+                ("Screenshot", "SNAP", "Camera", "sys.screenshot", "System: Screenshot", "System", "Win+Shift+S"),
+                ("Play", "REVIEW", "Music", "media.play_pause", "Media: Play / Pause", "Media", ""),
+                ("Previous", "CLIP", "Disc", "media.prev", "Media: Previous Track", "Media", ""),
+                ("Next", "CLIP", "Music", "media.next", "Media: Next Track", "Media", ""),
+                ("Vol Up", "+2%", "Volume2", "audio.volume_up", "Audio: Volume Up", "Media", ""),
+                ("Vol Down", "-2%", "Volume2", "audio.volume_down", "Audio: Volume Down", "Media", ""),
+                ("Mute Mic", "MIC", "MicOff", "audio.mute_mic", "Audio: Mute Microphone", "Media", ""),
+                ("Files", "OPEN", "Folder", "sys.hotkey", "System: File Explorer", "System", "Win+E"),
+                ("Desktop", "SHOW", "Monitor", "sys.show_desktop", "System: Show Desktop", "System", "Win+D"),
+                ("Music", "PAGE", "Music", "profile.switch_page", "Navigation: Music Page", "Navigation", "Music"),
+            ],
+            "#56B9F2",
+            "#10202C",
+        ),
+        nav_zones("SNAP", "Screenshot", "sys.screenshot", "#56B9F2"),
+    )
+}
+
+fn work_page() -> ProfilePage {
+    make_page(
+        "page-work",
+        "Work",
+        paint_keys(
+            &[
+                ("Files", "OPEN", "Folder", "sys.hotkey", "System: File Explorer", "System", "Win+E"),
+                ("Settings", "WIN", "Settings", "sys.hotkey", "System: Windows Settings", "System", "Win+I"),
+                ("Screenshot", "SNAP", "Camera", "sys.screenshot", "System: Screenshot", "System", "Win+Shift+S"),
+                ("Desktop", "SHOW", "Monitor", "sys.show_desktop", "System: Show Desktop", "System", "Win+D"),
+                ("Lock", "PC", "Zap", "sys.lock_pc", "System: Lock PC", "System", ""),
+                ("Task Mgr", "TASK", "Terminal", "sys.hotkey", "System: Task Manager", "System", "Ctrl+Shift+Esc"),
+                ("Mute Mic", "MIC", "MicOff", "audio.mute_mic", "Audio: Mute Microphone", "Media", ""),
+                ("Vol Up", "+2%", "Volume2", "audio.volume_up", "Audio: Volume Up", "Media", ""),
+                ("Play", "MUSIC", "Music", "media.play_pause", "Media: Play / Pause", "Media", ""),
+                ("Music", "PAGE", "Music", "profile.switch_page", "Navigation: Music Page", "Navigation", "Music"),
+            ],
+            "#F4B860",
+            "#2A2215",
+        ),
+        nav_zones("FILES", "Explorer", "sys.hotkey", "#F4B860"),
+    )
+}
+
+fn home_page() -> ProfilePage {
+    make_page(
+        "page-home",
+        "Home",
+        paint_keys(
+            &[
+                ("Desktop", "SHOW", "Monitor", "sys.show_desktop", "System: Show Desktop", "System", "Win+D"),
+                ("Screenshot", "SNAP", "Camera", "sys.screenshot", "System: Screenshot", "System", "Win+Shift+S"),
+                ("Files", "OPEN", "Folder", "sys.hotkey", "System: File Explorer", "System", "Win+E"),
+                ("Settings", "WIN", "Settings", "sys.hotkey", "System: Windows Settings", "System", "Win+I"),
+                ("Lock", "PC", "Zap", "sys.lock_pc", "System: Lock PC", "System", ""),
+                ("Task Mgr", "TASK", "Terminal", "sys.hotkey", "System: Task Manager", "System", "Ctrl+Shift+Esc"),
+                ("Vol Up", "+2%", "Volume2", "audio.volume_up", "Audio: Volume Up", "Media", ""),
+                ("Mute Mic", "MIC", "MicOff", "audio.mute_mic", "Audio: Mute Microphone", "Media", ""),
+                ("Play", "MUSIC", "Music", "media.play_pause", "Media: Play / Pause", "Media", ""),
+                ("Music", "PAGE", "Music", "profile.switch_page", "Navigation: Music Page", "Navigation", "Music"),
+            ],
+            "#A6AFC4",
+            "#1A1E27",
+        ),
+        nav_zones("DESK", "Show desktop", "sys.show_desktop", "#A6AFC4"),
+    )
+}
+
+fn work_zone_needs_param(zones: &mut [TouchZoneConfig]) {
+    for zone in zones {
+        if zone.tap_action_id == "sys.hotkey" && zone.tap_action_param.is_empty() {
+            zone.tap_action_param = "Win+E".to_string();
+        }
+    }
+}
+
 pub fn default_profiles() -> Vec<Profile> {
     let ts = now_ms();
-    let page1 = ProfilePage {
+    let stream = ProfilePage {
         id: "page-1".to_string(),
         name: "Page 1".to_string(),
         keys: default_keys(),
         touch_zones: default_touch_zones(),
         encoders: default_encoders(),
+        strip_media: None,
     };
-    let mut page2_keys = default_keys();
-    page2_keys[0].title = "CPU Monitor".to_string();
-    page2_keys[0].action_label = "System: Live CPU Telemetry".to_string();
-    page2_keys[1].title = "RAM Usage".to_string();
-    page2_keys[1].action_label = "System: Live RAM Telemetry".to_string();
-    let page2 = ProfilePage {
-        id: "page-2".to_string(),
-        name: "Page 2 (Telemetry)".to_string(),
-        keys: page2_keys,
-        touch_zones: default_touch_zones(),
-        encoders: default_encoders(),
-    };
+    let game = game_page();
+    let edit = edit_page();
+    let mut work = work_page();
+    work_zone_needs_param(&mut work.touch_zones);
+    let home = home_page();
+    let music = music_page();
+    let desktop = desktop_page();
 
     vec![
         Profile {
@@ -268,7 +527,7 @@ pub fn default_profiles() -> Vec<Profile> {
             icon: "Radio".to_string(),
             color_strip: "#8B5CF6".to_string(),
             target_device_id: "ajazz-akp05e-pro".to_string(),
-            pages: vec![page1.clone(), page2],
+            pages: vec![stream, desktop.clone(), music.clone()],
             last_modified_ms: ts,
         },
         Profile {
@@ -277,7 +536,7 @@ pub fn default_profiles() -> Vec<Profile> {
             icon: "Gamepad2".to_string(),
             color_strip: "#35C98B".to_string(),
             target_device_id: "ajazz-akp05e-pro".to_string(),
-            pages: vec![page1.clone()],
+            pages: vec![game, music.clone(), desktop.clone()],
             last_modified_ms: ts,
         },
         Profile {
@@ -286,7 +545,7 @@ pub fn default_profiles() -> Vec<Profile> {
             icon: "Film".to_string(),
             color_strip: "#56B9F2".to_string(),
             target_device_id: "ajazz-akp05e-pro".to_string(),
-            pages: vec![page1.clone()],
+            pages: vec![edit, music.clone(), desktop.clone()],
             last_modified_ms: ts,
         },
         Profile {
@@ -295,7 +554,7 @@ pub fn default_profiles() -> Vec<Profile> {
             icon: "Briefcase".to_string(),
             color_strip: "#F4B860".to_string(),
             target_device_id: "ajazz-akp05e-pro".to_string(),
-            pages: vec![page1.clone()],
+            pages: vec![work, music.clone(), desktop.clone()],
             last_modified_ms: ts,
         },
         Profile {
@@ -304,7 +563,7 @@ pub fn default_profiles() -> Vec<Profile> {
             icon: "Layers".to_string(),
             color_strip: "#A6AFC4".to_string(),
             target_device_id: "ajazz-akp05e-pro".to_string(),
-            pages: vec![page1],
+            pages: vec![home, music, desktop],
             last_modified_ms: ts,
         },
     ]
@@ -335,6 +594,14 @@ pub fn default_auto_switch_rules() -> Vec<AutoSwitchRule> {
             target_profile_id: "profile-work".to_string(),
             priority: 3,
             enabled: true,
+        },
+        AutoSwitchRule {
+            id: "rule-spotify".to_string(),
+            process_name: "Spotify.exe".to_string(),
+            window_title_contains: String::new(),
+            target_profile_id: "profile-streaming".to_string(),
+            priority: 4,
+            enabled: false,
         },
     ]
 }
@@ -549,6 +816,7 @@ fn parse_sdprofile_action(key_index: u8, act_val: &serde_json::Value) -> KeyConf
         title_size: "Medium".to_string(),
         background_style: "Gradient".to_string(),
         corner_radius: 8,
+        media: None,
     }
 }
 
@@ -622,6 +890,7 @@ pub fn parse_all_legacy_sdprofiles() -> Vec<Profile> {
                 title_size: "Medium".to_string(),
                 background_style: "Gradient".to_string(),
                 corner_radius: 8,
+                media: None,
             })
             .collect();
 
@@ -652,6 +921,7 @@ pub fn parse_all_legacy_sdprofiles() -> Vec<Profile> {
                 keys,
                 touch_zones: default_touch_zones(),
                 encoders: default_encoders(),
+                strip_media: None,
             }],
             last_modified_ms: now_ms(),
         });
@@ -794,5 +1064,231 @@ pub fn scan_legacy_streamdock_environment() -> LegacyStreamDockSummary {
         discovered_plugins,
         plugin_ws_port: 28196,
         plugin_host_active: true,
+    }
+}
+
+pub fn profiles_store_path() -> PathBuf {
+    let base = std::env::var("APPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| std::env::temp_dir());
+    base.join("DeckForge").join("profiles.json")
+}
+
+/// The deck does not keep a layout. This file is the copy DeckForge sends after each connect.
+pub fn load_saved_profiles() -> Vec<Profile> {
+    let path = profiles_store_path();
+    let Ok(raw) = fs::read_to_string(&path) else {
+        return default_profiles();
+    };
+    let mut profiles: Vec<Profile> = serde_json::from_str(&raw).unwrap_or_else(|_| default_profiles());
+    let before = serde_json::to_string(&profiles).ok();
+    install_ready_pages(&mut profiles);
+    migrate_dead_zones(&mut profiles);
+    if before != serde_json::to_string(&profiles).ok() {
+        let _ = write_saved_profiles(&profiles);
+    }
+    profiles
+}
+
+fn is_stock_stream_page(page: &ProfilePage) -> bool {
+    let titles: Vec<&str> = page.keys.iter().take(6).map(|key| key.title.as_str()).collect();
+    titles == ["Start Stream", "Scene +", "Scene -", "Mute Mic", "Vol Up", "Record"]
+}
+
+fn is_fake_telemetry(page: &ProfilePage) -> bool {
+    page.name.to_lowercase().contains("telemetry")
+        && page
+            .keys
+            .first()
+            .is_some_and(|key| key.title == "CPU Monitor" && key.action_id == "obs.start_stream")
+}
+
+fn page_named(profile: &Profile, name: &str) -> bool {
+    profile.pages.iter().any(|page| page.name.eq_ignore_ascii_case(name))
+}
+
+fn push_page(profile: &mut Profile, page: ProfilePage) {
+    if page_named(profile, &page.name) {
+        return;
+    }
+    profile.pages.push(page);
+}
+
+/// Streaming keeps its first page. The old telemetry page was a copy of that
+/// layout with two titles changed, so it becomes Desktop. Other profiles that
+/// were still the stream preset get a page that matches their name.
+fn install_ready_pages(profiles: &mut [Profile]) {
+    for profile in profiles {
+        if profile.id == "profile-streaming" {
+            for page in &mut profile.pages {
+                if is_fake_telemetry(page) {
+                    let id = page.id.clone();
+                    *page = desktop_page();
+                    page.id = id;
+                }
+                for key in &mut page.keys {
+                    if key.action_id == "profile.switch_page" && key.action_param.starts_with("Page 2") {
+                        key.action_param = "Desktop".to_string();
+                    }
+                }
+            }
+        } else if let Some(page) = profile.pages.first_mut() {
+            if is_stock_stream_page(page) {
+                let id = page.id.clone();
+                let replacement = match profile.id.as_str() {
+                    "profile-gaming" => game_page(),
+                    "profile-editing" => edit_page(),
+                    "profile-work" => work_page(),
+                    _ => home_page(),
+                };
+                *page = replacement;
+                page.id = id;
+                if profile.id == "profile-work" {
+                    work_zone_needs_param(&mut page.touch_zones);
+                }
+            }
+        }
+        push_page(profile, desktop_page());
+        push_page(profile, music_page());
+    }
+}
+
+fn looks_like_chord(value: &str) -> bool {
+    let value = value.trim();
+    if value.is_empty() {
+        return false;
+    }
+    if value.contains('+') {
+        return true;
+    }
+    let upper = value.to_uppercase();
+    matches!(
+        upper.as_str(),
+        "SPACE" | "ENTER" | "TAB" | "ESC" | "ESCAPE" | "LEFT" | "RIGHT" | "UP" | "DOWN"
+    ) || upper.starts_with("VK_")
+        || (upper.starts_with('F') && upper.len() <= 3 && upper[1..].chars().all(|ch| ch.is_ascii_digit()))
+}
+
+/// The stock CPU zone stored a label as its shortcut, so the tap did nothing.
+fn migrate_dead_zones(profiles: &mut [Profile]) {
+    for profile in profiles {
+        for page in &mut profile.pages {
+            for zone in &mut page.touch_zones {
+                if zone.tap_action_id != "sys.hotkey" || !zone.tap_action_param.is_empty() {
+                    continue;
+                }
+                if looks_like_chord(&zone.value_text) {
+                    zone.tap_action_param = zone.value_text.clone();
+                    continue;
+                }
+                if zone.label.eq_ignore_ascii_case("CPU LOAD") {
+                    zone.tap_action_id = "profile.next_page".to_string();
+                    zone.label = "NEXT PAGE".to_string();
+                    zone.value_text = "Next page".to_string();
+                }
+            }
+        }
+    }
+}
+
+pub fn auto_switch_store_path() -> PathBuf {
+    profiles_store_path().with_file_name("auto-switch.json")
+}
+
+pub fn load_auto_switch_rules() -> Vec<AutoSwitchRule> {
+    let path = auto_switch_store_path();
+    let Ok(raw) = fs::read_to_string(path) else {
+        return default_auto_switch_rules();
+    };
+    serde_json::from_str(&raw).unwrap_or_else(|_| default_auto_switch_rules())
+}
+
+pub fn write_auto_switch_rules(rules: &[AutoSwitchRule]) -> Result<(), String> {
+    let path = auto_switch_store_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let raw = serde_json::to_string_pretty(rules).map_err(|e| e.to_string())?;
+    fs::write(path, raw).map_err(|e| e.to_string())
+}
+
+pub fn macros_store_path() -> PathBuf {
+    profiles_store_path().with_file_name("macros.json")
+}
+
+pub fn load_saved_macros() -> Vec<MacroSequence> {
+    let path = macros_store_path();
+    let Ok(raw) = fs::read_to_string(&path) else {
+        let macros = default_macros();
+        let _ = write_saved_macros(&macros);
+        return macros;
+    };
+    serde_json::from_str(&raw).unwrap_or_else(|_| default_macros())
+}
+
+pub fn write_saved_macros(macros: &[MacroSequence]) -> Result<(), String> {
+    let path = macros_store_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let raw = serde_json::to_string_pretty(macros).map_err(|e| e.to_string())?;
+    fs::write(path, raw).map_err(|e| e.to_string())
+}
+
+pub fn write_saved_profiles(profiles: &[Profile]) -> Result<(), String> {
+    let path = profiles_store_path();
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let raw = serde_json::to_string_pretty(profiles).map_err(|e| e.to_string())?;
+    fs::write(path, raw).map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dead_cpu_zone_becomes_a_page_switch() {
+        let mut zone = default_touch_zones().remove(1);
+        zone.label = "CPU LOAD".to_string();
+        zone.tap_action_id = "sys.hotkey".to_string();
+        zone.value_text = "Live Telemetry".to_string();
+        zone.tap_action_param.clear();
+        let mut profile = default_profiles().remove(0);
+        profile.pages[0].touch_zones[1] = zone;
+        let mut profiles = vec![profile];
+        migrate_dead_zones(&mut profiles);
+        let zone = &profiles[0].pages[0].touch_zones[1];
+        assert_eq!(zone.tap_action_id, "profile.next_page");
+        assert_eq!(zone.label, "NEXT PAGE");
+    }
+
+    #[test]
+    fn other_pages_become_real_layouts() {
+        let stream = default_profiles().remove(0).pages.remove(0);
+        let mut fake = stream.clone();
+        fake.id = "page-2".to_string();
+        fake.name = "Page 2 (Telemetry)".to_string();
+        fake.keys[0].title = "CPU Monitor".to_string();
+        fake.keys[0].action_id = "obs.start_stream".to_string();
+        let mut gaming = default_profiles().into_iter().find(|p| p.id == "profile-gaming").unwrap();
+        gaming.pages = vec![stream.clone()];
+        let mut profiles = vec![
+            Profile {
+                pages: vec![stream, fake],
+                ..default_profiles().remove(0)
+            },
+            gaming,
+        ];
+        install_ready_pages(&mut profiles);
+        assert_eq!(profiles[0].pages[0].keys[0].title, "Start Stream");
+        assert_eq!(profiles[0].pages[1].name, "Desktop");
+        assert_eq!(profiles[0].pages[1].keys[0].title, "Screenshot");
+        assert!(profiles[0].pages.iter().any(|page| page.name == "Music"));
+        assert_eq!(profiles[1].pages[0].name, "Game");
+        assert_ne!(profiles[1].pages[0].keys[0].title, "Start Stream");
+        assert!(profiles[1].pages.iter().any(|page| page.name == "Music"));
+        assert!(profiles[1].pages.iter().any(|page| page.name == "Desktop"));
     }
 }
