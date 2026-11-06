@@ -535,6 +535,43 @@ pub(crate) fn draw_text_centered(
     }
 }
 
+/// True when `(px, py)` lies within `r` of the segment from `(ax, ay)` to `(bx, by)`.
+fn glyph_seg(px: f32, py: f32, ax: f32, ay: f32, bx: f32, by: f32, r: f32) -> bool {
+    let (vx, vy) = (bx - ax, by - ay);
+    let len2 = vx * vx + vy * vy;
+    let t = if len2 <= f32::EPSILON {
+        0.0
+    } else {
+        (((px - ax) * vx + (py - ay) * vy) / len2).clamp(0.0, 1.0)
+    };
+    let (cx, cy) = (ax + t * vx, ay + t * vy);
+    (px - cx).powi(2) + (py - cy).powi(2) <= r * r
+}
+
+/// Outline of the axis-aligned rectangle `[x0, x1] x [y0, y1]` with stroke width `t`.
+fn glyph_rect(px: f32, py: f32, x0: f32, y0: f32, x1: f32, y1: f32, t: f32) -> bool {
+    let outer = px >= x0 - t && px <= x1 + t && py >= y0 - t && py <= y1 + t;
+    let inner = px > x0 + t && px < x1 - t && py > y0 + t && py < y1 - t;
+    outer && !inner
+}
+
+/// Arrow pointing along +x. The other three directions rotate the sample point first.
+fn glyph_arrow(x: f32, y: f32) -> bool {
+    glyph_seg(x, y, -10.0, 0.0, 10.0, 0.0, 1.7)
+        || glyph_seg(x, y, 10.0, 0.0, 3.0, -7.0, 1.7)
+        || glyph_seg(x, y, 10.0, 0.0, 3.0, 7.0, 1.7)
+}
+
+/// A "turn back" arrow pointing left (undo). Mirror `x` for redo.
+fn glyph_turn_arrow(x: f32, y: f32) -> bool {
+    let head = glyph_seg(x, y, -10.0, -3.0, -4.0, -9.0, 1.6) || glyph_seg(x, y, -10.0, -3.0, -4.0, 3.0, 1.6);
+    let top = glyph_seg(x, y, -10.0, -3.0, 2.0, -3.0, 1.6);
+    let bend = ((x - 2.0).powi(2) + (y - 3.0).powi(2)).sqrt();
+    let curve = (bend - 6.0).abs() < 1.6 && x >= 2.0;
+    let bottom = glyph_seg(x, y, 2.0, 9.0, -5.0, 9.0, 1.6);
+    head || top || curve || bottom
+}
+
 /// Evaluates whether local icon coordinates `(dx, dy)` inside `[-18.0..18.0]` belong to the stroke of `icon_name`.
 fn icon_stroke_hit(icon_name: &str, dx: f32, dy: f32) -> bool {
     let dist = (dx * dx + dy * dy).sqrt();
@@ -580,9 +617,86 @@ fn icon_stroke_hit(icon_name: &str, dx: f32, dy: f32) -> bool {
             let wave2 = dx > 4.5 && (dist - 11.2).abs() < 1.5 && dy.abs() < 9.2;
             cone_back || cone_flare || wave1 || wave2
         }
-        "Disc" => {
+        "Disc" | "CircleDot" => {
             // Record disc: outer ring + inner core dot
             (dist - 11.0).abs() < 1.8 || dist < 3.6
+        }
+        "ArrowRight" => glyph_arrow(dx, dy),
+        "ArrowLeft" => glyph_arrow(-dx, dy),
+        "ArrowUp" => glyph_arrow(-dy, dx),
+        "ArrowDown" => glyph_arrow(dy, dx),
+        "X" => glyph_seg(dx, dy, -8.0, -8.0, 8.0, 8.0, 1.8) || glyph_seg(dx, dy, -8.0, 8.0, 8.0, -8.0, 1.8),
+        "Plus" => glyph_seg(dx, dy, -9.0, 0.0, 9.0, 0.0, 1.8) || glyph_seg(dx, dy, 0.0, -9.0, 0.0, 9.0, 1.8),
+        "Copy" => {
+            // Front sheet outline + the corner of the sheet behind it
+            let front = glyph_rect(dx, dy, -10.0, -3.0, 3.0, 10.0, 1.6);
+            let back = glyph_seg(dx, dy, -3.0, -3.0, -3.0, -9.0, 1.5)
+                || glyph_seg(dx, dy, -3.0, -9.0, 9.0, -9.0, 1.5)
+                || glyph_seg(dx, dy, 9.0, -9.0, 9.0, 4.0, 1.5)
+                || glyph_seg(dx, dy, 9.0, 4.0, 3.0, 4.0, 1.5);
+            front || back
+        }
+        "Clipboard" => {
+            // Board with a clip on top and two text lines
+            let board = glyph_rect(dx, dy, -9.0, -8.0, 9.0, 11.0, 1.6);
+            let clip = dx.abs() <= 4.5 && (-11.5..=-5.5).contains(&dy);
+            let lines = glyph_seg(dx, dy, -5.0, 0.0, 5.0, 0.0, 1.3) || glyph_seg(dx, dy, -5.0, 5.0, 5.0, 5.0, 1.3);
+            board || clip || lines
+        }
+        "Undo" => glyph_turn_arrow(dx, dy),
+        "Redo" => glyph_turn_arrow(-dx, dy),
+        "Save" => {
+            // Floppy disk: outline, shutter at the top, label at the bottom
+            let body = glyph_rect(dx, dy, -10.0, -10.0, 10.0, 10.0, 1.6);
+            let shutter = dx.abs() <= 5.0 && (-10.0..=-4.0).contains(&dy);
+            let label = glyph_rect(dx, dy, -6.0, 1.0, 6.0, 10.0, 1.5);
+            body || shutter || label
+        }
+        "Smile" => {
+            let face = (dist - 11.0).abs() < 1.6;
+            let eyes = ((dx.abs() - 4.0).powi(2) + (dy + 3.5).powi(2)).sqrt() < 1.9;
+            let mouth = (dist - 6.5).abs() < 1.5 && dy >= 2.5;
+            face || eyes || mouth
+        }
+        "Settings" => {
+            // Gear: ring, hub, eight teeth
+            let angle = dy.atan2(dx) / (std::f32::consts::PI / 4.0);
+            let off_tooth = (angle - angle.round()).abs();
+            let teeth = (8.4..=11.8).contains(&dist) && off_tooth < 0.2;
+            (dist - 7.5).abs() < 1.7 || (dist - 2.6).abs() < 1.3 || teeth
+        }
+        "Folder" => {
+            let body = glyph_rect(dx, dy, -11.0, -6.0, 11.0, 10.0, 1.6);
+            let tab = glyph_seg(dx, dy, -11.0, -6.0, -11.0, -10.0, 1.5)
+                || glyph_seg(dx, dy, -11.0, -10.0, -3.0, -10.0, 1.5)
+                || glyph_seg(dx, dy, -3.0, -10.0, -1.0, -6.0, 1.5);
+            body || tab
+        }
+        "Gamepad2" => {
+            let body = glyph_rect(dx, dy, -12.0, -6.0, 12.0, 8.0, 1.6);
+            let dpad = glyph_seg(dx, dy, -9.0, 1.0, -3.0, 1.0, 1.4) || glyph_seg(dx, dy, -6.0, -2.0, -6.0, 4.0, 1.4);
+            let buttons = ((dx - 5.0).powi(2) + (dy + 0.5).powi(2)).sqrt() < 1.8 || ((dx - 8.5).powi(2) + (dy - 3.0).powi(2)).sqrt() < 1.8;
+            body || dpad || buttons
+        }
+        "RefreshCw" => {
+            // Circular arrow with a gap in the upper right
+            let arc = (dist - 8.0).abs() < 1.6 && !(dx > 1.5 && dy < -1.5);
+            let head = glyph_seg(dx, dy, 8.0, -7.0, 4.5, -3.0, 1.5) || glyph_seg(dx, dy, 8.0, -7.0, 11.5, -3.0, 1.5);
+            arc || head
+        }
+        "Globe" => {
+            let ball = (dist - 11.0).abs() < 1.5;
+            let meridian = (((dx / 5.5).powi(2) + (dy / 11.0).powi(2)) - 1.0).abs() < 0.3;
+            let equator = dy.abs() < 1.2 && dx.abs() <= 11.0;
+            ball || meridian || equator
+        }
+        "Keyboard" => {
+            let body = glyph_rect(dx, dy, -12.0, -7.0, 12.0, 8.0, 1.6);
+            let keys = [-7.0_f32, -3.5, 0.0, 3.5, 7.0]
+                .iter()
+                .any(|kx| ((dx - kx).powi(2) + (dy + 2.5).powi(2)).sqrt() < 1.1 || ((dx - kx).powi(2) + (dy - 0.5).powi(2)).sqrt() < 1.1);
+            let space = glyph_seg(dx, dy, -5.0, 4.0, 5.0, 4.0, 1.2);
+            body || keys || space
         }
         "Scissors" => {
             // Two finger loops on left + crossed blades to right
@@ -1079,5 +1193,65 @@ mod tests {
         left[9] = 0x39;
         let right = parse_input_report("ajazz-akp05e-pro", &left, 2).unwrap();
         assert_eq!(right.control_index, 1);
+    }
+
+    const GLYPHS: &[&str] = &[
+        "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "X", "Plus", "Copy", "Clipboard", "Undo", "Redo", "Save",
+        "Smile", "Settings", "Folder", "Gamepad2", "RefreshCw", "Globe", "Keyboard", "Mic", "Camera", "Disc",
+    ];
+
+    fn glyph_pixels(name: &str) -> usize {
+        let mut hits = 0;
+        for yi in -18..=18 {
+            for xi in -18..=18 {
+                if icon_stroke_hit(name, xi as f32, yi as f32) {
+                    hits += 1;
+                }
+            }
+        }
+        hits
+    }
+
+    #[test]
+    fn named_glyphs_are_not_the_generic_fallback() {
+        let generic = glyph_pixels("definitely-not-an-icon");
+        for name in GLYPHS {
+            let hits = glyph_pixels(name);
+            assert!(hits >= 40, "glyph {name} draws almost nothing ({hits} px)");
+            let same_as_generic = (-18..=18).all(|yi| {
+                (-18..=18).all(|xi| {
+                    icon_stroke_hit(name, xi as f32, yi as f32)
+                        == icon_stroke_hit("definitely-not-an-icon", xi as f32, yi as f32)
+                })
+            });
+            assert!(!same_as_generic, "glyph {name} still renders the generic grid ({generic} px)");
+        }
+    }
+
+    /// Writes a contact sheet of every glyph to the temp dir so the shapes can be eyeballed.
+    #[test]
+    #[ignore]
+    fn render_glyph_contact_sheet() {
+        let cell = 96u32;
+        let cols = 7u32;
+        let rows = (GLYPHS.len() as u32).div_ceil(cols);
+        let mut img = RgbImage::from_pixel(cols * cell, rows * cell, Rgb([16, 19, 29]));
+        for (i, name) in GLYPHS.iter().enumerate() {
+            let ox = (i as u32 % cols) * cell;
+            let oy = (i as u32 / cols) * cell;
+            for py in 0..cell {
+                for px in 0..cell {
+                    let scale = 36.0 / cell as f32;
+                    let dx = (px as f32 - cell as f32 / 2.0) * scale;
+                    let dy = (py as f32 - cell as f32 / 2.0) * scale;
+                    if icon_stroke_hit(name, dx, dy) {
+                        img.put_pixel(ox + px, oy + py, Rgb([139, 92, 246]));
+                    }
+                }
+            }
+        }
+        let path = std::env::temp_dir().join("deckforge-glyph-sheet.png");
+        img.save(&path).unwrap();
+        println!("wrote {}", path.display());
     }
 }

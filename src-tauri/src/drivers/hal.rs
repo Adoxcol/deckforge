@@ -1013,7 +1013,9 @@ fn write_reports(
         steps.push((build_brightness_packet(nudged_brightness(brightness)).to_vec(), 200));
     }
     steps.push((lig.to_vec(), 0));
-    deck_write(steps)
+    let result = deck_write(steps);
+    note_push(&result, session_setup);
+    result
 }
 
 /// A brightness close to `percent` but not equal to it.
@@ -1149,6 +1151,60 @@ struct DeckIo {
 static DECK_IO: OnceLock<DeckIo> = OnceLock::new();
 static DECK_GENERATION: AtomicU64 = AtomicU64::new(0);
 
+/// What the deck connection is doing, for the status line in the app.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeckStatus {
+    /// `searching` (never found yet), `connected`, or `reconnecting` (it dropped and the
+    /// app is waiting for it to come back).
+    pub state: &'static str,
+    pub opened_at_ms: Option<u64>,
+    pub last_push_at_ms: Option<u64>,
+    pub last_push_ok: Option<bool>,
+    pub last_error: Option<String>,
+    /// How many times the deck came back after dropping off USB.
+    pub reconnects: u32,
+}
+
+static DECK_STATUS: Mutex<DeckStatus> = Mutex::new(DeckStatus {
+    state: "searching",
+    opened_at_ms: None,
+    last_push_at_ms: None,
+    last_push_ok: None,
+    last_error: None,
+    reconnects: 0,
+});
+
+fn update_status(change: impl FnOnce(&mut DeckStatus)) {
+    let mut status = DECK_STATUS.lock().unwrap_or_else(|e| e.into_inner());
+    change(&mut status);
+}
+
+/// Records how a send to the deck went. A failed send is always recorded. A successful
+/// one only counts when it was a full layout, so frame-by-frame animation writes do not
+/// hide an earlier failure.
+fn note_push(result: &Result<(), String>, full_layout: bool) {
+    match result {
+        Ok(()) if full_layout => update_status(|s| {
+            s.last_push_at_ms = Some(now_ms());
+            s.last_push_ok = Some(true);
+            s.last_error = None;
+        }),
+        Ok(()) => {}
+        Err(err) => update_status(|s| {
+            s.last_push_at_ms = Some(now_ms());
+            s.last_push_ok = Some(false);
+            s.last_error = Some(err.clone());
+        }),
+    }
+}
+
+/// Current connection state and the outcome of the last send.
+pub fn deck_status() -> DeckStatus {
+    let _ = deck_io();
+    DECK_STATUS.lock().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
 fn deck_io() -> &'static DeckIo {
     DECK_IO.get_or_init(|| {
         let (job_tx, job_rx) = mpsc::channel::<DeckJob>();
@@ -1275,6 +1331,13 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
                     // panel black.
                     std::thread::sleep(std::time::Duration::from_millis(2500));
                     let generation = DECK_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+                    update_status(|s| {
+                        if s.opened_at_ms.is_some() {
+                            s.reconnects = s.reconnects.saturating_add(1);
+                        }
+                        s.state = "connected";
+                        s.opened_at_ms = Some(now_ms());
+                    });
                     deck_log(&format!("deck ready, generation {generation}"));
                 }
                 None => {
@@ -1369,6 +1432,7 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
         }
         if lost {
             deck_log("deck connection lost, closing");
+            update_status(|s| s.state = "reconnecting");
             open = None;
             std::thread::sleep(std::time::Duration::from_millis(500));
         }

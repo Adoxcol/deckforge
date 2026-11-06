@@ -11,6 +11,7 @@ import type {
   DeckContextEvent,
   DeckFaceState,
   GameModeConfig,
+  GameModePowerPlan,
   GameModeRunningApp,
   GameModeScan,
   GameModeServicePick,
@@ -22,6 +23,7 @@ import type {
   AutoSwitchRule,
   SyncKeyResult,
   SystemTelemetrySnapshot,
+  DeckStatus,
 } from "../types/deckforge";
 
 export const isTauriRuntime = (): boolean => {
@@ -408,8 +410,8 @@ const fallbackBootstrap = (): FullBootstrapPayload => {
       lastTransferLatencyMs: 11,
     },
     legacySummary: {
-      profilesDir: "C:\\Users\\MAHMOOD\\AppData\\Roaming\\HotSpot\\StreamDock\\profiles",
-      pluginsDir: "C:\\Users\\MAHMOOD\\AppData\\Roaming\\HotSpot\\StreamDock\\plugins",
+      profilesDir: "%APPDATA%\\HotSpot\\StreamDock\\profiles",
+      pluginsDir: "%APPDATA%\\HotSpot\\StreamDock\\plugins",
       legacyProfileCount: 121,
       namedRootProfilesCount: 28,
       legacyPluginCount: 24,
@@ -457,46 +459,40 @@ const fallbackBootstrap = (): FullBootstrapPayload => {
   };
 };
 
-// Browser preview of Game Mode, so the screen can be checked without the desktop app.
-type MockTarget = [string, string, GameModeTarget["group"], string, boolean, number, number, string[], boolean, boolean];
+// Browser preview of Game Mode, so the screen can be checked without the desktop app. The data is
+// made up and generic, like a PC nobody in particular owns.
+type MockTarget = [string, string, GameModeTarget["group"], string, string[], boolean, boolean];
 const MOCK_TARGETS: MockTarget[] = [
-  // id, label, group, note, defaultOn, memoryMb, processCount, services, reopens, force
-  ["zen", "Zen Browser", "apps", "Closes every Zen window and reopens it afterwards.", true, 4864, 20, [], true, true],
-  ["cursor", "Cursor", "apps", "This chat runs inside Cursor, so it ends when Cursor closes. Cursor keeps open if it asks about unsaved files.", true, 2117, 16, [], true, false],
-  ["antigravity", "Antigravity", "apps", "Also closes its language server. Stays open if it asks about unsaved files.", true, 1753, 15, [], true, false],
-  ["docker_wsl", "Docker Desktop + WSL", "apps", "Stops Docker and shuts the WSL VM down, which frees about 1.5 GB. Running containers stop.", true, 614, 7, [], true, true],
-  ["node", "Node dev servers", "apps", "Ends every node process except DeckForge's own dev tools. They are not reopened.", true, 674, 22, [], false, true],
-  ["qbit", "qBittorrent", "apps", "Torrents pause until it is reopened.", true, 596, 1, [], true, true],
-  ["syncthing", "Syncthing", "background", "File sync pauses while Game Mode is on.", true, 39, 2, [], true, true],
-  ["ai_claude", "Claude", "ai", "Closes the Claude app and stops its Cowork VM service.", true, 0, 0, ["CoworkVMService"], true, true],
-  ["ai_codex", "Codex / ChatGPT", "ai", "Closes the Codex and ChatGPT app and stops its sandbox service.", true, 0, 0, ["CodexSandboxService.OpenAI.Codex"], true, true],
-  ["ai_copilot", "Microsoft Copilot", "ai", "Closes the Copilot app.", true, 0, 0, [], true, true],
-  ["ai_gemini", "Gemini app", "ai", "Closes the Gemini desktop launcher.", true, 0, 0, [], true, true],
-  ["ai_local", "Ollama / LM Studio", "ai", "Stops local model servers and frees their GPU memory.", true, 0, 0, [], true, true],
-  ["mongo", "MongoDB", "background", "Database server service.", true, 0, 0, ["MongoDB"], false, true],
-  ["postgres", "PostgreSQL + PEM web server", "background", "PostgreSQL 18 and the EDB PEM Apache service.", true, 0, 0, ["postgresql-x64-18", "PEMHTTPD-x64"], false, true],
-  ["spooler", "Print Spooler", "background", "Printing is unavailable until Game Mode ends.", true, 0, 0, ["Spooler"], false, true],
-  ["bonjour", "Bonjour", "background", "Apple network discovery service.", true, 0, 0, ["Bonjour Service"], false, true],
-  ["sqlvss", "SQL Server VSS Writer", "background", "Backup helper for SQL Server.", true, 0, 0, ["SQLWriter"], false, true],
-  ["asc", "Advanced SystemCare", "background", "Stops its tray app and background service.", true, 13, 1, ["AdvancedSystemCareService19"], true, true],
-  ["pcmgr", "Microsoft PC Manager", "background", "Stops its background service and window.", true, 0, 0, ["PCManager Service Store"], false, true],
-  ["warp", "Cloudflare WARP", "background", "Drops the WARP VPN connection while Game Mode is on.", true, 0, 0, ["CloudflareWARP"], true, true],
-  ["spotify", "Spotify", "apps", "Music stops.", false, 1012, 8, [], true, true],
-  ["discord", "Discord", "apps", "You leave voice chat.", false, 821, 6, [], true, true],
-  ["steam", "Steam client", "apps", "Leave this on if the game starts from Steam.", false, 2205, 10, [], true, true],
-  ["dlmm", "Deadlock Mod Manager", "apps", "Mods stay as they are, the manager just closes.", false, 638, 1, [], true, true],
-  ["riotclient", "Riot Client launcher", "apps", "Closes the launcher only. Vanguard anti-cheat is never touched.", false, 90, 1, [], true, true],
+  // id, label, group, note, process names, reopens, force
+  ["discord", "Discord", "apps", "You leave voice chat.", ["discord"], true, true],
+  ["spotify", "Spotify", "apps", "Music stops.", ["spotify"], true, true],
+  ["steam", "Steam client", "apps", "Keep it open if the game starts from Steam.", ["steam", "steamwebhelper"], true, true],
+  ["epic", "Epic Games Launcher", "apps", "Keep it open if the game starts from Epic.", ["epicgameslauncher"], true, true],
+  ["riotclient", "Riot Client launcher", "apps", "Closes the launcher only. Vanguard anti-cheat is never touched.", ["riotclientservices"], true, true],
+  ["docker_wsl", "Docker Desktop + WSL", "apps", "Stops Docker and shuts the WSL VM down, which frees about 1.5 GB. Running containers stop.", ["docker desktop"], true, true],
 ];
 
-const MOCK_PROCESSES: GameModeRunningApp[] = [
-  { name: "obsidian", count: 5, memoryMb: 612, path: "c:\\users\\you\\appdata\\local\\obsidian\\obsidian.exe", takenBy: null },
-  { name: "figma", count: 7, memoryMb: 540, path: "c:\\users\\you\\appdata\\local\\figma\\figma.exe", takenBy: null },
-  { name: "notion", count: 6, memoryMb: 488, path: "c:\\users\\you\\appdata\\local\\programs\\notion\\notion.exe", takenBy: null },
-  { name: "onedrive", count: 1, memoryMb: 210, path: "c:\\users\\you\\appdata\\local\\microsoft\\onedrive\\onedrive.exe", takenBy: null },
-  { name: "whatsapp", count: 4, memoryMb: 190, path: "c:\\program files\\windowsapps\\whatsapp\\whatsapp.exe", takenBy: null },
-  { name: "zen", count: 20, memoryMb: 4864, path: "c:\\program files\\zen browser\\zen.exe", takenBy: "Zen Browser" },
-  { name: "cursor", count: 16, memoryMb: 2117, path: "c:\\users\\you\\appdata\\local\\programs\\cursor\\cursor.exe", takenBy: "Cursor" },
-  { name: "spotify", count: 8, memoryMb: 1012, path: "c:\\users\\you\\appdata\\roaming\\spotify\\spotify.exe", takenBy: "Spotify" },
+const mockApp = (name: string, count: number, memoryMb: number, folder: string, hasWindow: boolean) => ({
+  name,
+  count,
+  memoryMb,
+  path: `c:\\users\\you\\appdata\\local\\${folder}\\${name}.exe`,
+  hasWindow,
+});
+
+const MOCK_PROCESSES = [
+  mockApp("chrome", 24, 3120, "google\\chrome\\application", true),
+  mockApp("discord", 6, 821, "discord", true),
+  mockApp("spotify", 8, 1012, "spotify", true),
+  mockApp("obsidian", 5, 612, "obsidian", true),
+  mockApp("figma", 7, 540, "figma", true),
+  mockApp("notion", 6, 488, "programs\\notion", true),
+  mockApp("steam", 10, 705, "steam", true),
+  mockApp("onedrive", 1, 210, "microsoft\\onedrive", false),
+  mockApp("dropbox", 3, 164, "dropbox", false),
+  mockApp("steamwebhelper", 9, 1500, "steam", false),
+  mockApp("nvidia share", 2, 96, "nvidia", false),
+  mockApp("qbittorrent", 1, 128, "qbittorrent", false),
 ];
 
 const MOCK_SERVICES: GameModeServicePick[] = [
@@ -506,76 +502,97 @@ const MOCK_SERVICES: GameModeServicePick[] = [
   { name: "PhoneSvc", display: "Phone Service" },
   { name: "WSearch", display: "Windows Search" },
   { name: "SysMain", display: "SysMain" },
+  { name: "Spooler", display: "Print Spooler" },
+  { name: "MongoDB", display: "MongoDB Server" },
+];
+
+const MOCK_POWER_PLANS: GameModePowerPlan[] = [
+  { guid: "381b4222-f694-41f0-9685-ff5bb260df2e", name: "Balanced", active: true },
+  { guid: "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c", name: "High performance", active: false },
+  { guid: "a1841308-3541-4fab-bc81-f71556f20b4a", name: "Power saver", active: false },
 ];
 
 let mockHelperArmed = false;
 
-const mockScan = (): GameModeScan => ({
-  processes: MOCK_PROCESSES.filter((p) => !mockGameModeConfig.customTargets.some((c) => c.processes.includes(p.name))).concat(
-    MOCK_PROCESSES.filter((p) => mockGameModeConfig.customTargets.some((c) => c.processes.includes(p.name))).map((p) => ({
-      ...p,
-      takenBy: mockGameModeConfig.customTargets.find((c) => c.processes.includes(p.name))?.label ?? null,
-    })),
-  ),
-  services: MOCK_SERVICES.filter((s) => !mockGameModeConfig.customTargets.some((c) => c.services.includes(s.name))),
-  helper: { armed: mockHelperArmed, covers: mockHelperArmed },
-  targets: [
-    ...MOCK_TARGETS.map(([id, label, group, note, defaultOn, memoryMb, processCount, services, reopens, force]) => ({
-      id,
-      label,
-      group,
-      note,
-      defaultOn,
-      running: processCount > 0 || services.length > 0,
-      processCount,
-      memoryMb,
-      services: services.map((name) => ({ name, running: true })),
-      needsAdmin: services.length > 0,
-      reopens,
-      force,
-      custom: false,
-      processes: [] as string[],
-    })),
-    ...mockGameModeConfig.customTargets.map((c) => {
-      const running = MOCK_PROCESSES.filter((p) => c.processes.includes(p.name));
-      return {
-        id: c.id,
-        label: c.label,
-        group: c.group,
-        note: "Added by you.",
-        defaultOn: false,
-        running: running.length > 0 || c.services.length > 0,
-        processCount: running.reduce((sum, p) => sum + p.count, 0),
-        memoryMb: running.reduce((sum, p) => sum + p.memoryMb, 0),
-        services: c.services.map((name) => ({ name, running: true })),
-        needsAdmin: c.services.length > 0,
-        reopens: c.reopen,
-        force: true,
-        custom: true,
-        processes: c.processes,
-      };
-    }),
-  ],
-  tweaks: [
-    { id: "priority", label: "Raise the game's priority to High", note: "Applies to the full-screen game as soon as DeckForge sees it." },
-    { id: "pause_updates", label: "Pause Windows Update and Delivery Optimization", note: "Stops the update services while you play. Needs the admin helper." },
-  ],
-  ramTotalMb: 32154,
-  ramFreeMb: 8600,
-  processCount: 382,
-  powerPlan: "Bitsum Highest Performance",
-  bitsumFound: true,
-  isAdmin: false,
-  protected: [
-    "Riot Vanguard, FACEIT and other anti-cheat",
-    "NVIDIA drivers and overlay services",
-    "Audio routing (Voicemeeter, Focusrite) and Windows audio",
-    "Windows Defender and security services",
-    "Explorer, DWM and core Windows processes",
-    "Process Lasso",
-    "DeckForge itself",
-  ],
-});
+const mockScan = (): GameModeScan => {
+  const customs = mockGameModeConfig.customTargets;
+  const covering = (name: string) => {
+    const preset = MOCK_TARGETS.find((t) => t[4].includes(name));
+    if (preset) return { id: preset[0], label: preset[1] };
+    const custom = customs.find((c) => c.processes.includes(name));
+    return custom ? { id: custom.id, label: custom.label } : null;
+  };
+  const processes: GameModeRunningApp[] = MOCK_PROCESSES.map((p) => {
+    const taken = covering(p.name);
+    return { ...p, takenBy: taken?.label ?? null, takenById: taken?.id ?? null };
+  }).sort((a, b) => b.memoryMb - a.memoryMb);
+  const usage = (names: string[]) => {
+    const found = MOCK_PROCESSES.filter((p) => names.includes(p.name));
+    return { count: found.reduce((sum, p) => sum + p.count, 0), memoryMb: found.reduce((sum, p) => sum + p.memoryMb, 0) };
+  };
+  return {
+    processes,
+    services: MOCK_SERVICES,
+    helper: { armed: mockHelperArmed, covers: mockHelperArmed },
+    targets: [
+      ...MOCK_TARGETS.map(([id, label, group, note, names, reopens, force]) => {
+        const used = usage(names);
+        return {
+          id,
+          label,
+          group,
+          note,
+          running: used.count > 0,
+          processCount: used.count,
+          memoryMb: used.memoryMb,
+          services: [],
+          needsAdmin: false,
+          reopens,
+          force,
+          custom: false,
+          processes: names,
+        };
+      }),
+      ...customs.map((c) => {
+        const used = usage(c.processes);
+        return {
+          id: c.id,
+          label: c.label,
+          group: c.group,
+          note: "Added by you.",
+          running: used.count > 0 || c.services.some((name) => MOCK_SERVICES.some((s) => s.name === name)),
+          processCount: used.count,
+          memoryMb: used.memoryMb,
+          services: c.services.map((name) => ({ name, running: MOCK_SERVICES.some((s) => s.name === name) })),
+          needsAdmin: c.services.length > 0,
+          reopens: c.reopen,
+          force: true,
+          custom: true,
+          processes: c.processes,
+        };
+      }),
+    ],
+    tweaks: [
+      { id: "priority", label: "Raise the game's priority to High", note: "Applies to the full-screen game as soon as DeckForge sees it." },
+      { id: "pause_updates", label: "Pause Windows Update and Delivery Optimization", note: "Stops the update services while you play. Needs the admin helper." },
+    ],
+    ramTotalMb: 32154,
+    ramFreeMb: 8600,
+    processCount: 382,
+    powerPlan: MOCK_POWER_PLANS.find((p) => p.active)?.name ?? "",
+    powerPlans: MOCK_POWER_PLANS,
+    isAdmin: false,
+    protected: [
+      "Anti-cheat such as Riot Vanguard, EasyAntiCheat, BattlEye and FACEIT",
+      "Graphics driver and overlay services",
+      "Windows audio and audio routing software",
+      "Windows Defender and security services",
+      "Explorer, DWM and core Windows processes",
+      "Process managers such as Process Lasso",
+      "DeckForge itself",
+    ],
+  };
+};
 
 const mockEmptyStatus = (): GameModeStatus => ({
   active: false,
@@ -593,15 +610,13 @@ const mockEmptyStatus = (): GameModeStatus => ({
   ramFreeAfterMb: 0,
   processesBefore: 0,
   processesAfter: 0,
-  powerPlan: "Bitsum Highest Performance",
+  powerPlan: "",
   notes: [],
   lastEndedMs: 0,
 });
 
 let mockGameModeConfig: GameModeConfig = {
-  modes: [
-    { id: "default", name: "Default", targets: MOCK_TARGETS.filter((t) => t[4]).map((t) => t[0]), tweaks: ["priority", "pause_updates"] },
-  ],
+  modes: [{ id: "default", name: "Default", targets: [], tweaks: ["priority"], powerPlan: "" }],
   activeMode: "default",
   customTargets: [],
   autoDetect: true,
@@ -718,6 +733,45 @@ export const deckforgeApi = {
       return await invoke<Profile[]>("import_legacy_sdprofiles");
     }
     return fallbackBootstrap().profiles;
+  },
+
+  async getDeckStatus(): Promise<DeckStatus> {
+    if (isTauriRuntime()) {
+      return await invoke<DeckStatus>("get_deck_status");
+    }
+    return {
+      state: "connected",
+      openedAtMs: Date.now() - 60_000,
+      lastPushAtMs: Date.now() - 55_000,
+      lastPushOk: true,
+      lastError: null,
+      reconnects: 0,
+    };
+  },
+
+  async resendLayout(): Promise<string> {
+    if (isTauriRuntime()) {
+      return await invoke<string>("resend_layout");
+    }
+    return "Sending the whole layout to the deck again.";
+  },
+
+  /**
+   * Saves a share file (profile or Game Mode). In the app it goes to Documents\DeckForge Exports
+   * and Explorer opens on it. In a plain browser it falls back to a normal download.
+   * Returns the place it was saved.
+   */
+  async saveExportFile(fileName: string, contents: string): Promise<string> {
+    if (isTauriRuntime()) {
+      return await invoke<string>("save_export_file", { fileName, contents });
+    }
+    const url = URL.createObjectURL(new Blob([contents], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+    return `Downloads\\${fileName}`;
   },
 
   async getTelemetry(): Promise<SystemTelemetrySnapshot> {
@@ -883,6 +937,7 @@ export const deckforgeApi = {
           ...mockEmptyStatus(),
           active: true,
           mode: chosen.name,
+          powerPlan: scan.powerPlans.find((p) => p.guid === chosen.powerPlan)?.name ?? scan.powerPlan,
           startedAtMs: Date.now(),
           closed,
           stoppedServices: stopped,

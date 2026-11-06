@@ -11,6 +11,10 @@ Open-source universal Stream Deck & Stream Dock desktop controller built with **
   - Real `SendInput` keyboard shortcuts, media keys, system commands, shell launcher, URL opener, and HTTP webhook triggers.
   - Interactive **Custom Actions Builder** with live keybind recording (`● Record Keybind`).
   - Legacy `.sdProfile` importer that scans and converts existing `Stream Dock AJAZZ` profiles.
+  - A **Shortcuts** catalog of ready-made Windows, editing, game-recording and browser hotkeys (each stays editable), plus OBS actions for virtual camera, replay buffer, record pause, studio transition, switch to a named scene and mute a named source.
+- **Sharing**: export a profile (with the macros it uses) or a Game Mode to a JSON file in `Documents\DeckForge Exports`, and import one on another PC. Pictures and animations stay on the PC they came from, and imported Game Modes are limited by the same protected-program list as your own.
+- **Game Mode**: build your own modes from what is actually running on your PC (open apps, background processes, services), optionally switch to one of the power plans installed on it, and have everything put back afterwards. Nothing is closed until you pick it, and anti-cheat, drivers, audio, security software and DeckForge itself are never offered.
+- **Deck reliability**: heartbeat that keeps the firmware awake, automatic reconnect and re-send after a USB drop, a status badge with a **Re-send layout** button, and a guard that stops the official Ajazz app from taking the deck back.
 
 ## Development
 

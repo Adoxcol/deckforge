@@ -1,41 +1,53 @@
 import React from "react";
 import {
-  Bot,
   Check,
+  Download,
   Gamepad2,
   Lock,
-  MemoryStick,
   Plus,
   Power,
   RefreshCw,
   RotateCcw,
   Search,
-  Server,
   ShieldCheck,
   Star,
   Trash2,
   TriangleAlert,
+  Upload,
   X,
   Zap,
 } from "lucide-react";
 import { deckforgeApi } from "../bridge/tauriBridge";
+import { errorText } from "../lib/format";
+import {
+  buildModeFile,
+  parseModeFile,
+  pickJsonFile,
+  placeImportedMode,
+  slugify,
+  type PlacedMode,
+} from "../lib/shareFiles";
 import type {
   GameModeConfig,
   GameModeCustomTarget,
-  GameModeGroup,
   GameModeMode,
+  GameModeRunningApp,
   GameModeScan,
+  GameModeServicePick,
   GameModeStatus,
-  GameModeTarget,
 } from "../types/deckforge";
 
 type Notify = (text: string, kind?: "success" | "info" | "warning") => void;
 
-const GROUPS: { id: GameModeGroup; title: string; blurb: string; Icon: React.ComponentType<{ size?: number }> }[] = [
-  { id: "apps", title: "Apps", blurb: "Programs Game Mode closes. Untick anything you want to keep open.", Icon: MemoryStick },
-  { id: "ai", title: "AI apps", blurb: "Claude, Codex, ChatGPT and friends, plus their helper services.", Icon: Bot },
-  { id: "background", title: "Background services and tray apps", blurb: "Services stop through the admin helper. Tray apps close like any other app.", Icon: Server },
+type PickTab = "apps" | "background" | "services";
+
+const PICK_TABS: { id: PickTab; title: string; blurb: string }[] = [
+  { id: "apps", title: "Open apps", blurb: "Programs with a window open right now. They are asked to close first, so they can save." },
+  { id: "background", title: "Background processes", blurb: "Programs running without a window, such as tray apps and sync clients." },
+  { id: "services", title: "Services", blurb: "Windows services that are running. They stop through the admin helper and start again afterwards." },
 ];
+
+const prettyName = (name: string) => name.charAt(0).toUpperCase() + name.slice(1);
 
 const RESTORE_OPTIONS: { id: GameModeConfig["restore"]; title: string; hint: string }[] = [
   { id: "all", title: "Put everything back", hint: "Reopen closed apps one by one and restart services" },
@@ -109,6 +121,40 @@ const Toggle: React.FC<{ on: boolean; onClick: () => void; title: string; hint: 
   </button>
 );
 
+const Radio: React.FC<{ checked: boolean }> = ({ checked }) => (
+  <span
+    aria-hidden="true"
+    className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${checked ? "border-[#8B5CF6]" : "border-[#3A4157]"}`}
+  >
+    <span className={`w-2 h-2 rounded-full ${checked ? "bg-[#8B5CF6]" : "bg-transparent"}`} />
+  </span>
+);
+
+const PickRow: React.FC<{ on: boolean; title: string; sub: string; label: string; badge?: string; onClick: () => void }> = ({
+  on,
+  title,
+  sub,
+  label,
+  badge,
+  onClick,
+}) => (
+  <button
+    onClick={onClick}
+    aria-pressed={on}
+    aria-label={label}
+    className={`text-left flex items-center gap-2.5 px-2.5 py-1.5 rounded-md border cursor-pointer transition-colors ${
+      on ? "bg-[#151126] border-[#8B5CF6]/45" : "bg-[#0E111A] border-[#272D3D] hover:border-[#3A4157]"
+    }`}
+  >
+    <Checkbox checked={on} />
+    <span className="min-w-0 flex-1">
+      <span className="block text-[12px] text-[#F4F5FA] truncate">{title}</span>
+      <span className="block text-[10.5px] text-[#707B94] truncate">{sub}</span>
+    </span>
+    {badge && <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#30244F] text-[#B79CFF] border border-[#8B5CF6]/40 shrink-0">{badge}</span>}
+  </button>
+);
+
 export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
   const [scan, setScan] = React.useState<GameModeScan | null>(null);
   const [config, setConfig] = React.useState<GameModeConfig | null>(null);
@@ -117,20 +163,13 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
   const [savedAt, setSavedAt] = React.useState<number>(0);
   const [now, setNow] = React.useState<number>(() => Date.now());
   const [editingId, setEditingId] = React.useState<string>("");
-  const [showIdle, setShowIdle] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [arming, setArming] = React.useState(false);
+  const [pendingImport, setPendingImport] = React.useState<PlacedMode | null>(null);
 
-  // Picker for the user's own targets.
-  const [pickerOpen, setPickerOpen] = React.useState(false);
-  const [pickerTab, setPickerTab] = React.useState<"programs" | "services">("programs");
+  // The list of what is running on this PC.
+  const [pickTab, setPickTab] = React.useState<PickTab>("apps");
   const [query, setQuery] = React.useState("");
-  const [pickedProcs, setPickedProcs] = React.useState<string[]>([]);
-  const [pickedServices, setPickedServices] = React.useState<string[]>([]);
-  const [customLabel, setCustomLabel] = React.useState("");
-  const [customGroup, setCustomGroup] = React.useState<GameModeCustomTarget["group"]>("apps");
-  const [customGraceful, setCustomGraceful] = React.useState(true);
-  const [customReopen, setCustomReopen] = React.useState(true);
 
   const refresh = React.useCallback(async () => {
     setScanning(true);
@@ -186,16 +225,69 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
     void save({ ...config, modes: config.modes.map((m) => (m.id === mode.id ? { ...m, ...patch } : m)) });
   };
 
-  const toggleTarget = (id: string) => {
-    if (!mode) return;
-    const on = mode.targets.includes(id);
-    updateMode({ targets: on ? mode.targets.filter((t) => t !== id) : [...mode.targets, id] });
+  /** Ids of custom targets that no mode refers to any more. They are dropped with the last mode that used them. */
+  const withoutUnusedCustoms = (next: GameModeConfig): GameModeConfig => {
+    const used = new Set(next.modes.flatMap((m) => m.targets));
+    return { ...next, customTargets: next.customTargets.filter((c) => used.has(c.id)) };
   };
 
-  const setGroup = (ids: string[], on: boolean) => {
-    if (!mode) return;
-    const rest = mode.targets.filter((id) => !ids.includes(id));
-    updateMode({ targets: on ? [...rest, ...ids] : rest });
+  const toggleTarget = (id: string) => {
+    if (!config || !mode) return;
+    const on = mode.targets.includes(id);
+    const modes = config.modes.map((m) =>
+      m.id === mode.id ? { ...m, targets: on ? m.targets.filter((t) => t !== id) : [...m.targets, id] } : m
+    );
+    void save(withoutUnusedCustoms({ ...config, modes }));
+  };
+
+  const clearTargets = () => {
+    if (!config || !mode) return;
+    void save(withoutUnusedCustoms({ ...config, modes: config.modes.map((m) => (m.id === mode.id ? { ...m, targets: [] } : m)) }));
+  };
+
+  const updateCustom = (id: string, patch: Partial<GameModeCustomTarget>) => {
+    if (!config) return;
+    void save({ ...config, customTargets: config.customTargets.map((c) => (c.id === id ? { ...c, ...patch } : c)) });
+  };
+
+  /** Makes a new target from something the user ticked in the running list, and adds it to this mode. */
+  const addPicked = async (draft: Omit<GameModeCustomTarget, "id">) => {
+    if (!config || !mode) return;
+    const taken = new Set([...config.customTargets.map((c) => c.id), ...scan!.targets.map((t) => t.id)]);
+    let id = `my-${slug(draft.label)}`;
+    let n = 2;
+    while (taken.has(id)) id = `my-${slug(draft.label)}-${n++}`;
+    await save({
+      ...config,
+      customTargets: [...config.customTargets, { ...draft, id }],
+      modes: config.modes.map((m) => (m.id === mode.id ? { ...m, targets: [...m.targets, id] } : m)),
+    });
+    await refresh();
+  };
+
+  const toggleProgram = (app: GameModeRunningApp) => {
+    if (app.takenById) {
+      toggleTarget(app.takenById);
+      return;
+    }
+    void addPicked({
+      label: prettyName(app.name),
+      group: app.hasWindow ? "apps" : "background",
+      processes: [app.name],
+      services: [],
+      // A program without a window has nothing to ask, so it is ended straight away.
+      graceful: app.hasWindow,
+      reopen: true,
+    });
+  };
+
+  const toggleService = (service: GameModeServicePick) => {
+    const owner = scan?.targets.find((t) => t.services.some((s) => s.name.toLowerCase() === service.name.toLowerCase()));
+    if (owner) {
+      toggleTarget(owner.id);
+      return;
+    }
+    void addPicked({ label: service.display || service.name, group: "background", processes: [], services: [service.name], graceful: false, reopen: false });
   };
 
   const toggleTweak = (id: string) => {
@@ -208,10 +300,55 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
     if (!config || !mode) return;
     let n = config.modes.length + 1;
     while (config.modes.some((m) => m.id === `mode-${n}`)) n += 1;
-    const created: GameModeMode = { id: `mode-${n}`, name: `Mode ${n}`, targets: [...mode.targets], tweaks: [...mode.tweaks] };
+    const created: GameModeMode = { id: `mode-${n}`, name: `Mode ${n}`, targets: [...mode.targets], tweaks: [...mode.tweaks], powerPlan: mode.powerPlan };
     setEditingId(created.id);
     setConfirmDelete(false);
     void save({ ...config, modes: [...config.modes, created] });
+  };
+
+  const exportMode = async () => {
+    if (!config || !mode) return;
+    try {
+      const where = await deckforgeApi.saveExportFile(
+        `deckforge-game-mode-${slugify(mode.name)}.json`,
+        JSON.stringify(buildModeFile(mode, config.customTargets), null, 2)
+      );
+      notify(`Saved "${mode.name}" to ${where}`, "success");
+    } catch (error) {
+      notify(`Could not export the mode: ${errorText(error)}`, "warning");
+    }
+  };
+
+  const startImport = async () => {
+    if (!config || !scan) return;
+    const picked = await pickJsonFile();
+    if (!picked) return;
+    try {
+      const parsed = parseModeFile(picked.text);
+      setPendingImport(
+        placeImportedMode(
+          parsed,
+          config.modes,
+          config.customTargets,
+          scan.targets.map((t) => t.id),
+          scan.tweaks.map((t) => t.id),
+          scan.powerPlans.map((p) => p.guid)
+        )
+      );
+    } catch (error) {
+      notify(`Could not import ${picked.name}: ${errorText(error)}`, "warning");
+    }
+  };
+
+  const confirmImport = async () => {
+    if (!config || !pendingImport) return;
+    const placed = pendingImport;
+    setPendingImport(null);
+    setEditingId(placed.mode.id);
+    setConfirmDelete(false);
+    await save({ ...config, customTargets: placed.customTargets, modes: [...config.modes, placed.mode] });
+    await refresh();
+    notify(`Imported "${placed.mode.name}". Check what it closes before you start it.`, "success");
   };
 
   const renameMode = (name: string) => {
@@ -229,54 +366,6 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
     setEditingId(modes[0].id);
     setConfirmDelete(false);
     void save({ ...config, modes, activeMode: config.activeMode === mode.id ? modes[0].id : config.activeMode });
-  };
-
-  const resetPicker = () => {
-    setPickerOpen(false);
-    setQuery("");
-    setPickedProcs([]);
-    setPickedServices([]);
-    setCustomLabel("");
-    setCustomGroup("apps");
-    setCustomGraceful(true);
-    setCustomReopen(true);
-  };
-
-  const addCustom = async () => {
-    if (!config || !mode) return;
-    if (pickedProcs.length === 0 && pickedServices.length === 0) return;
-    const label = customLabel.trim() || pickedProcs[0] || pickedServices[0];
-    const taken = new Set([...config.customTargets.map((c) => c.id), ...(scan?.targets.map((t) => t.id) ?? [])]);
-    let id = `my-${slug(label)}`;
-    let n = 2;
-    while (taken.has(id)) id = `my-${slug(label)}-${n++}`;
-    const target: GameModeCustomTarget = {
-      id,
-      label,
-      group: pickedProcs.length === 0 ? "background" : customGroup,
-      processes: pickedProcs,
-      services: pickedServices,
-      graceful: customGraceful,
-      reopen: pickedProcs.length > 0 && customReopen,
-    };
-    resetPicker();
-    await save({
-      ...config,
-      customTargets: [...config.customTargets, target],
-      modes: config.modes.map((m) => (m.id === mode.id ? { ...m, targets: [...m.targets, id] } : m)),
-    });
-    await refresh();
-    notify(`Added ${label} to ${mode.name}`, "success");
-  };
-
-  const removeCustom = async (id: string) => {
-    if (!config) return;
-    await save({
-      ...config,
-      customTargets: config.customTargets.filter((c) => c.id !== id),
-      modes: config.modes.map((m) => ({ ...m, targets: m.targets.filter((t) => t !== id) })),
-    });
-    await refresh();
   };
 
   const active = status?.active ?? false;
@@ -324,85 +413,35 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
     };
   }, [scan, mode]);
 
-  const rowFor = (target: GameModeTarget) => {
-    const on = mode?.targets.includes(target.id) ?? false;
-    const runningServices = target.services.filter((s) => s.running);
-    return (
-      <div key={target.id} className="relative">
-        <button
-          onClick={() => toggleTarget(target.id)}
-          disabled={!mode}
-          aria-label={`${target.label}${on ? ", closes in this mode" : ", stays open"}`}
-          className={`w-full h-full text-left flex items-start gap-3 px-3.5 py-2.5 rounded-lg border transition-colors cursor-pointer ${
-            on ? "bg-[#151126] border-[#8B5CF6]/45" : "bg-[#10131D] border-[#272D3D] hover:border-[#3A4157]"
-          } ${target.custom ? "pr-10" : ""}`}
-        >
-          <span className="mt-0.5">
-            <Checkbox checked={on} />
-          </span>
-          <span className="flex-1 min-w-0">
-            <span className="flex items-center gap-2 flex-wrap">
-              <span className="text-[12.5px] font-semibold text-[#F4F5FA]">{target.label}</span>
-              {target.custom && (
-                <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#30244F] text-[#B79CFF] border border-[#8B5CF6]/40">Yours</span>
-              )}
-              {target.running ? (
-                <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#35C98B]/12 text-[#35C98B] border border-[#35C98B]/30">
-                  {target.processCount > 0
-                    ? `Running · ${formatMemory(target.memoryMb)}${target.processCount > 1 ? ` · ${target.processCount} processes` : ""}`
-                    : `Service running`}
-                </span>
-              ) : (
-                <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#1A1F2E] text-[#707B94] border border-[#272D3D]">Not running</span>
-              )}
-              {target.processCount > 0 && runningServices.length > 0 && (
-                <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#1A1F2E] text-[#A6AFC4] border border-[#272D3D]">
-                  + {runningServices.length} service{runningServices.length > 1 ? "s" : ""}
-                </span>
-              )}
-              {target.needsAdmin && (
-                <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#F4B860]/10 text-[#F4B860] border border-[#F4B860]/30 flex items-center gap-1">
-                  <Lock size={9} /> helper
-                </span>
-              )}
-            </span>
-            <span className="block text-[11.5px] text-[#A6AFC4] mt-0.5 leading-snug">
-              {target.custom
-                ? [target.processes.length ? `Programs: ${target.processes.join(", ")}` : "", target.services.length ? `Services: ${target.services.map((s) => s.name).join(", ")}` : ""]
-                    .filter(Boolean)
-                    .join(" · ")
-                : target.note}
-            </span>
-          </span>
-        </button>
-        {target.custom && (
-          <button
-            onClick={() => void removeCustom(target.id)}
-            aria-label={`Remove ${target.label}`}
-            title={`Remove ${target.label} from every mode`}
-            className="absolute top-2 right-2 w-6 h-6 rounded-md flex items-center justify-center text-[#707B94] hover:text-[#F16B79] hover:bg-[#F16B79]/10 cursor-pointer"
-          >
-            <Trash2 size={13} />
-          </button>
-        )}
-      </div>
-    );
-  };
-
   if (!scan || !config || !mode) {
     return (
       <div className="flex-1 flex items-center justify-center text-sm text-[#A6AFC4]">Analysing your PC...</div>
     );
   }
 
-  const bitsumOk = scan.bitsumFound;
   const freedMb = status ? Math.max(0, status.ramFreeAfterMb - status.ramFreeBeforeMb) : 0;
   const q = query.trim().toLowerCase();
-  const programRows = scan.processes.filter((p) => !q || p.name.includes(q));
-  const serviceRows = scan.services.filter((s) => !q || s.name.toLowerCase().includes(q) || s.display.toLowerCase().includes(q));
-  const selectedHasServices = scan.targets.some((t) => mode.targets.includes(t.id) && t.needsAdmin);
-  const idleCount = scan.targets.filter((t) => !(t.running || t.custom || mode.targets.includes(t.id))).length;
+  const hit = (...parts: string[]) => !q || parts.some((part) => part.toLowerCase().includes(q));
+  const everyApp = scan.processes.filter((p) => p.hasWindow);
+  const everyBackground = scan.processes.filter((p) => !p.hasWindow);
+  const appRows = everyApp.filter((p) => hit(p.name, p.takenBy ?? ""));
+  const backgroundRows = everyBackground.filter((p) => hit(p.name, p.takenBy ?? ""));
+  const serviceRows = scan.services.filter((s) => hit(s.name, s.display));
+  const ticked = (target: string | null) => target !== null && mode.targets.includes(target);
+  const serviceOwner = (name: string) => scan.targets.find((t) => t.services.some((s) => s.name.toLowerCase() === name.toLowerCase()));
+  const tabCount: Record<PickTab, number> = { apps: everyApp.length, background: everyBackground.length, services: scan.services.length };
+  const tabPicked: Record<PickTab, number> = {
+    apps: everyApp.filter((p) => ticked(p.takenById)).length,
+    background: everyBackground.filter((p) => ticked(p.takenById)).length,
+    services: scan.services.filter((s) => ticked(serviceOwner(s.name)?.id ?? null)).length,
+  };
+  const selectedTargets = scan.targets.filter((t) => mode.targets.includes(t.id));
+  const selectedHasServices = selectedTargets.some((t) => t.needsAdmin);
+  const launchersToAdd = scan.targets.filter((t) => !t.custom && !mode.targets.includes(t.id));
+  const modePlan = scan.powerPlans.find((p) => p.guid === mode.powerPlan);
+  const planMissing = mode.powerPlan !== "" && !modePlan;
   const helper = scan.helper;
+  const tab = PICK_TABS.find((t) => t.id === pickTab) ?? PICK_TABS[0];
 
   return (
     <div className="flex-1 grid grid-cols-[1fr_340px] overflow-hidden">
@@ -447,9 +486,9 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
           <Stat label="Processes" value={`${scan.processCount}`} hint={`${picked.count} selected items running`} />
           <Stat
             label="Power plan"
-            value={bitsumOk ? "Bitsum Highest Performance" : scan.powerPlan || "Unknown"}
-            hint={bitsumOk ? "Kept on while Game Mode runs" : "Bitsum plan not found"}
-            tone={bitsumOk ? "good" : "warn"}
+            value={scan.powerPlan || "Unknown"}
+            hint={modePlan ? `${mode.name} switches to ${modePlan.name}` : planMissing ? "Chosen plan is not installed" : "Game Mode leaves it alone"}
+            tone={planMissing ? "warn" : undefined}
           />
           <Stat
             label="Status"
@@ -532,7 +571,66 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             >
               <Plus size={13} /> New mode
             </button>
+            <button
+              onClick={() => void startImport()}
+              aria-label="Import mode from a file"
+              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[#3A4157] text-[#A6AFC4] hover:border-[#8B5CF6] hover:text-white cursor-pointer"
+            >
+              <Download size={13} /> Import
+            </button>
           </div>
+          {pendingImport && (
+            <div role="dialog" aria-label="Import a mode" className="bg-[#151126] border border-[#8B5CF6]/45 rounded-lg px-4 py-3 flex flex-col gap-2">
+              <div className="text-[13px] font-semibold text-[#F4F5FA]">Import "{pendingImport.mode.name}"?</div>
+              <p className="text-[11.5px] text-[#A6AFC4] leading-snug">
+                A mode file decides what Game Mode closes and stops on this PC. Read this list first. System programs and your dev tools stay protected no matter what a file says.
+              </p>
+              <ul className="flex flex-col gap-1 max-h-40 overflow-y-auto">
+                {pendingImport.mode.targets.length === 0 && <li className="text-[11.5px] text-[#707B94]">It closes nothing.</li>}
+                {pendingImport.mode.targets.map((id) => {
+                  const custom = pendingImport.customTargets.find((c) => c.id === id);
+                  const known = scan.targets.find((t) => t.id === id);
+                  const label = custom?.label ?? known?.label ?? id;
+                  const programs = custom?.processes ?? known?.processes ?? [];
+                  const services = custom?.services ?? known?.services.map((s) => s.name) ?? [];
+                  return (
+                    <li key={id} className="text-[11.5px] text-[#A6AFC4]">
+                      <span className="text-[#F4F5FA] font-medium">{label}</span>
+                      {programs.length > 0 && <span> · closes {programs.join(", ")}</span>}
+                      {services.length > 0 && <span> · stops service {services.join(", ")}</span>}
+                    </li>
+                  );
+                })}
+              </ul>
+              {pendingImport.mode.powerPlan && (
+                <div className="text-[11.5px] text-[#A6AFC4]">
+                  Switches the power plan to {scan.powerPlans.find((p) => p.guid === pendingImport.mode.powerPlan)?.name ?? "an installed plan"} while it runs.
+                </div>
+              )}
+              {pendingImport.powerPlanDropped && (
+                <div className="text-[11.5px] text-[#F4B860]">The power plan in the file is not installed on this PC, so it was left out.</div>
+              )}
+              {pendingImport.dropped > 0 && (
+                <div className="text-[11.5px] text-[#F4B860]">
+                  {pendingImport.dropped} item{pendingImport.dropped === 1 ? "" : "s"} in the file this version does not know, so they were left out.
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => void confirmImport()}
+                  className="h-8 px-3 rounded-md bg-[#8B5CF6] hover:bg-[#9B72F8] text-white text-[12.5px] font-semibold cursor-pointer"
+                >
+                  Import mode
+                </button>
+                <button
+                  onClick={() => setPendingImport(null)}
+                  className="h-8 px-3 rounded-md border border-[#272D3D] text-[#A6AFC4] hover:text-white text-[12.5px] cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
           <div className="flex items-center gap-2 flex-wrap bg-[#10131D] border border-[#272D3D] rounded-lg px-3 py-2">
             <label className="text-[11px] uppercase tracking-wider text-[#707B94]" htmlFor="game-mode-name">
               Mode name
@@ -565,10 +663,17 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               Deck key parameter: <span className="text-[#A6AFC4] font-mono">{mode.id}</span>
             </span>
             <button
+              onClick={() => void exportMode()}
+              aria-label="Export this mode to a file"
+              className="ml-auto h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border border-[#272D3D] text-[#A6AFC4] hover:border-[#8B5CF6] hover:text-white cursor-pointer"
+            >
+              <Upload size={12} /> Export
+            </button>
+            <button
               onClick={deleteMode}
               disabled={config.modes.length < 2}
               aria-label={confirmDelete ? "Confirm delete mode" : "Delete mode"}
-              className={`ml-auto h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
                 confirmDelete ? "border-[#F16B79]/60 text-[#F16B79] bg-[#F16B79]/10" : "border-[#272D3D] text-[#A6AFC4] hover:border-[#F16B79]/50 hover:text-[#F16B79]"
               }`}
             >
@@ -577,212 +682,226 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
           </div>
         </section>
 
-        {/* Targets */}
-        {GROUPS.map((group) => {
-          const all = scan.targets.filter((t) => t.group === group.id);
-          const items = all.filter((t) => showIdle || t.running || t.custom || mode.targets.includes(t.id));
-          if (all.length === 0) return null;
-          const ids = items.map((t) => t.id);
-          const onCount = items.filter((t) => mode.targets.includes(t.id)).length;
-          return (
-            <section key={group.id} aria-label={group.title} className="flex flex-col gap-2">
-              <div className="flex items-end justify-between">
-                <div className="flex items-center gap-2">
-                  <group.Icon size={14} />
-                  <h2 className="text-[13px] font-semibold text-[#F4F5FA]">{group.title}</h2>
-                  <span className="text-[11px] text-[#707B94]">
-                    {onCount} of {items.length} selected
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 text-[11px]">
-                  <button onClick={() => setGroup(ids, true)} className="text-[#B79CFF] hover:text-white cursor-pointer">
-                    Select all
-                  </button>
-                  <button onClick={() => setGroup(ids, false)} className="text-[#A6AFC4] hover:text-white cursor-pointer">
-                    Select none
-                  </button>
-                </div>
-              </div>
-              <p className="text-[11.5px] text-[#707B94] -mt-1">{group.blurb}</p>
-              {items.length > 0 ? (
-                <div className="grid grid-cols-2 gap-2">{items.map(rowFor)}</div>
-              ) : (
-                <p className="text-[11.5px] text-[#707B94] italic">Nothing from this group is running right now.</p>
-              )}
-            </section>
-          );
-        })}
-        {(showIdle || idleCount > 0) && (
-          <button
-            onClick={() => setShowIdle((v) => !v)}
-            aria-pressed={showIdle}
-            className="self-start text-[11.5px] text-[#B79CFF] hover:text-white cursor-pointer -mt-2"
-          >
-            {showIdle ? "Hide presets that are not running" : `Show ${idleCount} presets that are not running`}
-          </button>
-        )}
-
-        {/* Your own targets */}
-        <section aria-label="Add your own" className="flex flex-col gap-2.5">
+        {/* What is running right now */}
+        <section aria-label="Pick what to close" className="flex flex-col gap-2.5">
           <div className="flex items-center gap-2">
-            <Plus size={14} />
-            <h2 className="text-[13px] font-semibold text-[#F4F5FA]">Add your own</h2>
-            <span className="text-[11px] text-[#707B94]">Pick programs or services from this PC. They are added to {mode.name}.</span>
-            {!pickerOpen && (
-              <button
-                onClick={() => setPickerOpen(true)}
-                aria-label="Add a program or service"
-                className="ml-auto h-7 px-3 rounded-md text-[12px] font-semibold bg-[#30244F] text-[#F4F5FA] border border-[#8B5CF6]/50 hover:bg-[#3B2C63] cursor-pointer flex items-center gap-1.5"
-              >
-                <Plus size={12} /> Add
+            <h2 className="text-[13px] font-semibold text-[#F4F5FA]">Pick what {mode.name} closes</h2>
+            <span className="text-[11px] text-[#707B94]">This is what is running on your PC right now. Tick anything you want out of the way.</span>
+            <button
+              onClick={() => void refresh()}
+              aria-label="Refresh the list"
+              className="ml-auto h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border border-[#272D3D] text-[#A6AFC4] hover:border-[#8B5CF6] hover:text-white cursor-pointer"
+            >
+              <RefreshCw size={12} className={scanning ? "animate-spin" : ""} /> Refresh
+            </button>
+          </div>
+          <div className="bg-[#10131D] border border-[#272D3D] rounded-lg p-3 flex flex-col gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
+              {PICK_TABS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setPickTab(t.id)}
+                  aria-pressed={pickTab === t.id}
+                  className={`h-7 px-3 rounded-md text-[12px] border cursor-pointer flex items-center gap-1.5 ${
+                    pickTab === t.id ? "bg-[#30244F] border-[#8B5CF6]/60 text-[#F4F5FA]" : "bg-[#0E111A] border-[#272D3D] text-[#A6AFC4] hover:border-[#3A4157]"
+                  }`}
+                >
+                  {t.title} ({tabCount[t.id]})
+                  {tabPicked[t.id] > 0 && <span className="text-[#B79CFF]">{tabPicked[t.id]} picked</span>}
+                </button>
+              ))}
+              <div className="relative ml-auto">
+                <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#707B94]" />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search"
+                  aria-label="Search what is running"
+                  className="h-7 w-48 pl-7 pr-2 rounded-md bg-[#0E111A] border border-[#272D3D] text-[12px] text-[#F4F5FA] outline-none focus:border-[#8B5CF6]"
+                />
+              </div>
+            </div>
+            <p className="text-[11.5px] text-[#707B94] -mt-1">{tab.blurb}</p>
+            <div className="max-h-80 overflow-y-auto grid grid-cols-2 gap-1.5 pr-1">
+              {pickTab !== "services" &&
+                (pickTab === "apps" ? appRows : backgroundRows).map((p) => {
+                  const on = ticked(p.takenById);
+                  const sub = [formatMemory(p.memoryMb), p.count > 1 ? `${p.count} processes` : "", p.takenBy && p.takenBy.toLowerCase() !== p.name ? `closed as ${p.takenBy}` : ""]
+                    .filter(Boolean)
+                    .join(" · ");
+                  return (
+                    <PickRow
+                      key={p.name}
+                      on={on}
+                      title={prettyName(p.name)}
+                      sub={sub}
+                      label={`${prettyName(p.name)}, ${on ? "closes in this mode" : "stays open"}`}
+                      onClick={() => toggleProgram(p)}
+                    />
+                  );
+                })}
+              {pickTab === "services" &&
+                serviceRows.map((s) => {
+                  const owner = serviceOwner(s.name);
+                  const on = ticked(owner?.id ?? null);
+                  return (
+                    <PickRow
+                      key={s.name}
+                      on={on}
+                      title={s.display || s.name}
+                      sub={s.name}
+                      badge="helper"
+                      label={`${s.display || s.name}, ${on ? "stops in this mode" : "keeps running"}`}
+                      onClick={() => toggleService(s)}
+                    />
+                  );
+                })}
+              {(pickTab === "apps" ? appRows : pickTab === "background" ? backgroundRows : serviceRows).length === 0 && (
+                <p className="col-span-2 text-[12px] text-[#707B94] py-3 text-center">{q ? "Nothing matches your search." : "Nothing to show."}</p>
+              )}
+            </div>
+            <p className="text-[11px] text-[#707B94] leading-snug">
+              Windows itself, anti-cheat, graphics drivers, audio and security software and DeckForge are never listed and can never be picked.
+            </p>
+            {launchersToAdd.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap border-t border-[#272D3D] pt-3">
+                <span className="text-[11.5px] text-[#707B94]">Not open right now? Add a common launcher:</span>
+                {launchersToAdd.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => toggleTarget(t.id)}
+                    aria-label={`Add ${t.label} to this mode`}
+                    title={t.note}
+                    className="h-7 px-2.5 rounded-full text-[12px] border border-dashed border-[#3A4157] text-[#A6AFC4] hover:border-[#8B5CF6] hover:text-white cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Plus size={11} /> {t.label}
+                    {t.running && <span className="w-1.5 h-1.5 rounded-full bg-[#35C98B]" aria-label="running" />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        {/* What this mode will do */}
+        <section aria-label={`In ${mode.name}`} className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <ShieldCheck size={14} />
+            <h2 className="text-[13px] font-semibold text-[#F4F5FA]">In {mode.name}</h2>
+            <span className="text-[11px] text-[#707B94]">
+              {selectedTargets.length === 0 ? "Nothing yet" : `${selectedTargets.length} to close or stop`}
+            </span>
+            {selectedTargets.length > 0 && (
+              <button onClick={clearTargets} className="ml-auto text-[11px] text-[#A6AFC4] hover:text-white cursor-pointer">
+                Clear all
               </button>
             )}
           </div>
-          {pickerOpen && (
-            <div className="bg-[#10131D] border border-[#272D3D] rounded-lg p-3 flex flex-col gap-3">
-              <div className="flex items-center gap-2">
-                {(["programs", "services"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setPickerTab(tab)}
-                    aria-pressed={pickerTab === tab}
-                    className={`h-7 px-3 rounded-md text-[12px] border cursor-pointer ${
-                      pickerTab === tab ? "bg-[#30244F] border-[#8B5CF6]/60 text-[#F4F5FA]" : "bg-[#0E111A] border-[#272D3D] text-[#A6AFC4] hover:border-[#3A4157]"
-                    }`}
-                  >
-                    {tab === "programs" ? `Running programs (${scan.processes.length})` : `Running services (${scan.services.length})`}
-                  </button>
-                ))}
-                <div className="relative ml-auto">
-                  <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#707B94]" />
-                  <input
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search"
-                    aria-label="Search programs and services"
-                    className="h-7 w-48 pl-7 pr-2 rounded-md bg-[#0E111A] border border-[#272D3D] text-[12px] text-[#F4F5FA] outline-none focus:border-[#8B5CF6]"
-                  />
-                </div>
-                <button
-                  onClick={resetPicker}
-                  aria-label="Close the picker"
-                  className="w-7 h-7 rounded-md flex items-center justify-center text-[#707B94] hover:text-white hover:bg-[#1C2130] cursor-pointer"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-              <div className="max-h-52 overflow-y-auto grid grid-cols-2 gap-1.5 pr-1">
-                {pickerTab === "programs" &&
-                  programRows.map((p) => {
-                    const on = pickedProcs.includes(p.name);
-                    return (
-                      <button
-                        key={p.name}
-                        onClick={() => setPickedProcs((list) => (on ? list.filter((n) => n !== p.name) : [...list, p.name]))}
-                        disabled={Boolean(p.takenBy)}
-                        aria-label={`${p.name}${p.takenBy ? `, already closed by ${p.takenBy}` : on ? ", picked" : ""}`}
-                        className={`text-left flex items-center gap-2.5 px-2.5 py-1.5 rounded-md border cursor-pointer disabled:opacity-45 disabled:cursor-not-allowed ${
-                          on ? "bg-[#151126] border-[#8B5CF6]/45" : "bg-[#0E111A] border-[#272D3D] hover:border-[#3A4157]"
-                        }`}
-                      >
-                        <Checkbox checked={on} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[12px] text-[#F4F5FA] truncate">{p.name}</span>
-                          <span className="block text-[10.5px] text-[#707B94] truncate">
-                            {p.takenBy ? `Already closed by ${p.takenBy}` : `${formatMemory(p.memoryMb)}${p.count > 1 ? ` · ${p.count} processes` : ""}`}
-                          </span>
+          {selectedTargets.length === 0 ? (
+            <p className="text-[11.5px] text-[#707B94] leading-snug">
+              Nothing is picked, so starting this mode only applies the power plan and tweaks below. Pick apps or services above, or add a launcher.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {selectedTargets.map((t) => {
+                const custom = config.customTargets.find((c) => c.id === t.id);
+                const detail = t.custom
+                  ? [t.processes.length ? `Programs: ${t.processes.join(", ")}` : "", t.services.length ? `Services: ${t.services.map((s) => s.name).join(", ")}` : ""]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : t.note;
+                return (
+                  <div key={t.id} className="relative bg-[#151126] border border-[#8B5CF6]/45 rounded-lg px-3.5 py-2.5 pr-10">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-[12.5px] font-semibold text-[#F4F5FA]">{t.label}</span>
+                      {t.running ? (
+                        <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#35C98B]/12 text-[#35C98B] border border-[#35C98B]/30">
+                          {t.processCount > 0
+                            ? `Running · ${formatMemory(t.memoryMb)}${t.processCount > 1 ? ` · ${t.processCount} processes` : ""}`
+                            : "Service running"}
                         </span>
-                      </button>
-                    );
-                  })}
-                {pickerTab === "services" &&
-                  serviceRows.map((s) => {
-                    const on = pickedServices.includes(s.name);
-                    return (
-                      <button
-                        key={s.name}
-                        onClick={() => setPickedServices((list) => (on ? list.filter((n) => n !== s.name) : [...list, s.name]))}
-                        aria-label={`${s.display}${on ? ", picked" : ""}`}
-                        className={`text-left flex items-center gap-2.5 px-2.5 py-1.5 rounded-md border cursor-pointer ${
-                          on ? "bg-[#151126] border-[#8B5CF6]/45" : "bg-[#0E111A] border-[#272D3D] hover:border-[#3A4157]"
-                        }`}
-                      >
-                        <Checkbox checked={on} />
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[12px] text-[#F4F5FA] truncate">{s.display}</span>
-                          <span className="block text-[10.5px] text-[#707B94] truncate">{s.name}</span>
+                      ) : (
+                        <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#1A1F2E] text-[#707B94] border border-[#272D3D]">Not running</span>
+                      )}
+                      {t.needsAdmin && (
+                        <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#F4B860]/10 text-[#F4B860] border border-[#F4B860]/30 flex items-center gap-1">
+                          <Lock size={9} /> helper
                         </span>
-                      </button>
-                    );
-                  })}
-                {((pickerTab === "programs" && programRows.length === 0) || (pickerTab === "services" && serviceRows.length === 0)) && (
-                  <p className="col-span-2 text-[12px] text-[#707B94] py-3 text-center">Nothing matches.</p>
-                )}
-              </div>
-              <p className="text-[11px] text-[#707B94] leading-snug">
-                Windows, anti-cheat, graphics drivers, audio and security programs and services are hidden and can never be added.
-              </p>
-              <div className="flex items-end gap-3 flex-wrap border-t border-[#272D3D] pt-3">
-                <label className="flex flex-col gap-1 text-[11px] uppercase tracking-wider text-[#707B94]">
-                  Name
-                  <input
-                    value={customLabel}
-                    onChange={(event) => setCustomLabel(event.target.value)}
-                    placeholder={pickedProcs[0] ?? pickedServices[0] ?? "e.g. Work apps"}
-                    maxLength={40}
-                    aria-label="Name for this target"
-                    className="h-8 w-48 px-2 rounded-md bg-[#0E111A] border border-[#272D3D] text-[12.5px] normal-case tracking-normal text-[#F4F5FA] outline-none focus:border-[#8B5CF6]"
-                  />
-                </label>
-                {pickedProcs.length > 0 && (
-                  <>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] uppercase tracking-wider text-[#707B94]">Shown under</span>
-                      <div className="flex gap-1">
-                        {(["apps", "background"] as const).map((g) => (
-                          <button
-                            key={g}
-                            onClick={() => setCustomGroup(g)}
-                            aria-pressed={customGroup === g}
-                            className={`h-8 px-2.5 rounded-md text-[12px] border cursor-pointer ${
-                              customGroup === g ? "bg-[#30244F] border-[#8B5CF6]/60 text-[#F4F5FA]" : "bg-[#0E111A] border-[#272D3D] text-[#A6AFC4]"
-                            }`}
-                          >
-                            {g === "apps" ? "Apps" : "Background"}
-                          </button>
-                        ))}
-                      </div>
+                      )}
                     </div>
+                    <div className="text-[11.5px] text-[#A6AFC4] mt-0.5 leading-snug">{detail}</div>
+                    {custom && custom.processes.length > 0 && (
+                      <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                        <button
+                          onClick={() => updateCustom(custom.id, { graceful: !custom.graceful })}
+                          aria-pressed={custom.graceful}
+                          className="flex items-center gap-1.5 text-[11px] text-[#A6AFC4] hover:text-white cursor-pointer"
+                        >
+                          <Checkbox checked={custom.graceful} /> Ask it to close first
+                        </button>
+                        <button
+                          onClick={() => updateCustom(custom.id, { reopen: !custom.reopen })}
+                          aria-pressed={custom.reopen}
+                          className="flex items-center gap-1.5 text-[11px] text-[#A6AFC4] hover:text-white cursor-pointer"
+                        >
+                          <Checkbox checked={custom.reopen} /> Reopen afterwards
+                        </button>
+                      </div>
+                    )}
                     <button
-                      onClick={() => setCustomGraceful((v) => !v)}
-                      aria-pressed={customGraceful}
-                      className="h-8 px-2.5 rounded-md text-[12px] border border-[#272D3D] bg-[#0E111A] text-[#A6AFC4] hover:border-[#3A4157] flex items-center gap-2 cursor-pointer"
+                      onClick={() => toggleTarget(t.id)}
+                      aria-label={`Take ${t.label} out of this mode`}
+                      title="Take it out of this mode"
+                      className="absolute top-2 right-2 w-6 h-6 rounded-md flex items-center justify-center text-[#707B94] hover:text-[#F16B79] hover:bg-[#F16B79]/10 cursor-pointer"
                     >
-                      <Checkbox checked={customGraceful} /> Ask it to close first
+                      <X size={13} />
                     </button>
-                    <button
-                      onClick={() => setCustomReopen((v) => !v)}
-                      aria-pressed={customReopen}
-                      className="h-8 px-2.5 rounded-md text-[12px] border border-[#272D3D] bg-[#0E111A] text-[#A6AFC4] hover:border-[#3A4157] flex items-center gap-2 cursor-pointer"
-                    >
-                      <Checkbox checked={customReopen} /> Reopen afterwards
-                    </button>
-                  </>
-                )}
-                <button
-                  onClick={() => void addCustom()}
-                  disabled={pickedProcs.length + pickedServices.length === 0}
-                  aria-label="Add the picked items to this mode"
-                  className="ml-auto h-8 px-4 rounded-md text-[12.5px] font-semibold bg-[#8B5CF6] text-white hover:bg-[#9B72F8] disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  Add {pickedProcs.length + pickedServices.length > 0 ? `${pickedProcs.length + pickedServices.length} picked` : ""}
-                </button>
-              </div>
+                  </div>
+                );
+              })}
             </div>
           )}
-          {config.customTargets.length === 0 && !pickerOpen && (
-            <p className="text-[11.5px] text-[#707B94]">Nothing added yet. Your own targets show up in the lists above with a Yours tag.</p>
-          )}
+        </section>
+
+        {/* Power plan */}
+        <section aria-label="Power plan" className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <Zap size={14} />
+            <h2 className="text-[13px] font-semibold text-[#F4F5FA]">Power plan</h2>
+            <span className="text-[11px] text-[#707B94]">The plans installed on this PC. Windows is using {scan.powerPlan || "an unknown plan"} now.</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {[{ guid: "", name: "Leave it as it is", active: false }, ...scan.powerPlans].map((plan) => {
+              const on = mode.powerPlan === plan.guid || (plan.guid === "" && planMissing);
+              return (
+                <button
+                  key={plan.guid || "leave"}
+                  onClick={() => updateMode({ powerPlan: plan.guid })}
+                  aria-pressed={on}
+                  aria-label={plan.guid === "" ? "Leave the power plan alone" : `Use the ${plan.name} power plan`}
+                  className={`text-left flex items-center gap-3 px-3.5 py-2.5 rounded-lg border cursor-pointer transition-colors ${
+                    on ? "bg-[#151126] border-[#8B5CF6]/45" : "bg-[#10131D] border-[#272D3D] hover:border-[#3A4157]"
+                  }`}
+                >
+                  <Radio checked={on} />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[12.5px] font-semibold text-[#F4F5FA] truncate">{plan.name}</span>
+                    {plan.guid === "" && <span className="block text-[11px] text-[#707B94]">Game Mode never changes the plan</span>}
+                  </span>
+                  {plan.active && (
+                    <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#35C98B]/12 text-[#35C98B] border border-[#35C98B]/30 shrink-0">In use now</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[11px] text-[#707B94] leading-snug">
+            {planMissing
+              ? "The plan saved in this mode is not installed on this PC, so Game Mode leaves the plan alone. Pick one above."
+              : modePlan
+                ? `Game Mode switches to ${modePlan.name} when it starts and puts your earlier plan back when it ends.`
+                : "Pick a plan if you want Game Mode to switch to it while you play."}
+          </p>
         </section>
 
         {/* Tweaks */}
@@ -795,17 +914,6 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             {scan.tweaks.map((tweak) => (
               <Toggle key={tweak.id} on={mode.tweaks.includes(tweak.id)} onClick={() => toggleTweak(tweak.id)} title={tweak.label} hint={tweak.note} label={tweak.label} />
             ))}
-            <div className="flex items-start gap-3 px-3.5 py-2.5 rounded-lg border border-[#35C98B]/30 bg-[#35C98B]/5 col-span-2">
-              <span className="mt-0.5 text-[#35C98B]">
-                <Lock size={14} />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-[12.5px] font-semibold text-[#F4F5FA]">Always run on Bitsum Highest Performance</span>
-                <span className="block text-[11.5px] text-[#A6AFC4] mt-0.5 leading-snug">
-                  Game Mode never switches to another power plan, and puts Bitsum back if something else was active. Currently active: {scan.powerPlan || "unknown"}.
-                </span>
-              </span>
-            </div>
           </div>
         </section>
 

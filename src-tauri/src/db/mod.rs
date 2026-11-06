@@ -823,7 +823,10 @@ fn parse_sdprofile_action(key_index: u8, act_val: &serde_json::Value) -> KeyConf
 /// Parses all `.sdProfile` folders in `%APPDATA%\HotSpot\StreamDock\profiles` and returns
 /// rich `Profile` structs ready to use in DeckForge!
 pub fn parse_all_legacy_sdprofiles() -> Vec<Profile> {
-    let appdata = std::env::var("APPDATA").unwrap_or_else(|_| "C:\\Users\\MAHMOOD\\AppData\\Roaming".to_string());
+    // Without APPDATA (not Windows) there is nothing to import.
+    let Some(appdata) = std::env::var_os("APPDATA") else {
+        return Vec::new();
+    };
     let profiles_dir = PathBuf::from(&appdata).join("HotSpot").join("StreamDock").join("profiles");
 
     let mut imported = Vec::new();
@@ -932,7 +935,7 @@ pub fn parse_all_legacy_sdprofiles() -> Vec<Profile> {
 
 /// Scans `%APPDATA%\HotSpot\StreamDock\profiles` and `%APPDATA%\HotSpot\StreamDock\plugins`.
 pub fn scan_legacy_streamdock_environment() -> LegacyStreamDockSummary {
-    let appdata = std::env::var("APPDATA").unwrap_or_else(|_| "C:\\Users\\MAHMOOD\\AppData\\Roaming".to_string());
+    let appdata = std::env::var_os("APPDATA").unwrap_or_default();
     let base = PathBuf::from(&appdata).join("HotSpot").join("StreamDock");
     let profiles_dir = base.join("profiles");
     let plugins_dir = base.join("plugins");

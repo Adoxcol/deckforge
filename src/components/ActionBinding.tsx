@@ -14,6 +14,9 @@ export function actionNeedsParam(id: string): boolean {
     id === "custom.hotkey" ||
     id === "sys.hotkey" ||
     id.startsWith("custom.") ||
+    id.startsWith("hotkey.") ||
+    id === "obs.set_scene" ||
+    id === "obs.toggle_mute" ||
     id === "profile.switch_page" ||
     id === "profile.switch" ||
     id === "macro.run"
@@ -31,6 +34,9 @@ export function splitStoredBinding(
 }
 
 function paramLabel(actionId: string): string {
+  if (actionId.startsWith("hotkey.")) return "Shortcut";
+  if (actionId === "obs.set_scene") return "OBS scene name";
+  if (actionId === "obs.toggle_mute") return "OBS audio source name";
   if (actionId.includes("launch")) return "Application / file path";
   if (actionId.includes("shell")) return "PowerShell / command";
   if (actionId.includes("url")) return "Website URL";

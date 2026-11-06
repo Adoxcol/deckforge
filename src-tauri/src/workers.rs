@@ -1,0 +1,338 @@
+use super::*;
+
+pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
+    let usb = shared.lock().unwrap_or_else(|e| e.into_inner()).usb_bus.clone();
+    std::thread::spawn(move || {
+        let mut stable_exe = String::new();
+        let mut stable_title = String::new();
+        let mut stable_since = 0u64;
+        let mut last_sample = 0u64;
+        loop {
+            std::thread::sleep(Duration::from_millis(200));
+            let now = now_ms();
+            let should_sample = {
+                let guard = shared.lock().unwrap_or_else(|e| e.into_inner());
+                (guard.sample_after_ms > 0 && now >= guard.sample_after_ms) || now.saturating_sub(last_sample) > 2000
+            };
+            if should_sample {
+                last_sample = now;
+                let changed = {
+                    let mut guard = shared.lock().unwrap_or_else(|e| e.into_inner());
+                    guard.sample_after_ms = 0;
+                    sample_face(&mut guard)
+                };
+                if changed {
+                    push_face_deltas(&shared, &usb, &app);
+                } else {
+                    let guard = shared.lock().unwrap_or_else(|e| e.into_inner());
+                    let _ = app.emit("deck-face", &guard.face);
+                }
+            }
+            if let Some(window) = foreground_window() {
+                let ignored = window.exe_name.eq_ignore_ascii_case("deckforge.exe");
+                if ignored {
+                    continue;
+                }
+                if window.exe_name != stable_exe || window.title != stable_title {
+                    stable_exe = window.exe_name.clone();
+                    stable_title = window.title.clone();
+                    stable_since = now;
+                    continue;
+                }
+                if now.saturating_sub(stable_since) < 800 {
+                    continue;
+                }
+                let switch_to = {
+                    let guard = shared.lock().unwrap_or_else(|e| e.into_inner());
+                    if now < guard.auto_switch_hold_until_ms {
+                        None
+                    } else {
+                        let mut rules = guard.auto_switch_rules.clone();
+                        rules.sort_by_key(|rule| rule.priority);
+                        rules.into_iter().find(|rule| rule_matches(rule, &stable_exe, &stable_title)).and_then(|rule| {
+                            if rule.target_profile_id == guard.active_profile_id {
+                                None
+                            } else if guard.profiles.iter().any(|profile| profile.id == rule.target_profile_id) {
+                                Some(rule.target_profile_id)
+                            } else {
+                                None
+                            }
+                        })
+                    }
+                };
+                if let Some(profile_id) = switch_to {
+                    let event = {
+                        let mut guard = shared.lock().unwrap_or_else(|e| e.into_inner());
+                        let name = guard
+                            .profiles
+                            .iter()
+                            .find(|profile| profile.id == profile_id)
+                            .map(|profile| profile.name.clone())
+                            .unwrap_or_else(|| profile_id.clone());
+                        guard.active_profile_id = profile_id.clone();
+                        guard.active_page_index = 0;
+                        DeckContextEvent {
+                            profile_id,
+                            page_index: 0,
+                            message: format!("{stable_exe} is in front. Switched to {name}"),
+                        }
+                    };
+                    let _ = push_active_layout(&shared, &usb, false);
+                    let _ = app.emit("deck-context", &event);
+                    stable_since = now_ms();
+                }
+            }
+        }
+    });
+}
+
+/// Spawns a dedicated background Rust thread that listens for `ACK\0\0OK` input reports
+/// from the physical Ajazz AKP05E Pro (`VID_0300&PID_3013`, `MI_00`), emits `"hardware-input"`
+/// events to the UI, and dispatches bound Win32 actions when buttons/knobs are pressed.
+pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: SharedState) {
+    let usb = shared
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .usb_bus
+        .clone();
+    std::thread::spawn(move || {
+        let mut buf = [0u8; 2048];
+        let mut held: Vec<(u8, u8, bool)> = Vec::new();
+        let mut last_tap_ms: Vec<(u8, u8, u64)> = Vec::new();
+        let mut strip_gesture = StripGesture::default();
+        let mut seen_generation = 0u64;
+        loop {
+            let generation = deck_generation();
+            if generation != seen_generation && generation > 0 {
+                // The deck was opened (first start, or after a real unplug). Only
+                // then do the pictures go out in full.
+                seen_generation = generation;
+                held.clear();
+                last_tap_ms.clear();
+                strip_gesture = StripGesture::default();
+                push_connected_layout(&shared, &usb);
+                continue;
+            }
+            let Some(raw) = deck_next_report(60) else {
+                continue;
+            };
+            let n = raw.len().min(buf.len());
+            buf[..n].copy_from_slice(&raw[..n]);
+            {
+                {
+                        {
+                            let ts = now_ms();
+                            let Some(mut evt) = parse_input_report("ajazz-akp05e-pro", &buf[..n], ts) else {
+                                continue;
+                            };
+                            if evt.kind == InputControlKind::TouchStripPoint {
+                                let Some(resolved) = resolve_strip_point(&mut strip_gesture, &evt) else {
+                                    continue;
+                                };
+                                evt = resolved;
+                            }
+                            if matches!(evt.kind, InputControlKind::Unknown) {
+                                continue;
+                            }
+                            let is_turn = matches!(
+                                evt.kind,
+                                InputControlKind::RotaryKnobTurnCw | InputControlKind::RotaryKnobTurnCcw
+                            );
+                            let one_shot = matches!(
+                                evt.kind,
+                                InputControlKind::TouchStripTap
+                                    | InputControlKind::TouchStripSwipe
+                                    | InputControlKind::RotaryKnobPush
+                            );
+                            let slot = (kind_code(&evt.kind), evt.control_index);
+                            if one_shot {
+                                let prev = last_tap_ms
+                                    .iter()
+                                    .find(|(k, i, _)| *k == slot.0 && *i == slot.1)
+                                    .map(|(_, _, t)| *t)
+                                    .unwrap_or(0);
+                                if let Some(entry) = last_tap_ms.iter_mut().find(|(k, i, _)| *k == slot.0 && *i == slot.1) {
+                                    entry.2 = ts;
+                                } else {
+                                    last_tap_ms.push((slot.0, slot.1, ts));
+                                }
+                                // A press and its release arrive as two reports. A swipe can repeat.
+                                let gap = if matches!(evt.kind, InputControlKind::TouchStripSwipe) {
+                                    450
+                                } else {
+                                    280
+                                };
+                                if ts.saturating_sub(prev) < gap {
+                                    continue;
+                                }
+                            } else if !is_turn {
+                                let was = held
+                                    .iter()
+                                    .find(|(k, i, _)| *k == slot.0 && *i == slot.1)
+                                    .map(|(_, _, down)| *down)
+                                    .unwrap_or(false);
+                                if let Some(entry) = held.iter_mut().find(|(k, i, _)| *k == slot.0 && *i == slot.1) {
+                                    entry.2 = evt.pressed;
+                                } else {
+                                    held.push((slot.0, slot.1, evt.pressed));
+                                }
+                                if evt.pressed == was {
+                                    continue;
+                                }
+                            }
+                            let _ = app_handle.emit("hardware-input", &evt);
+                            let pending = if evt.pressed || is_turn {
+                                shared.lock().ok().and_then(|mut guard| {
+                                    guard.recent_input_events.push(evt.clone());
+                                    if guard.recent_input_events.len() > 25 {
+                                        guard.recent_input_events.remove(0);
+                                    }
+                                    action_for_event(&guard, &evt)
+                                })
+                            } else {
+                                None
+                            };
+                            if evt.pressed || is_turn {
+                                if let Some(dev) = shared.lock().ok().and_then(|guard| {
+                                    guard
+                                        .devices
+                                        .iter()
+                                        .find(|d| d.connected && d.protocol_family.starts_with("CRT"))
+                                        .cloned()
+                                }) {
+                                    let _bus = usb.lock().unwrap_or_else(|e| e.into_inner());
+                                    let _ = wake_panel(&dev);
+                                }
+                            }
+                            if let Some(action) = pending {
+                                let message = dispatch_live_action(&app_handle, &shared, &usb, &action);
+                                if let Ok(mut guard) = shared.lock() {
+                                    guard.diagnostics.push(DiagnosticEntry {
+                                        id: format!("diag-hw-{}", ts),
+                                        timestamp_ms: ts,
+                                        level: "success".to_string(),
+                                        device_id: action.device_id,
+                                        stage: "HW_KEY_PRESS".to_string(),
+                                        message: format!("{} → {}", action.note, message),
+                                        packet_hex: Some(evt.raw_hex.clone()),
+                                    });
+                                    if guard.diagnostics.len() > 80 {
+                                        let extra = guard.diagnostics.len() - 80;
+                                        guard.diagnostics.drain(0..extra);
+                                    }
+                                }
+                            }
+                        }
+                }
+            }
+        }
+    });
+}
+
+/// Cycles GIF frames onto key LCDs and the touch strip. At most three screens are
+/// written per tick so the USB bus stays responsive.
+pub(crate) fn spawn_animation_worker(shared: SharedState) {
+    let usb = shared
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .usb_bus
+        .clone();
+    std::thread::spawn(move || loop {
+        std::thread::sleep(Duration::from_millis(40));
+        let due = {
+            let Ok(mut guard) = shared.lock() else { continue };
+            let now = now_ms();
+            let dev = guard
+                .devices
+                .iter()
+                .find(|d| d.id == guard.playback_device_id && d.connected)
+                .cloned();
+            let Some(dev) = dev else { continue };
+            let mut pending = Vec::new();
+            for slot in guard.playback_slots.iter_mut() {
+                if pending.len() >= 3 || now < slot.next_due_ms || slot.jpegs.is_empty() {
+                    continue;
+                }
+                let idx = slot.frame_index.min(slot.jpegs.len() - 1);
+                let jpeg = slot.jpegs[idx].clone();
+                let delay = slot.delays_ms.get(idx).copied().unwrap_or(100).max(80);
+                let slot_id = slot.slot_id.clone();
+                let target = slot.target.clone();
+                if slot.frame_index + 1 >= slot.jpegs.len() {
+                    if slot.loop_playback {
+                        slot.frame_index = 0;
+                    } else {
+                        slot.frame_index = slot.jpegs.len() - 1;
+                        slot.next_due_ms = u64::MAX;
+                    }
+                } else {
+                    slot.frame_index += 1;
+                }
+                if slot.next_due_ms != u64::MAX {
+                    slot.next_due_ms = now.saturating_add(delay);
+                }
+                pending.push((slot_id, target, jpeg));
+            }
+            let mut bursts = Vec::new();
+            for (slot_id, target, jpeg) in pending {
+                if guard
+                    .frame_cache
+                    .should_transmit(&dev.id, &slot_id, &jpeg)
+                    .is_none()
+                {
+                    continue;
+                }
+                let reports = match target {
+                    PlaybackTarget::Key(index) => {
+                        build_key_image_packets(key_image_slot(&dev, index), &jpeg)
+                    }
+                    PlaybackTarget::TouchZone(index) => {
+                        build_key_image_packets(touch_zone_image_slot(&dev, index), &jpeg)
+                    }
+                    PlaybackTarget::Strip { width, height } => {
+                        build_touch_strip_packets(&jpeg, 0, 0, width, height)
+                    }
+                };
+                bursts.push(HidBurst {
+                    reports: reports.into_iter().map(|r| r.to_vec()).collect(),
+                });
+            }
+            if bursts.is_empty() {
+                None
+            } else {
+                Some((dev, bursts))
+            }
+        };
+        if let Some((dev, bursts)) = due {
+            let _bus = usb.lock().unwrap_or_else(|e| e.into_inner());
+            let _ = write_animation_frames(&dev, &bursts);
+        }
+    });
+}
+/// The official Stream Dock app starts with Windows, redraws the deck every second and,
+/// when it exits, tells the deck to disconnect, which blanks it. With both programs on the
+/// same deck neither gets a stable picture. This stops the official app whenever it shows
+/// up and sends the layout again afterwards. Creating `%APPDATA%\DeckForge\allow-official-app`
+/// turns this off for people who want to run both.
+pub(crate) fn spawn_official_app_guard() {
+    std::thread::spawn(|| {
+        let marker = std::env::var_os("APPDATA")
+            .map(|dir| std::path::PathBuf::from(dir).join("DeckForge").join("allow-official-app"));
+        std::thread::sleep(Duration::from_secs(1));
+        loop {
+            let allowed = marker.as_ref().map(|p| p.exists()).unwrap_or(false);
+            if !allowed {
+                let stopped = actions::kill_official_streamdock();
+                if !stopped.is_empty() {
+                    deck_note(&format!(
+                        "official app stopped: {} (create allow-official-app to keep it)",
+                        stopped.join(", ")
+                    ));
+                    std::thread::sleep(Duration::from_millis(1500));
+                    request_full_push("official app was running");
+                }
+            }
+            std::thread::sleep(Duration::from_secs(5));
+        }
+    });
+}

@@ -77,8 +77,32 @@ pub fn parse_obs_url(url: &str) -> Result<(String, u16), String> {
     }
 }
 
-pub fn run_obs_action(settings: &ObsSettings, action_id: &str) -> Result<String, String> {
+/// Runs one OBS action. `param` carries the scene name or audio source for the actions that take one.
+pub fn run_obs_action(settings: &ObsSettings, action_id: &str, param: &str) -> Result<String, String> {
+    let param = param.trim();
     match action_id {
+        "obs.toggle_virtualcam" => obs_request(settings, "ToggleVirtualCam", None).map(|_| "OBS virtual camera toggled".to_string()),
+        "obs.toggle_replay" => obs_request(settings, "ToggleReplayBuffer", None).map(|_| "OBS replay buffer toggled".to_string()),
+        "obs.pause_record" => obs_request(settings, "ToggleRecordPause", None).map(|_| "OBS recording pause toggled".to_string()),
+        "obs.studio_transition" => obs_request(settings, "TriggerStudioModeTransition", None).map(|_| "OBS studio transition triggered".to_string()),
+        "obs.set_scene" => {
+            if param.is_empty() {
+                return Err("pick a scene name in the key settings".to_string());
+            }
+            let mut data = serde_json::Map::new();
+            data.insert("sceneName".to_string(), serde_json::Value::String(param.to_string()));
+            obs_request(settings, "SetCurrentProgramScene", Some(serde_json::Value::Object(data)))?;
+            Ok(format!("OBS scene set to {param}"))
+        }
+        "obs.toggle_mute" => {
+            if param.is_empty() {
+                return Err("type the OBS audio source name in the key settings".to_string());
+            }
+            let mut data = serde_json::Map::new();
+            data.insert("inputName".to_string(), serde_json::Value::String(param.to_string()));
+            obs_request(settings, "ToggleInputMute", Some(serde_json::Value::Object(data)))?;
+            Ok(format!("OBS mute toggled for {param}"))
+        }
         "obs.start_stream" => obs_request(settings, "ToggleStream", None).map(|_| "OBS stream toggled".to_string()),
         "obs.toggle_record" => obs_request(settings, "ToggleRecord", None).map(|_| "OBS recording toggled".to_string()),
         "obs.save_replay" => obs_request(settings, "SaveReplayBuffer", None).map(|_| "OBS saved the replay buffer".to_string()),

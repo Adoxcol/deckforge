@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    # The app talks to Windows APIs and ships as a Windows build.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      # Builds `dist/`, which Tauri embeds when the Rust side compiles. This also type-checks.
+      - name: Build the frontend
+        run: npm run build
+
+      - name: Rust tests
+        working-directory: src-tauri
+        # Tests that need a real deck or the vendor's app are marked #[ignore].
+        run: cargo test --lib
+
+      - name: Release build compiles
+        working-directory: src-tauri
+        run: cargo build --release

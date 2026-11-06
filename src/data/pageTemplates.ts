@@ -53,6 +53,7 @@ const CATEGORY_OF_ACTION = (actionId: string): string => {
   if (actionId.startsWith("sys.") || actionId.startsWith("brightness.")) return "System";
   if (actionId.startsWith("profile.")) return "Navigation";
   if (actionId.startsWith("macro.")) return "Macro";
+  if (actionId.startsWith("hotkey.")) return "Shortcuts";
   if (actionId === "none") return "Custom";
   return "Custom";
 };

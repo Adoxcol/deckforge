@@ -355,6 +355,26 @@ pub fn send_hotkey_chord(chord: &str) -> Result<String, String> {
         _ => {}
     }
 
+    let vks = chord_to_vks(trimmed);
+    if vks.is_empty() {
+        return Err(format!("No recognized virtual keys in chord `{}`", trimmed));
+    }
+
+    #[cfg(target_os = "windows")]
+    unsafe {
+        for &vk in &vks {
+            keybd_event(vk, 0, 0, 0);
+        }
+        for &vk in vks.iter().rev() {
+            keybd_event(vk, 0, KEYEVENTF_KEYUP, 0);
+        }
+    }
+
+    Ok(format!("Dispatched Win32 key chord `{}` ({:?})", trimmed, vks))
+}
+
+/// Turns a chord such as `Win+Ctrl+Left` into virtual-key codes. Tokens it does not know are skipped.
+fn chord_to_vks(trimmed: &str) -> Vec<u8> {
     let mut vks: Vec<u8> = Vec::new();
     for part in trimmed.split('+') {
         let token = part.trim().to_uppercase();
@@ -400,6 +420,14 @@ pub fn send_hotkey_chord(chord: &str) -> Result<String, String> {
             "F24" => 0x87,
             "PLUS" | "+" | "NUM+" => 0x6B,
             "MINUS" | "-" | "NUM-" => 0x6D,
+            "HOME" => 0x24,
+            "END" => 0x23,
+            "PGUP" | "PAGEUP" => 0x21,
+            "PGDN" | "PAGEDOWN" => 0x22,
+            "INS" | "INSERT" => 0x2D,
+            "." | "PERIOD" => 0xBE,
+            "," | "COMMA" => 0xBC,
+            "/" | "SLASH" => 0xBF,
             s if s.len() == 1 => {
                 let ch = s.chars().next().unwrap();
                 if ch.is_ascii_alphanumeric() {
@@ -412,22 +440,7 @@ pub fn send_hotkey_chord(chord: &str) -> Result<String, String> {
         };
         vks.push(vk);
     }
-
-    if vks.is_empty() {
-        return Err(format!("No recognized virtual keys in chord `{}`", trimmed));
-    }
-
-    #[cfg(target_os = "windows")]
-    unsafe {
-        for &vk in &vks {
-            keybd_event(vk, 0, 0, 0);
-        }
-        for &vk in vks.iter().rev() {
-            keybd_event(vk, 0, KEYEVENTF_KEYUP, 0);
-        }
-    }
-
-    Ok(format!("Dispatched Win32 key chord `{}` ({:?})", trimmed, vks))
+    vks
 }
 
 /// Runs a custom PowerShell or CLI command in the background without flashing a console window.
@@ -671,9 +684,20 @@ pub fn execute_key_action_live(
                 .unwrap_or_else(|e| format!("Microphone mute failed: {e}")),
             "audio.volume_mute" => toggle_speaker_mute()
                 .unwrap_or_else(|e| format!("Speaker mute failed: {e}")),
-            "obs.start_stream" | "obs.toggle_record" | "obs.save_replay" | "obs.next_scene" | "obs.prev_scene" => {
-                run_obs_action(obs, action_id).unwrap_or_else(|e| format!("OBS failed: {e}"))
-            }
+            "obs.start_stream"
+            | "obs.toggle_record"
+            | "obs.save_replay"
+            | "obs.next_scene"
+            | "obs.prev_scene"
+            | "obs.toggle_virtualcam"
+            | "obs.toggle_replay"
+            | "obs.pause_record"
+            | "obs.studio_transition"
+            | "obs.set_scene"
+            | "obs.toggle_mute" => run_obs_action(obs, action_id, action_param)
+                .unwrap_or_else(|e| format!("OBS failed: {e}")),
+            id if id.starts_with("hotkey.") => send_hotkey_chord(action_param)
+                .unwrap_or_else(|e| format!("Hotkey `{}`: {}", action_param, e)),
             "profile.next_page" | "profile.prev_page" | "profile.switch_page" | "profile.switch" => {
                 "Page change is handled by the deck".to_string()
             }
@@ -796,7 +820,32 @@ pub fn run_macro_sequence_test(seq: &MacroSequence, execute_os_effects: bool) ->
 
 #[cfg(test)]
 mod tests {
-    use super::macro_delay_ms;
+    use super::{chord_to_vks, macro_delay_ms};
+
+    /// Every shortcut preset in the catalog must turn into one key per `+` part, or the
+    /// deck key would press fewer keys than its label says.
+    #[test]
+    fn every_shortcut_preset_parses_to_all_of_its_keys() {
+        let catalog = include_str!("../../../src/data/extraActions.ts");
+        let mut checked = 0;
+        for line in catalog.lines().filter(|l| l.trim_start().starts_with("shortcut(\"")) {
+            let quoted: Vec<&str> = line.split('"').skip(1).step_by(2).collect();
+            let combo = quoted[4];
+            let tokens = combo.split('+').count();
+            let keys = chord_to_vks(combo);
+            assert_eq!(keys.len(), tokens, "preset `{}` ({combo}) lost a key: {keys:?}", quoted[0]);
+            checked += 1;
+        }
+        assert!(checked >= 30, "found only {checked} presets, the catalog format probably changed");
+    }
+
+    #[test]
+    fn punctuation_and_navigation_keys_are_recognised() {
+        assert_eq!(chord_to_vks("Win+."), vec![0x5B, 0xBE]);
+        assert_eq!(chord_to_vks("Ctrl+Shift+Tab").len(), 3);
+        assert_eq!(chord_to_vks("Alt+F4"), vec![0x12, 0x73]);
+        assert_eq!(chord_to_vks("nonsense"), Vec::<u8>::new());
+    }
 
     #[test]
     fn macro_waits_use_the_parameter_and_stay_bounded() {

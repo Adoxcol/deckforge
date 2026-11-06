@@ -195,6 +195,17 @@ export interface LegacyStreamDockSummary {
   pluginHostActive: boolean;
 }
 
+/** Connection state of the physical deck and how the last layout send went. */
+export interface DeckStatus {
+  state: "searching" | "connected" | "reconnecting";
+  openedAtMs: number | null;
+  lastPushAtMs: number | null;
+  lastPushOk: boolean | null;
+  lastError: string | null;
+  /** Times the deck came back after dropping off USB. */
+  reconnects: number;
+}
+
 export interface SystemTelemetrySnapshot {
   cpuUsagePercent: number;
   memoryUsedGb: number;
@@ -234,7 +245,7 @@ export interface DeckFaceState {
   gameModeBusy?: boolean;
 }
 
-export type GameModeGroup = "apps" | "ai" | "background";
+export type GameModeGroup = "apps" | "background";
 
 export interface GameModeServiceInfo {
   name: string;
@@ -246,7 +257,6 @@ export interface GameModeTarget {
   label: string;
   group: GameModeGroup;
   note: string;
-  defaultOn: boolean;
   running: boolean;
   processCount: number;
   memoryMb: number;
@@ -264,8 +274,18 @@ export interface GameModeRunningApp {
   count: number;
   memoryMb: number;
   path: string;
-  /** Label of a target that already closes this program. */
+  /** One of its processes owns a normal visible window: an open app, not a background process. */
+  hasWindow: boolean;
+  /** Label and id of a target that already closes this program. */
   takenBy: string | null;
+  takenById: string | null;
+}
+
+/** A power plan installed on this PC. */
+export interface GameModePowerPlan {
+  guid: string;
+  name: string;
+  active: boolean;
 }
 
 export interface GameModeServicePick {
@@ -292,8 +312,10 @@ export interface GameModeScan {
   ramTotalMb: number;
   ramFreeMb: number;
   processCount: number;
+  /** Name of the plan Windows is using right now. */
   powerPlan: string;
-  bitsumFound: boolean;
+  /** Every plan installed on this PC. */
+  powerPlans: GameModePowerPlan[];
   isAdmin: boolean;
   protected: string[];
   processes: GameModeRunningApp[];
@@ -307,6 +329,8 @@ export interface GameModeMode {
   name: string;
   targets: string[];
   tweaks: string[];
+  /** GUID of an installed power plan to use while the mode runs. Empty leaves the plan alone. */
+  powerPlan: string;
 }
 
 /** A program or service the user added from what is running. */
@@ -435,3 +459,6 @@ export type NavScreenId =
   | "icons"
   | "gamemode"
   | "settings";
+
+/** Which screen of the deck a picture or action is being edited for. */
+export type ScreenTarget = "key" | "zone" | "strip";
