@@ -9,6 +9,7 @@ use hidapi::HidApi;
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{mpsc, Mutex, OnceLock};
+use crate::LockExt;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1314,6 +1315,7 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
     let mut errors = 0u8;
     let mut buf = [0u8; 2048];
     let mut last_heartbeat = Instant::now();
+    let mut last_full_push: Option<Instant> = None;
     deck_log("io thread started");
     loop {
         if open.is_none() {
@@ -1379,6 +1381,18 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
             run_debug_script(handle, &script);
         }
         while let Ok(job) = jobs.try_recv() {
+            // A full push starts with DIS, which resets the panel. When it arrives while the
+            // firmware is still decoding the previous push's pictures (Apply clicked twice),
+            // about half of the keys stay blank. Give the panel time to finish first.
+            let is_full_push = job.steps.first().map(|(d, _)| d.get(6..9) == Some(b"DIS".as_slice())).unwrap_or(false);
+            if is_full_push {
+                if let Some(done) = last_full_push {
+                    let settle = std::time::Duration::from_millis(1500);
+                    if done.elapsed() < settle {
+                        std::thread::sleep(settle - done.elapsed());
+                    }
+                }
+            }
             let started = Instant::now();
             let mut result = Ok(());
             for (data, pause_ms) in &job.steps {
@@ -1394,7 +1408,7 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
             let first = job
                 .steps
                 .first()
-                .map(|(data, _)| String::from_utf8_lossy(&data[6..9.min(data.len())]).to_string())
+                .map(|(data, _)| String::from_utf8_lossy(data.get(6..9.min(data.len())).unwrap_or_default()).to_string())
                 .unwrap_or_default();
             // Skip frame-by-frame GIF writes. Log everything else.
             if job.steps.len() > 1 || result.is_err() {
@@ -1404,6 +1418,9 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
                     started.elapsed().as_millis(),
                     result
                 ));
+            }
+            if is_full_push {
+                last_full_push = Some(Instant::now());
             }
             let _ = job.reply.send(result);
             if lost {
@@ -1456,7 +1473,7 @@ pub fn deck_write(steps: Vec<(Vec<u8>, u64)>) -> Result<(), String> {
 /// Next button/knob/touch report read from the deck, if one arrives in time.
 pub fn deck_next_report(timeout_ms: u64) -> Option<Vec<u8>> {
     let io = deck_io();
-    let rx = io.reports.lock().ok()?;
+    let rx = io.reports.lock_safe();
     rx.recv_timeout(std::time::Duration::from_millis(timeout_ms)).ok()
 }
 

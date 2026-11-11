@@ -1078,12 +1078,38 @@ pub fn profiles_store_path() -> PathBuf {
 }
 
 /// The deck does not keep a layout. This file is the copy DeckForge sends after each connect.
+/// Writes to a temporary file first, then swaps it in, so a crash mid-save cannot leave a
+/// half-written file behind.
+fn write_atomic(path: &std::path::Path, raw: &str) -> Result<(), String> {
+    let tmp = path.with_extension("json.tmp");
+    fs::write(&tmp, raw).map_err(|e| e.to_string())?;
+    fs::rename(&tmp, path).map_err(|e| e.to_string())
+}
+
+/// Parses a saved file. One that does not parse is moved aside to `<name>.corrupt-<ms>.json`
+/// before the defaults are used, so the next save cannot overwrite the user's data.
+fn parse_or_quarantine<T: serde::de::DeserializeOwned>(path: &std::path::Path, raw: &str) -> Option<T> {
+    match serde_json::from_str(raw) {
+        Ok(value) => Some(value),
+        Err(err) => {
+            let stamp = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis())
+                .unwrap_or(0);
+            let backup = path.with_extension(format!("corrupt-{stamp}.json"));
+            let _ = fs::copy(path, &backup);
+            eprintln!("{} could not be read ({err}); kept a copy at {}", path.display(), backup.display());
+            None
+        }
+    }
+}
+
 pub fn load_saved_profiles() -> Vec<Profile> {
     let path = profiles_store_path();
     let Ok(raw) = fs::read_to_string(&path) else {
         return default_profiles();
     };
-    let mut profiles: Vec<Profile> = serde_json::from_str(&raw).unwrap_or_else(|_| default_profiles());
+    let mut profiles: Vec<Profile> = parse_or_quarantine(&path, &raw).unwrap_or_else(default_profiles);
     let before = serde_json::to_string(&profiles).ok();
     install_ready_pages(&mut profiles);
     migrate_dead_zones(&mut profiles);
@@ -1200,10 +1226,10 @@ pub fn auto_switch_store_path() -> PathBuf {
 
 pub fn load_auto_switch_rules() -> Vec<AutoSwitchRule> {
     let path = auto_switch_store_path();
-    let Ok(raw) = fs::read_to_string(path) else {
+    let Ok(raw) = fs::read_to_string(&path) else {
         return default_auto_switch_rules();
     };
-    serde_json::from_str(&raw).unwrap_or_else(|_| default_auto_switch_rules())
+    parse_or_quarantine(&path, &raw).unwrap_or_else(default_auto_switch_rules)
 }
 
 pub fn write_auto_switch_rules(rules: &[AutoSwitchRule]) -> Result<(), String> {
@@ -1212,7 +1238,7 @@ pub fn write_auto_switch_rules(rules: &[AutoSwitchRule]) -> Result<(), String> {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let raw = serde_json::to_string_pretty(rules).map_err(|e| e.to_string())?;
-    fs::write(path, raw).map_err(|e| e.to_string())
+    write_atomic(&path, &raw)
 }
 
 pub fn macros_store_path() -> PathBuf {
@@ -1226,7 +1252,7 @@ pub fn load_saved_macros() -> Vec<MacroSequence> {
         let _ = write_saved_macros(&macros);
         return macros;
     };
-    serde_json::from_str(&raw).unwrap_or_else(|_| default_macros())
+    parse_or_quarantine(&path, &raw).unwrap_or_else(default_macros)
 }
 
 pub fn write_saved_macros(macros: &[MacroSequence]) -> Result<(), String> {
@@ -1235,7 +1261,7 @@ pub fn write_saved_macros(macros: &[MacroSequence]) -> Result<(), String> {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let raw = serde_json::to_string_pretty(macros).map_err(|e| e.to_string())?;
-    fs::write(path, raw).map_err(|e| e.to_string())
+    write_atomic(&path, &raw)
 }
 
 pub fn write_saved_profiles(profiles: &[Profile]) -> Result<(), String> {
@@ -1244,7 +1270,7 @@ pub fn write_saved_profiles(profiles: &[Profile]) -> Result<(), String> {
         fs::create_dir_all(parent).map_err(|e| e.to_string())?;
     }
     let raw = serde_json::to_string_pretty(profiles).map_err(|e| e.to_string())?;
-    fs::write(path, raw).map_err(|e| e.to_string())
+    write_atomic(&path, &raw)
 }
 
 #[cfg(test)]

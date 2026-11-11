@@ -1,7 +1,6 @@
 use super::*;
 
 pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
-    let usb = shared.lock().unwrap_or_else(|e| e.into_inner()).usb_bus.clone();
     std::thread::spawn(move || {
         let mut stable_exe = String::new();
         let mut stable_title = String::new();
@@ -22,7 +21,7 @@ pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
                     sample_face(&mut guard)
                 };
                 if changed {
-                    push_face_deltas(&shared, &usb, &app);
+                    push_face_deltas(&shared, &app);
                 } else {
                     let guard = shared.lock().unwrap_or_else(|e| e.into_inner());
                     let _ = app.emit("deck-face", &guard.face);
@@ -61,6 +60,7 @@ pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
                     }
                 };
                 if let Some(profile_id) = switch_to {
+                    let _display = DISPLAY_WRITE.lock_safe();
                     let event = {
                         let mut guard = shared.lock().unwrap_or_else(|e| e.into_inner());
                         let name = guard
@@ -77,8 +77,9 @@ pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
                             message: format!("{stable_exe} is in front. Switched to {name}"),
                         }
                     };
-                    let _ = push_active_layout(&shared, &usb, false);
-                    let _ = app.emit("deck-context", &event);
+                    if push_active_layout_locked(&shared, false).is_ok() {
+                        let _ = app.emit("deck-context", &event);
+                    }
                     stable_since = now_ms();
                 }
             }
@@ -89,12 +90,66 @@ pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
 /// Spawns a dedicated background Rust thread that listens for `ACK\0\0OK` input reports
 /// from the physical Ajazz AKP05E Pro (`VID_0300&PID_3013`, `MI_00`), emits `"hardware-input"`
 /// events to the UI, and dispatches bound Win32 actions when buttons/knobs are pressed.
+enum InputWork {
+    FullLayout,
+    Press {
+        action: Option<LiveAction>,
+        ts: u64,
+        raw_hex: String,
+    },
+}
+
+fn run_input_work(app_handle: &tauri::AppHandle, shared: &SharedState, work: InputWork) {
+    let (action, ts, raw_hex) = match work {
+        InputWork::FullLayout => {
+            push_connected_layout(shared);
+            return;
+        }
+        InputWork::Press { action, ts, raw_hex } => (action, ts, raw_hex),
+    };
+    let dev = shared
+        .lock_safe()
+        .devices
+        .iter()
+        .find(|d| d.connected && d.protocol_family.starts_with("CRT"))
+        .cloned();
+    if let Some(dev) = dev {
+        let _ = wake_panel(&dev);
+    }
+    let Some(action) = action else {
+        return;
+    };
+    let message = dispatch_live_action(app_handle, shared, &action);
+    let mut guard = shared.lock_safe();
+    guard.diagnostics.push(DiagnosticEntry {
+        id: format!("diag-hw-{}", ts),
+        timestamp_ms: ts,
+        level: "success".to_string(),
+        device_id: action.device_id,
+        stage: "HW_KEY_PRESS".to_string(),
+        message: format!("{} → {}", action.note, message),
+        packet_hex: Some(raw_hex),
+    });
+    if guard.diagnostics.len() > 80 {
+        let extra = guard.diagnostics.len() - 80;
+        guard.diagnostics.drain(0..extra);
+    }
+}
+
 pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: SharedState) {
-    let usb = shared
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .usb_bus
-        .clone();
+    // Actions, panel wake-ups and full layout pushes can take seconds (macros sleep, a
+    // layout push retries). Running them here stopped the deck's buttons from being read
+    // meanwhile, so they go to a second thread that handles them in order.
+    let (work_tx, work_rx) = std::sync::mpsc::channel::<InputWork>();
+    {
+        let app_handle = app_handle.clone();
+        let shared = Arc::clone(&shared);
+        std::thread::spawn(move || {
+            for work in work_rx {
+                run_input_work(&app_handle, &shared, work);
+            }
+        });
+    }
     std::thread::spawn(move || {
         let mut buf = [0u8; 2048];
         let mut held: Vec<(u8, u8, bool)> = Vec::new();
@@ -110,7 +165,7 @@ pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: 
                 held.clear();
                 last_tap_ms.clear();
                 strip_gesture = StripGesture::default();
-                push_connected_layout(&shared, &usb);
+                let _ = work_tx.send(InputWork::FullLayout);
                 continue;
             }
             let Some(raw) = deck_next_report(60) else {
@@ -182,7 +237,7 @@ pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: 
                             }
                             let _ = app_handle.emit("hardware-input", &evt);
                             let pending = if evt.pressed || is_turn {
-                                shared.lock().ok().and_then(|mut guard| {
+                                Some(shared.lock_safe()).and_then(|mut guard| {
                                     guard.recent_input_events.push(evt.clone());
                                     if guard.recent_input_events.len() > 25 {
                                         guard.recent_input_events.remove(0);
@@ -193,34 +248,11 @@ pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: 
                                 None
                             };
                             if evt.pressed || is_turn {
-                                if let Some(dev) = shared.lock().ok().and_then(|guard| {
-                                    guard
-                                        .devices
-                                        .iter()
-                                        .find(|d| d.connected && d.protocol_family.starts_with("CRT"))
-                                        .cloned()
-                                }) {
-                                    let _bus = usb.lock().unwrap_or_else(|e| e.into_inner());
-                                    let _ = wake_panel(&dev);
-                                }
-                            }
-                            if let Some(action) = pending {
-                                let message = dispatch_live_action(&app_handle, &shared, &usb, &action);
-                                if let Ok(mut guard) = shared.lock() {
-                                    guard.diagnostics.push(DiagnosticEntry {
-                                        id: format!("diag-hw-{}", ts),
-                                        timestamp_ms: ts,
-                                        level: "success".to_string(),
-                                        device_id: action.device_id,
-                                        stage: "HW_KEY_PRESS".to_string(),
-                                        message: format!("{} → {}", action.note, message),
-                                        packet_hex: Some(evt.raw_hex.clone()),
-                                    });
-                                    if guard.diagnostics.len() > 80 {
-                                        let extra = guard.diagnostics.len() - 80;
-                                        guard.diagnostics.drain(0..extra);
-                                    }
-                                }
+                                let _ = work_tx.send(InputWork::Press {
+                                    action: pending,
+                                    ts,
+                                    raw_hex: evt.raw_hex.clone(),
+                                });
                             }
                         }
                 }
@@ -232,15 +264,13 @@ pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: 
 /// Cycles GIF frames onto key LCDs and the touch strip. At most three screens are
 /// written per tick so the USB bus stays responsive.
 pub(crate) fn spawn_animation_worker(shared: SharedState) {
-    let usb = shared
-        .lock()
-        .unwrap_or_else(|e| e.into_inner())
-        .usb_bus
-        .clone();
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_millis(40));
+        // A full layout owns the display until its bindings have been committed.
+        let Ok(_display) = DISPLAY_WRITE.try_lock() else { continue };
         let due = {
-            let Ok(mut guard) = shared.lock() else { continue };
+            let mut guard = shared.lock_safe();
+            if !guard.layout_ready { continue; }
             let now = now_ms();
             let dev = guard
                 .devices
@@ -304,7 +334,6 @@ pub(crate) fn spawn_animation_worker(shared: SharedState) {
             }
         };
         if let Some((dev, bursts)) = due {
-            let _bus = usb.lock().unwrap_or_else(|e| e.into_inner());
             let _ = write_animation_frames(&dev, &bursts);
         }
     });

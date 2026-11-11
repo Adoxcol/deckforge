@@ -86,7 +86,6 @@ pub fn run() {
             save_export_file,
             import_legacy_sdprofiles,
             get_telemetry,
-            set_active_context,
             hold_auto_switch,
             save_auto_switch_rules,
             save_obs_settings,

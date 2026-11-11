@@ -8,7 +8,6 @@ pub(crate) fn find_macro(guard: &ManagedAppState, macro_id: &str) -> Option<db::
 pub(crate) fn run_one_macro_step(
     app: &tauri::AppHandle,
     shared: &SharedState,
-    usb: &Arc<Mutex<()>>,
     step: &db::MacroStep,
 ) -> (bool, String) {
     match step.step_type.as_str() {
@@ -37,7 +36,7 @@ pub(crate) fn run_one_macro_step(
                 (false, format!("{} is not running", step.parameter))
             }
         }
-        "SwitchProfile" => match apply_navigation(app, shared, usb, "profile.switch", &step.parameter) {
+        "SwitchProfile" => match apply_navigation(app, shared, "profile.switch", &step.parameter) {
             Some(msg) => (true, msg),
             None => (false, format!("No profile named {}", step.parameter)),
         },
@@ -48,7 +47,6 @@ pub(crate) fn run_one_macro_step(
 pub(crate) fn run_macro_sequence(
     app: &tauri::AppHandle,
     shared: &SharedState,
-    usb: &Arc<Mutex<()>>,
     seq: &db::MacroSequence,
 ) -> MacroRunReport {
     use actions::MacroStepResult;
@@ -59,7 +57,7 @@ pub(crate) fn run_macro_sequence(
         let tries = if step.on_error == "RetryOnce" { 2 } else { 1 };
         let mut outcome = (false, String::new());
         for _ in 0..tries {
-            outcome = run_one_macro_step(app, shared, usb, step);
+            outcome = run_one_macro_step(app, shared, step);
             if outcome.0 {
                 break;
             }
@@ -88,21 +86,19 @@ pub(crate) fn run_macro_sequence(
 pub(crate) fn start_macro(
     app: &tauri::AppHandle,
     shared: &SharedState,
-    usb: &Arc<Mutex<()>>,
     macro_id: &str,
     label: &str,
 ) -> String {
-    let seq = shared.lock().ok().and_then(|guard| find_macro(&guard, macro_id));
+    let seq = Some(shared.lock_safe()).and_then(|guard| find_macro(&guard, macro_id));
     let Some(seq) = seq else {
         return format!("No macro named {macro_id}");
     };
     let name = seq.name.clone();
     let app = app.clone();
     let shared = shared.clone();
-    let usb = usb.clone();
     std::thread::spawn(move || {
-        let report = run_macro_sequence(&app, &shared, &usb, &seq);
-        if let Ok(mut guard) = shared.lock() {
+        let report = run_macro_sequence(&app, &shared, &seq);
+        { let mut guard = shared.lock_safe();
             guard.diagnostics.push(DiagnosticEntry {
                 id: format!("diag-macro-{}", now_ms()),
                 timestamp_ms: now_ms(),

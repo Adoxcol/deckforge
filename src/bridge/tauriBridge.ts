@@ -781,12 +781,6 @@ export const deckforgeApi = {
     return fallbackBootstrap().telemetry;
   },
 
-  async setActiveContext(profileId: string, pageIndex: number): Promise<void> {
-    if (isTauriRuntime()) {
-      await invoke<void>("set_active_context", { profileId, pageIndex });
-    }
-  },
-
   async holdAutoSwitch(): Promise<void> {
     if (isTauriRuntime()) {
       await invoke<void>("hold_auto_switch");

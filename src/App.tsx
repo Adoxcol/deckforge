@@ -119,7 +119,7 @@ export const App: React.FC = () => {
 
   // Sync & Persistence States (Spec Section 1 & 14: Distinguish Saved Locally vs Applied to Device)
   const [savedLocally, setSavedLocally] = useState<boolean>(true);
-  const [deviceSynced, setDeviceSynced] = useState<boolean>(true);
+  const [deviceSynced, setDeviceSynced] = useState<boolean>(false);
   const [undoStack, setUndoStack] = useState<Profile[][]>([]);
   const [redoStack, setRedoStack] = useState<Profile[][]>([]);
   const [toastMessage, setToastMessage] = useState<{ text: string; kind: "success" | "info" | "warning" } | null>(null);
@@ -201,10 +201,10 @@ export const App: React.FC = () => {
     };
   }, []);
 
+  // Editor navigation does not apply anything to the physical deck.
   useEffect(() => {
-    if (!isTauriRuntime()) return;
-    deckforgeApi.setActiveContext(selectedProfileId, selectedPageIdx).catch(() => {});
-  }, [selectedProfileId, selectedPageIdx]);
+    setDeviceSynced(false);
+  }, [selectedDeviceId, selectedProfileId, selectedPageIdx]);
 
   const handleTakeOverHardware = async () => {
     const msg = await deckforgeApi.takeOverFromOfficialApp();
@@ -645,10 +645,10 @@ export const App: React.FC = () => {
 
   const handleApplyToDevice = async () => {
     if (!activeDevice || !activeProfile || !activePage) return;
-    await deckforgeApi.saveProfiles(profiles);
-    setSavedLocally(true);
     let res;
     try {
+      await deckforgeApi.saveProfiles(profiles);
+      setSavedLocally(true);
       res = await deckforgeApi.applyProfileToDevice(
         activeDevice.id,
         activeProfile.id,

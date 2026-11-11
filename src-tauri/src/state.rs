@@ -39,11 +39,24 @@ pub struct DeckContextEvent {
     pub message: String,
 }
 
+/// The exact bindings whose images were successfully sent to the device.
+#[derive(Clone)]
+pub struct AppliedLayout {
+    pub profile_id: String,
+    pub page_index: usize,
+    pub page: ProfilePage,
+}
+
+// Serialize layout changes and background redraws without holding SharedState during USB I/O.
+pub(crate) static DISPLAY_WRITE: Mutex<()> = Mutex::new(());
+
 pub struct ManagedAppState {
     pub devices: Vec<DeviceDescriptor>,
     pub profiles: Vec<Profile>,
     pub active_profile_id: String,
     pub active_page_index: usize,
+    pub applied_layout: Option<AppliedLayout>,
+    pub layout_ready: bool,
     pub auto_switch_rules: Vec<AutoSwitchRule>,
     pub macros: Vec<MacroSequence>,
     pub diagnostics: Vec<DiagnosticEntry>,
@@ -54,7 +67,6 @@ pub struct ManagedAppState {
     pub media: MediaStore,
     pub playback_slots: Vec<PlaybackSlot>,
     pub playback_device_id: String,
-    pub usb_bus: Arc<Mutex<()>>,
     pub face: DeckFaceState,
     pub obs: ObsSettings,
     pub sample_after_ms: u64,
@@ -101,6 +113,8 @@ impl Default for ManagedAppState {
             profiles,
             active_profile_id: "profile-streaming".to_string(),
             active_page_index: 0,
+            applied_layout: None,
+            layout_ready: false,
             auto_switch_rules: load_auto_switch_rules(),
             macros: load_saved_macros(),
             diagnostics,
@@ -111,7 +125,6 @@ impl Default for ManagedAppState {
             media: MediaStore::load(),
             playback_slots: Vec::new(),
             playback_device_id: String::new(),
-            usb_bus: Arc::new(Mutex::new(())),
             face: DeckFaceState::default(),
             obs: ObsSettings::load(),
             sample_after_ms: 0,
@@ -121,3 +134,15 @@ impl Default for ManagedAppState {
 }
 
 pub type SharedState = Arc<Mutex<ManagedAppState>>;
+
+/// Locks a mutex even when another thread panicked while holding it. A poisoned lock
+/// used to make every later command fail and every key press do nothing until restart.
+pub trait LockExt<T> {
+    fn lock_safe(&self) -> std::sync::MutexGuard<'_, T>;
+}
+
+impl<T> LockExt<T> for Mutex<T> {
+    fn lock_safe(&self) -> std::sync::MutexGuard<'_, T> {
+        self.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}

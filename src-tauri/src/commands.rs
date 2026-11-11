@@ -3,7 +3,7 @@ use super::*;
 #[tauri::command]
 pub fn get_initial_state(state: State<'_, SharedState>) -> Result<FullBootstrapPayload, String> {
     let (mut devices, mut diagnostics, profiles, auto_switch_rules, macros, saved_locally_at_ms, applied_to_device_at_ms, recent_input_events, media_library, face, obs) = {
-        let guard = state.lock().map_err(|e| e.to_string())?;
+        let guard = state.lock_safe();
         (
             guard.devices.clone(),
             guard.diagnostics.clone(),
@@ -26,7 +26,7 @@ pub fn get_initial_state(state: State<'_, SharedState>) -> Result<FullBootstrapP
     let telemetry = collect_system_telemetry();
     let legacy_summary = scan_legacy_streamdock_environment();
     let frame_cache_stats = {
-        let mut guard = state.lock().map_err(|e| e.to_string())?;
+        let mut guard = state.lock_safe();
         guard.devices = devices.clone();
         guard.diagnostics = diagnostics.clone();
         get_cache_stats(&guard.frame_cache)
@@ -52,7 +52,7 @@ pub fn get_initial_state(state: State<'_, SharedState>) -> Result<FullBootstrapP
 
 #[tauri::command]
 pub fn refresh_usb_devices(state: State<'_, SharedState>) -> Result<Vec<DeviceDescriptor>, String> {
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let mut guard = state.lock_safe();
     let mut devices = guard.devices.clone();
     let mut diags = guard.diagnostics.clone();
     let was_connected = devices.iter().any(|d| d.connected && d.protocol_family.starts_with("CRT"));
@@ -75,21 +75,18 @@ pub fn set_device_brightness(
     state: State<'_, SharedState>,
 ) -> Result<String, String> {
     let percent = percent.min(100);
-    let (dev, usb) = {
-        let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let dev = {
+        let mut guard = state.lock_safe();
         let Some(dev) = guard.devices.iter_mut().find(|d| d.id == device_id) else {
             return Err(format!("Device {} not found", device_id));
         };
         dev.brightness = percent;
         let dev = dev.clone();
-        let usb = guard.usb_bus.clone();
-        (dev, usb)
+        dev
     };
-    let _bus = usb.lock().unwrap_or_else(|e| e.into_inner());
     let mut diags = Vec::new();
     let res = send_hardware_brightness(&dev, percent, &mut diags)?;
-    drop(_bus);
-    if let Ok(mut guard) = state.lock() {
+    { let mut guard = state.lock_safe();
         guard.diagnostics.extend(diags);
     }
     Ok(res)
@@ -102,72 +99,19 @@ pub fn apply_profile_to_device(
     page_id: String,
     state: State<'_, SharedState>,
 ) -> Result<SyncKeyResult, String> {
-    let usb = state
-        .lock()
-        .map_err(|e| e.to_string())?
-        .usb_bus
-        .clone();
 
-    let (dev, bursts, result) = {
-        let mut guard = state.lock().map_err(|e| e.to_string())?;
-        guard.active_profile_id = profile_id.clone();
-
-        let dev = guard
-            .devices
-            .iter()
-            .find(|d| d.id == device_id)
-            .cloned()
-            .ok_or_else(|| format!("Device {} not found", device_id))?;
-
-        let prof = guard
-            .profiles
-            .iter()
-            .find(|p| p.id == profile_id)
-            .cloned()
-            .ok_or_else(|| format!("Profile {} not found", profile_id))?;
-
-        let page_index = prof
-            .pages
-            .iter()
-            .position(|pg| pg.id == page_id)
-            .unwrap_or(0);
-        guard.active_page_index = page_index;
-        let page = prof
-            .pages
-            .get(page_index)
-            .or_else(|| prof.pages.first())
-            .cloned()
-            .ok_or_else(|| "Profile has no pages".to_string())?;
-
-        guard.frame_cache.invalidate_device(&dev.id);
-        let (jobs, zones, strip) = plan_screens(&dev, &page, &guard.face);
-
-        let mut diags = guard.diagnostics.clone();
-        let media = std::mem::take(&mut guard.media);
-        let outcome = publish_screens(
-            &dev,
-            &jobs,
-            &zones,
-            strip.as_ref(),
-            &media,
-            &mut guard.frame_cache,
-            &mut diags,
-        );
-        guard.media = media;
-        guard.diagnostics = diags;
-        guard.playback_slots = outcome.playback;
-        guard.playback_device_id = dev.id.clone();
-        guard.applied_to_device_at_ms = Some(now_ms());
-        (dev, outcome.bursts, outcome.result)
+    let _display = DISPLAY_WRITE.lock_safe();
+    let prepared = {
+        let mut guard = state.lock_safe();
+        let dev = guard.devices.iter().find(|d| d.id == device_id)
+            .cloned().ok_or_else(|| format!("Device {device_id} not found"))?;
+        let page_index = guard.profiles.iter().find(|p| p.id == profile_id)
+            .ok_or_else(|| format!("Profile {profile_id} not found"))?
+            .pages.iter().position(|p| p.id == page_id)
+            .ok_or_else(|| format!("Page {page_id} not found"))?;
+        prepare_layout(&mut guard, dev, &profile_id, page_index, true)?
     };
-
-    {
-        let _bus = usb.lock().unwrap_or_else(|e| e.into_inner());
-        if let Err(err) = write_hid_bursts(&dev, &bursts) {
-            return Err(err);
-        }
-    }
-    Ok(result)
+    transmit_layout(state.inner(), prepared, write_hid_bursts)
 }
 
 #[tauri::command]
@@ -176,8 +120,9 @@ pub fn clear_device_key(
     key_index_1based: u8,
     state: State<'_, SharedState>,
 ) -> Result<String, String> {
-    let (dev, packet, usb, message) = {
-        let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let _display = DISPLAY_WRITE.lock_safe();
+    let (dev, packet, message) = {
+        let mut guard = state.lock_safe();
         if key_index_1based == 0xFF {
             guard.playback_slots.clear();
         } else {
@@ -194,16 +139,15 @@ pub fn clear_device_key(
         let (message, packet) =
             clear_hardware_key(&dev, key_index_1based, &mut guard.frame_cache, &mut diags)?;
         guard.diagnostics = diags;
-        (dev, packet, guard.usb_bus.clone(), message)
+        (dev, packet, message)
     };
-    let _bus = usb.lock().unwrap_or_else(|e| e.into_inner());
     let _ = write_one_report(&dev, &packet);
     Ok(message)
 }
 
 #[tauri::command]
 pub fn save_profiles(profiles: Vec<Profile>, state: State<'_, SharedState>) -> Result<u64, String> {
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let mut guard = state.lock_safe();
     let ts = now_ms();
     write_saved_profiles(&profiles)?;
     guard.profiles = profiles;
@@ -219,7 +163,6 @@ pub fn test_key_action(
     app: tauri::AppHandle,
     state: State<'_, SharedState>,
 ) -> Result<ActionExecutionResult, String> {
-    let usb = state.lock().map_err(|e| e.to_string())?.usb_bus.clone();
     let action = LiveAction {
         action_id: action_id.clone(),
         label: action_label.clone(),
@@ -227,8 +170,8 @@ pub fn test_key_action(
         note: "Test".to_string(),
         device_id: "action-runner".to_string(),
     };
-    let message = dispatch_live_action(&app, state.inner(), &usb, &action);
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let message = dispatch_live_action(&app, state.inner(), &action);
+    let mut guard = state.lock_safe();
     let res = ActionExecutionResult {
         action_id,
         action_label,
@@ -251,7 +194,7 @@ pub fn test_key_action(
 #[tauri::command]
 pub fn save_macros(macros: Vec<db::MacroSequence>, state: State<'_, SharedState>) -> Result<(), String> {
     write_saved_macros(&macros)?;
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let mut guard = state.lock_safe();
     guard.macros = macros;
     Ok(())
 }
@@ -262,13 +205,12 @@ pub fn execute_macro_sequence(
     app: tauri::AppHandle,
     state: State<'_, SharedState>,
 ) -> Result<MacroRunReport, String> {
-    let usb = state.lock().map_err(|e| e.to_string())?.usb_bus.clone();
     let seq = {
-        let guard = state.lock().map_err(|e| e.to_string())?;
+        let guard = state.lock_safe();
         find_macro(&guard, &macro_id).ok_or_else(|| format!("Macro {} not found", macro_id))?
     };
-    let report = run_macro_sequence(&app, state.inner(), &usb, &seq);
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let report = run_macro_sequence(&app, state.inner(), &seq);
+    let mut guard = state.lock_safe();
     guard.diagnostics.push(DiagnosticEntry {
         id: format!("diag-macro-{}", now_ms()),
         timestamp_ms: now_ms(),
@@ -391,7 +333,7 @@ mod export_tests {
 #[tauri::command]
 pub fn take_over_from_official_app(state: State<'_, SharedState>) -> Result<String, String> {
     let msg = stop_official_streamdock_app()?;
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let mut guard = state.lock_safe();
     let mut devices = guard.devices.clone();
     let mut diags = guard.diagnostics.clone();
     scan_usb_devices(&mut devices, &mut diags);
@@ -411,7 +353,7 @@ pub fn take_over_from_official_app(state: State<'_, SharedState>) -> Result<Stri
 
 #[tauri::command]
 pub fn import_legacy_sdprofiles(state: State<'_, SharedState>) -> Result<Vec<Profile>, String> {
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let mut guard = state.lock_safe();
     let imported = parse_all_legacy_sdprofiles();
     let mut count = 0usize;
     for imp in imported {
@@ -441,22 +383,8 @@ pub fn get_telemetry() -> SystemTelemetrySnapshot {
 }
 
 #[tauri::command]
-pub fn set_active_context(
-    profile_id: String,
-    page_index: usize,
-    state: State<'_, SharedState>,
-) -> Result<(), String> {
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
-    if guard.profiles.iter().any(|p| p.id == profile_id) {
-        guard.active_profile_id = profile_id;
-    }
-    guard.active_page_index = page_index;
-    Ok(())
-}
-
-#[tauri::command]
 pub fn hold_auto_switch(state: State<'_, SharedState>) -> Result<(), String> {
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let mut guard = state.lock_safe();
     guard.auto_switch_hold_until_ms = now_ms().saturating_add(6000);
     Ok(())
 }
@@ -464,7 +392,7 @@ pub fn hold_auto_switch(state: State<'_, SharedState>) -> Result<(), String> {
 #[tauri::command]
 pub fn save_auto_switch_rules(rules: Vec<AutoSwitchRule>, state: State<'_, SharedState>) -> Result<(), String> {
     write_auto_switch_rules(&rules)?;
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let mut guard = state.lock_safe();
     guard.auto_switch_rules = rules;
     Ok(())
 }
@@ -472,7 +400,7 @@ pub fn save_auto_switch_rules(rules: Vec<AutoSwitchRule>, state: State<'_, Share
 #[tauri::command]
 pub fn save_obs_settings(settings: ObsSettings, state: State<'_, SharedState>) -> Result<(), String> {
     settings.save()?;
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let mut guard = state.lock_safe();
     guard.obs = settings;
     Ok(())
 }
@@ -485,7 +413,7 @@ pub fn stage_screen_media(
     state: State<'_, SharedState>,
 ) -> Result<MediaPreview, String> {
     let bytes = decode_b64(&data_base64)?;
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let mut guard = state.lock_safe();
     guard.media.stage_bytes(&id, &file_name, &bytes)
 }
 
@@ -497,7 +425,7 @@ pub fn stage_frame_sequence(
     delay_ms: u32,
     state: State<'_, SharedState>,
 ) -> Result<MediaPreview, String> {
-    let mut guard = state.lock().map_err(|e| e.to_string())?;
+    let mut guard = state.lock_safe();
     guard
         .media
         .stage_sequence(&id, &file_name, &frames_base64, delay_ms)

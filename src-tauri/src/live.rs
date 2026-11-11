@@ -22,18 +22,13 @@ pub(crate) fn kind_code(kind: &InputControlKind) -> u8 {
 }
 
 pub(crate) fn action_for_event(guard: &ManagedAppState, evt: &HardwareInputEvent) -> Option<LiveAction> {
-    let prof = guard
-        .profiles
-        .iter()
-        .find(|p| p.id == guard.active_profile_id)
-        .or_else(|| guard.profiles.first())?;
-    let page = prof
-        .pages
-        .get(guard.active_page_index)
-        .or_else(|| prof.pages.first())?;
+    if !guard.layout_ready {
+        return None;
+    }
+    let page = &guard.applied_layout.as_ref()?.page;
     match evt.kind {
         InputControlKind::LcdKey => {
-            let key = page.keys.get(evt.control_index as usize)?;
+            let key = page.keys.iter().find(|key| key.index == evt.control_index)?;
             Some(LiveAction {
                 action_id: key.action_id.clone(),
                 label: key.action_label.clone(),
@@ -43,7 +38,7 @@ pub(crate) fn action_for_event(guard: &ManagedAppState, evt: &HardwareInputEvent
             })
         }
         InputControlKind::RotaryKnobTurnCw => {
-            let encoder = page.encoders.get(evt.control_index as usize);
+            let encoder = page.encoders.iter().find(|encoder| encoder.index == evt.control_index);
             Some(binding_action(
                 encoder.map(|e| e.cw_action.as_str()).unwrap_or("audio.volume_up"),
                 encoder.map(|e| e.cw_param.as_str()).unwrap_or(""),
@@ -53,7 +48,7 @@ pub(crate) fn action_for_event(guard: &ManagedAppState, evt: &HardwareInputEvent
             ))
         }
         InputControlKind::RotaryKnobTurnCcw => {
-            let encoder = page.encoders.get(evt.control_index as usize);
+            let encoder = page.encoders.iter().find(|encoder| encoder.index == evt.control_index);
             Some(binding_action(
                 encoder.map(|e| e.ccw_action.as_str()).unwrap_or("audio.volume_down"),
                 encoder.map(|e| e.ccw_param.as_str()).unwrap_or(""),
@@ -63,7 +58,7 @@ pub(crate) fn action_for_event(guard: &ManagedAppState, evt: &HardwareInputEvent
             ))
         }
         InputControlKind::RotaryKnobPush => {
-            let encoder = page.encoders.get(evt.control_index as usize);
+            let encoder = page.encoders.iter().find(|encoder| encoder.index == evt.control_index);
             Some(binding_action(
                 encoder.map(|e| e.push_action.as_str()).unwrap_or("audio.volume_mute"),
                 encoder.map(|e| e.push_param.as_str()).unwrap_or(""),
@@ -73,7 +68,7 @@ pub(crate) fn action_for_event(guard: &ManagedAppState, evt: &HardwareInputEvent
             ))
         }
         InputControlKind::TouchStripTap => {
-            let zone = page.touch_zones.get(evt.control_index as usize)?;
+            let zone = page.touch_zones.iter().find(|zone| zone.index == evt.control_index)?;
             Some(LiveAction {
                 action_id: zone.tap_action_id.clone(),
                 label: zone.label.clone(),
@@ -332,7 +327,6 @@ pub(crate) fn plan_screens(dev: &DeviceDescriptor, page: &ProfilePage, face: &De
 
 pub(crate) fn apply_brightness_action(
     shared: &SharedState,
-    usb: &Arc<Mutex<()>>,
     action_id: &str,
 ) -> Option<String> {
     if !matches!(action_id, "brightness.up" | "brightness.down" | "brightness.toggle") {
@@ -358,7 +352,6 @@ pub(crate) fn apply_brightness_action(
         dev.brightness = next;
         (dev.clone(), next)
     };
-    let _bus = usb.lock().unwrap_or_else(|e| e.into_inner());
     let _ = write_panel_brightness(&dev, percent);
     Some(format!("Backlight set to {percent}%"))
 }
@@ -396,7 +389,7 @@ fn ensure_deck_in_state(shared: &SharedState) -> bool {
     false
 }
 
-pub(crate) fn push_connected_layout(shared: &SharedState, usb: &Arc<Mutex<()>>) {
+pub(crate) fn push_connected_layout(shared: &SharedState) {
     if !ensure_deck_in_state(shared) {
         deck_note("no deck in the device list, so the layout was not sent");
         return;
@@ -422,7 +415,7 @@ pub(crate) fn push_connected_layout(shared: &SharedState, usb: &Arc<Mutex<()>>) 
     // this loop gives up as soon as the deck has been reopened.
     let generation = deck_generation();
     for attempt in 1..=3u32 {
-        match push_active_layout(shared, usb, true) {
+        match push_active_layout(shared, true) {
             Ok(()) => return,
             Err(err) => {
                 deck_note(&format!("layout push failed (attempt {attempt}/3): {err}"));
@@ -435,48 +428,60 @@ pub(crate) fn push_connected_layout(shared: &SharedState, usb: &Arc<Mutex<()>>) 
     }
 }
 
-pub(crate) fn push_active_layout(shared: &SharedState, usb: &Arc<Mutex<()>>, handshake: bool) -> Result<(), String> {
-    let prepared = {
-        let mut guard = shared.lock().unwrap_or_else(|e| e.into_inner());
-        prepare_layout_bursts(&mut guard, handshake)
-    };
-    let Some((dev, bursts)) = prepared else {
-        return Ok(());
-    };
-    if bursts.is_empty() {
-        return Ok(());
-    }
-    let _bus = usb.lock().unwrap_or_else(|e| e.into_inner());
-    if handshake {
-        write_hid_bursts(&dev, &bursts)
-    } else {
-        // A page change only replaces the pictures. HAN would fade the backlight off.
-        write_animation_frames(&dev, &bursts)
-    }
+pub(crate) fn push_active_layout(shared: &SharedState, handshake: bool) -> Result<(), String> {
+    let _display = DISPLAY_WRITE.lock_safe();
+    push_active_layout_locked(shared, handshake)
 }
 
-pub(crate) fn prepare_layout_bursts(guard: &mut ManagedAppState, invalidate: bool) -> Option<(DeviceDescriptor, Vec<HidBurst>)> {
-    let dev = guard
-        .devices
-        .iter()
-        .find(|d| d.connected && d.protocol_family.starts_with("CRT"))
-        .cloned()?;
-    if invalidate {
-        // A handshake blanks the panels, so the next send has to include every screen.
-        guard.frame_cache.invalidate_device(&dev.id);
+pub(crate) fn push_active_layout_locked(shared: &SharedState, handshake: bool) -> Result<(), String> {
+    let prepared = {
+        let mut guard = shared.lock().unwrap_or_else(|e| e.into_inner());
+        let dev = guard.devices.iter()
+            .find(|d| d.connected && d.protocol_family.starts_with("CRT"))
+            .cloned().ok_or("No connected deck")?;
+        let profile_id = guard.active_profile_id.clone();
+        let page_index = guard.active_page_index;
+        prepare_layout(&mut guard, dev, &profile_id, page_index, handshake)?
+    };
+    transmit_layout(shared, prepared, |dev, bursts| {
+        if handshake { write_hid_bursts(dev, bursts) } else { write_animation_frames(dev, bursts) }
+    }).map(|_| ())
+}
+
+pub(crate) struct PreparedLayout {
+    dev: DeviceDescriptor,
+    applied: AppliedLayout,
+    outcome: drivers::hal::PublishOutcome,
+}
+
+/// Callers hold DISPLAY_WRITE until transmit_layout finishes.
+pub(crate) fn prepare_layout(
+    guard: &mut ManagedAppState,
+    dev: DeviceDescriptor,
+    profile_id: &str,
+    page_index: usize,
+    invalidate: bool,
+) -> Result<PreparedLayout, String> {
+    if !dev.connected || dev.is_simulator || !device_uses_akp05e_face(&dev) {
+        return Err("A connected AKP05E Pro is required to apply a layout".into());
     }
-    let profile_id = guard.active_profile_id.clone();
     let prof = guard
         .profiles
         .iter()
         .find(|p| p.id == profile_id)
-        .or_else(|| guard.profiles.first())?
-        .clone();
+        .ok_or_else(|| format!("Profile {profile_id} not found"))?;
     let page = prof
         .pages
-        .get(guard.active_page_index)
-        .or_else(|| prof.pages.first())?
+        .get(page_index)
+        .ok_or_else(|| format!("Page index {page_index} not found"))?
         .clone();
+    if invalidate || !guard.layout_ready {
+        guard.frame_cache.invalidate_device(&dev.id);
+    }
+    // During a partial transfer the panel may contain a mix of old and new images.
+    // Do not resolve physical presses until the entire layout succeeds.
+    guard.layout_ready = false;
+    guard.playback_slots.clear();
     let (jobs, zones, strip) = plan_screens(&dev, &page, &guard.face);
     let media = std::mem::take(&mut guard.media);
     let mut diags = Vec::new();
@@ -495,29 +500,57 @@ pub(crate) fn prepare_layout_bursts(guard: &mut ManagedAppState, invalidate: boo
         let extra = guard.diagnostics.len() - 80;
         guard.diagnostics.drain(0..extra);
     }
-    guard.playback_slots = outcome.playback;
-    guard.playback_device_id = dev.id.clone();
-    guard.active_profile_id = prof.id.clone();
+    Ok(PreparedLayout {
+        dev,
+        applied: AppliedLayout { profile_id: profile_id.to_string(), page_index, page },
+        outcome,
+    })
+}
+
+pub(crate) fn transmit_layout(
+    shared: &SharedState,
+    prepared: PreparedLayout,
+    write: impl FnOnce(&DeviceDescriptor, &[HidBurst]) -> Result<(), String>,
+) -> Result<SyncKeyResult, String> {
+    let result = write(&prepared.dev, &prepared.outcome.bursts);
+    let mut guard = shared.lock_safe();
+    if let Err(err) = result {
+        guard.frame_cache.invalidate_device(&prepared.dev.id);
+        guard.layout_ready = false;
+        guard.applied_to_device_at_ms = None;
+        // Keep the last successful snapshot for recovery, but do not dispatch it
+        // against a panel which may now show only part of the attempted layout.
+        if let Some(applied) = guard.applied_layout.clone() {
+            guard.active_profile_id = applied.profile_id;
+            guard.active_page_index = applied.page_index;
+        }
+        return Err(err);
+    }
+    guard.active_profile_id = prepared.applied.profile_id.clone();
+    guard.active_page_index = prepared.applied.page_index;
+    guard.applied_layout = Some(prepared.applied);
+    guard.layout_ready = true;
+    guard.playback_slots = prepared.outcome.playback;
+    guard.playback_device_id = prepared.dev.id;
     guard.applied_to_device_at_ms = Some(now_ms());
-    Some((dev, outcome.bursts))
+    Ok(prepared.outcome.result)
 }
 
 pub(crate) fn dispatch_live_action(
     app: &tauri::AppHandle,
     shared: &SharedState,
-    usb: &Arc<Mutex<()>>,
     action: &LiveAction,
 ) -> String {
     if action.action_id == "macro.run" {
-        return start_macro(app, shared, usb, &action.param, &action.label);
+        return start_macro(app, shared, &action.param, &action.label);
     }
     if action.action_id == "sys.game_mode" {
         return start_game_mode_toggle(app, shared, &action.param);
     }
-    if let Some(message) = apply_brightness_action(shared, usb, &action.action_id) {
+    if let Some(message) = apply_brightness_action(shared, &action.action_id) {
         return message;
     }
-    if let Some(message) = apply_navigation(app, shared, usb, &action.action_id, &action.param) {
+    if let Some(message) = apply_navigation(app, shared, &action.action_id, &action.param) {
         return message;
     }
     let obs = shared
@@ -527,7 +560,7 @@ pub(crate) fn dispatch_live_action(
         .unwrap_or_default();
     let result = execute_key_action_live(&action.action_id, &action.label, &action.param, true, &obs);
     if face_changes(&action.action_id) {
-        if let Ok(mut guard) = shared.lock() {
+        { let mut guard = shared.lock_safe();
             guard.sample_after_ms = now_ms().saturating_add(160);
         }
     }
@@ -536,7 +569,7 @@ pub(crate) fn dispatch_live_action(
 
 /// Nudges the key faces so the Game Mode key flips to GAME ON or back quickly.
 pub(crate) fn nudge_face_sample(shared: &SharedState) {
-    if let Ok(mut guard) = shared.lock() {
+    { let mut guard = shared.lock_safe();
         guard.sample_after_ms = now_ms().saturating_add(120);
     }
 }
@@ -567,7 +600,6 @@ pub(crate) fn start_game_mode_toggle(app: &tauri::AppHandle, shared: &SharedStat
 pub(crate) fn apply_navigation(
     app: &tauri::AppHandle,
     shared: &SharedState,
-    usb: &Arc<Mutex<()>>,
     action_id: &str,
     param: &str,
 ) -> Option<String> {
@@ -577,6 +609,7 @@ pub(crate) fn apply_navigation(
     ) {
         return None;
     }
+    let _display = DISPLAY_WRITE.lock_safe();
     let event = {
         let mut guard = shared.lock().unwrap_or_else(|e| e.into_inner());
         let message = switch_active_page(&mut guard, action_id, param)?;
@@ -586,7 +619,9 @@ pub(crate) fn apply_navigation(
             message,
         }
     };
-    let _ = push_active_layout(shared, usb, false);
+    if let Err(err) = push_active_layout_locked(shared, false) {
+        return Some(format!("Page switch failed: {err}"));
+    }
     let _ = app.emit("deck-context", &event);
     Some(event.message)
 }
@@ -680,7 +715,8 @@ pub(crate) fn sample_face(guard: &mut ManagedAppState) -> bool {
     }
 }
 
-pub(crate) fn push_face_deltas(shared: &SharedState, usb: &Arc<Mutex<()>>, app: &tauri::AppHandle) {
+pub(crate) fn push_face_deltas(shared: &SharedState, app: &tauri::AppHandle) {
+    let _display = DISPLAY_WRITE.lock_safe();
     let face = {
         let guard = shared.lock().unwrap_or_else(|e| e.into_inner());
         let _ = app.emit("deck-face", &guard.face);
@@ -696,27 +732,17 @@ pub(crate) fn push_face_deltas(shared: &SharedState, usb: &Arc<Mutex<()>>, app: 
     if bursts.is_empty() {
         return;
     }
-    let _bus = usb.lock().unwrap_or_else(|e| e.into_inner());
     let _ = write_animation_frames(&dev, &bursts);
 }
 
 pub(crate) fn face_delta_bursts(guard: &mut ManagedAppState, face: &DeckFaceState) -> Option<(DeviceDescriptor, Vec<HidBurst>)> {
+    if !guard.layout_ready { return None; }
     let dev = guard
         .devices
         .iter()
         .find(|d| d.connected && d.protocol_family.starts_with("CRT"))
         .cloned()?;
-    let profile = guard
-        .profiles
-        .iter()
-        .find(|profile| profile.id == guard.active_profile_id)
-        .or_else(|| guard.profiles.first())?
-        .clone();
-    let page = profile
-        .pages
-        .get(guard.active_page_index)
-        .or_else(|| profile.pages.first())?
-        .clone();
+    let page = guard.applied_layout.as_ref()?.page.clone();
     let strip_covers_zones = page.strip_media.is_some();
     let mut bursts = Vec::new();
     let key_count = dev.keys.count as usize;
@@ -805,7 +831,152 @@ pub(crate) fn rule_matches(rule: &AutoSwitchRule, exe: &str, title: &str) -> boo
 
 #[cfg(test)]
 mod live_tests {
-    use super::{binding_action, known_action};
+    use super::*;
+
+    // No HID discovery, user files, threads, or native actions in these tests.
+    fn test_state() -> SharedState {
+        let mut devices = builtin_device_catalog();
+        devices[0].connected = true;
+        Arc::new(Mutex::new(ManagedAppState {
+            devices,
+            profiles: db::default_profiles(),
+            active_profile_id: "profile-streaming".into(),
+            active_page_index: 0,
+            applied_layout: None,
+            layout_ready: false,
+            auto_switch_rules: Vec::new(),
+            macros: Vec::new(),
+            diagnostics: Vec::new(),
+            recent_input_events: Vec::new(),
+            frame_cache: AntiFreezeFrameCache::new(),
+            saved_locally_at_ms: 0,
+            applied_to_device_at_ms: None,
+            media: MediaStore::default(),
+            playback_slots: Vec::new(),
+            playback_device_id: String::new(),
+            face: DeckFaceState::default(),
+            obs: ObsSettings::default(),
+            sample_after_ms: 0,
+            auto_switch_hold_until_ms: 0,
+        }))
+    }
+
+    fn prepare_first(shared: &SharedState) -> PreparedLayout {
+        let mut guard = shared.lock_safe();
+        let dev = guard.devices[0].clone();
+        let id = guard.profiles[0].id.clone();
+        prepare_layout(&mut guard, dev, &id, 0, true).unwrap()
+    }
+
+    fn press(kind: InputControlKind, index: u8) -> HardwareInputEvent {
+        HardwareInputEvent {
+            device_id: "ajazz-akp05e-pro".into(), kind, control_index: index,
+            state_code: 1, pressed: true, raw_hex: String::new(), timestamp_ms: 1, x: 0,
+        }
+    }
+
+    #[test]
+    fn saved_edits_do_not_change_applied_key_encoder_or_touch_bindings() {
+        let shared = test_state();
+        let prepared = prepare_first(&shared);
+        transmit_layout(&shared, prepared, |_, _| Ok(())).unwrap();
+        let mut guard = shared.lock_safe();
+        let events = [press(InputControlKind::LcdKey, 0),
+            press(InputControlKind::RotaryKnobTurnCw, 0),
+            press(InputControlKind::TouchStripTap, 0)];
+        let before: Vec<_> = events.iter().map(|e| {
+            let action = action_for_event(&guard, e).unwrap();
+            (action.action_id, action.param)
+        }).collect();
+        let page = &mut guard.profiles[0].pages[0];
+        page.keys[0].action_id = "custom.hotkey".into();
+        page.keys[0].action_param = "Alt+F4".into();
+        page.encoders[0].cw_action = "custom.hotkey".into();
+        page.encoders[0].cw_param = "Alt+F4".into();
+        page.touch_zones[0].tap_action_id = "custom.hotkey".into();
+        page.touch_zones[0].tap_action_param = "Alt+F4".into();
+        // Even replacing the saved collection cannot replace the applied snapshot.
+        guard.profiles.clear();
+        for (event, expected) in events.iter().zip(before) {
+            let action = action_for_event(&guard, event).unwrap();
+            assert_eq!((action.action_id, action.param), expected);
+        }
+    }
+
+    #[test]
+    fn apply_commits_the_transmitted_snapshot_even_if_saved_data_changes_during_write() {
+        let shared = test_state();
+        let prepared = prepare_first(&shared);
+        let expected = prepared.applied.page.keys[0].action_id.clone();
+        let event = press(InputControlKind::LcdKey, 0);
+        assert!(action_for_event(&shared.lock_safe(), &event).is_none());
+        transmit_layout(&shared, prepared, |_, bursts| {
+            assert!(!bursts.is_empty());
+            let mut guard = shared.lock_safe();
+            assert!(!guard.layout_ready);
+            assert!(guard.applied_to_device_at_ms.is_none());
+            guard.profiles[0].pages[0].keys[0].action_id = "custom.hotkey".into();
+            Ok(())
+        }).unwrap();
+        let guard = shared.lock_safe();
+        assert_eq!(action_for_event(&guard, &event).unwrap().action_id, expected);
+        assert!(guard.applied_to_device_at_ms.is_some());
+    }
+
+    #[test]
+    fn partial_transfer_disables_actions_until_a_successful_retry() {
+        let shared = test_state();
+        let prepared = prepare_first(&shared);
+        transmit_layout(&shared, prepared, |_, _| Ok(())).unwrap();
+        shared.lock_safe().profiles[0].pages[0].keys[0].action_id = "custom.hotkey".into();
+        let prepared = prepare_first(&shared);
+        assert!(transmit_layout(&shared, prepared, |_, _| Err("USB disconnected".into())).is_err());
+        let event = press(InputControlKind::LcdKey, 0);
+        {
+            let guard = shared.lock_safe();
+            assert!(action_for_event(&guard, &event).is_none());
+            assert!(guard.applied_to_device_at_ms.is_none());
+            assert_ne!(guard.applied_layout.as_ref().unwrap().page.keys[0].action_id, "custom.hotkey");
+        }
+        let prepared = {
+            let mut guard = shared.lock_safe();
+            let dev = guard.devices[0].clone();
+            let id = guard.profiles[0].id.clone();
+            prepare_layout(&mut guard, dev, &id, 0, false).unwrap()
+        };
+        transmit_layout(&shared, prepared, |_, bursts| {
+            assert!(!bursts.is_empty(), "retry must not skip a failed layout");
+            Ok(())
+        }).unwrap();
+        assert_eq!(action_for_event(&shared.lock_safe(), &event).unwrap().action_id, "custom.hotkey");
+    }
+
+    #[test]
+    fn invalid_apply_does_not_disable_a_working_layout() {
+        let shared = test_state();
+        let prepared = prepare_first(&shared);
+        transmit_layout(&shared, prepared, |_, _| Ok(())).unwrap();
+        let mut guard = shared.lock_safe();
+        let mut dev = guard.devices[0].clone();
+        let id = guard.profiles[0].id.clone();
+        assert!(prepare_layout(&mut guard, dev.clone(), &id, usize::MAX, true).is_err());
+        dev.connected = false;
+        assert!(prepare_layout(&mut guard, dev, &id, 0, true).is_err());
+        assert!(guard.layout_ready);
+    }
+
+    #[test]
+    fn live_face_redraw_uses_the_applied_page_after_saved_profiles_change() {
+        let shared = test_state();
+        shared.lock_safe().profiles[0].pages[0].keys[0].action_id = "audio.volume_up".into();
+        let prepared = prepare_first(&shared);
+        transmit_layout(&shared, prepared, |_, _| Ok(())).unwrap();
+        let mut guard = shared.lock_safe();
+        guard.profiles.clear();
+        let face = DeckFaceState { volume_percent: Some(37), ..Default::default() };
+        let (_, bursts) = face_delta_bursts(&mut guard, &face).unwrap();
+        assert!(!bursts.is_empty(), "live faces must still render from the applied snapshot");
+    }
 
     #[test]
     fn shortcut_presets_and_new_obs_actions_are_known_actions() {
