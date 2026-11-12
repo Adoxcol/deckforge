@@ -191,7 +191,7 @@ export interface LegacyStreamDockSummary {
   namedRootProfilesCount: number;
   legacyPluginCount: number;
   discoveredPlugins: PluginPackageInfo[];
-  pluginWsPort: number;
+  pluginWsPort: number | null;
   pluginHostActive: boolean;
 }
 

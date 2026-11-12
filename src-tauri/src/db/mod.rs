@@ -146,7 +146,7 @@ pub struct LegacyStreamDockSummary {
     pub named_root_profiles_count: usize,
     pub legacy_plugin_count: usize,
     pub discovered_plugins: Vec<PluginPackageInfo>,
-    pub plugin_ws_port: u16,
+    pub plugin_ws_port: Option<u16>,
     pub plugin_host_active: bool,
 }
 
@@ -937,6 +937,10 @@ pub fn parse_all_legacy_sdprofiles() -> Vec<Profile> {
 pub fn scan_legacy_streamdock_environment() -> LegacyStreamDockSummary {
     let appdata = std::env::var_os("APPDATA").unwrap_or_default();
     let base = PathBuf::from(&appdata).join("HotSpot").join("StreamDock");
+    scan_legacy_streamdock_at(&base, parse_all_legacy_sdprofiles().len())
+}
+
+fn scan_legacy_streamdock_at(base: &std::path::Path, named_root_profiles_count: usize) -> LegacyStreamDockSummary {
     let profiles_dir = base.join("profiles");
     let plugins_dir = base.join("plugins");
 
@@ -948,8 +952,6 @@ pub fn scan_legacy_streamdock_environment() -> LegacyStreamDockSummary {
                 .count()
         })
         .unwrap_or(0);
-
-    let named_root_profiles_count = parse_all_legacy_sdprofiles().len();
 
     let mut discovered_plugins = vec![
         PluginPackageInfo {
@@ -1046,11 +1048,8 @@ pub fn scan_legacy_streamdock_environment() -> LegacyStreamDockSummary {
                     category: "Plugins".to_string(),
                     source_kind: "LocalSdPlugin".to_string(),
                     installed: true,
-                    enabled: !folder_name.contains("coding-subscribe-usage"),
-                    permissions: vec![
-                        "Local WebSocket Bridge (ws://127.0.0.1:28196)".to_string(),
-                        "Sandboxed Worker Process".to_string(),
-                    ],
+                    enabled: false, // Discovery does not establish runtime compatibility.
+                    permissions: Vec::new(),
                     actions_provided,
                     disk_path: Some(p.to_string_lossy().to_string()),
                 });
@@ -1065,8 +1064,8 @@ pub fn scan_legacy_streamdock_environment() -> LegacyStreamDockSummary {
         named_root_profiles_count,
         legacy_plugin_count,
         discovered_plugins,
-        plugin_ws_port: 28196,
-        plugin_host_active: true,
+        plugin_ws_port: None,
+        plugin_host_active: false,
     }
 }
 
@@ -1284,6 +1283,30 @@ pub fn write_saved_profiles(profiles: &[Profile]) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn plugin_discovery_never_claims_vendor_runtime_support() {
+        let root = std::env::temp_dir().join(format!("deckforge-plugin-test-{}-{}", std::process::id(), now_ms()));
+        let package = root.join("plugins/example.sdPlugin");
+        fs::create_dir_all(&package).unwrap();
+        fs::write(package.join("manifest.json"), r#"{"Name":"Example","Actions":[{"Name":"Vendor action"}]}"#).unwrap();
+        fs::create_dir_all(root.join("plugins/broken.sdPlugin")).unwrap();
+        fs::write(root.join("plugins/broken.sdPlugin/manifest.json"), "invalid json").unwrap();
+        let summary = scan_legacy_streamdock_at(&root, 0);
+        assert!(!summary.plugin_host_active);
+        assert_eq!(summary.plugin_ws_port, None);
+        assert_eq!(summary.legacy_plugin_count, 2);
+        let vendor: Vec<_> = summary.discovered_plugins.iter().filter(|p| p.source_kind == "LocalSdPlugin").collect();
+        assert_eq!(vendor.len(), 2);
+        assert!(vendor.iter().all(|p| !p.enabled && p.permissions.is_empty() && p.disk_path.is_some()));
+        let example = vendor.iter().find(|p| p.name == "Example").unwrap();
+        assert_eq!(example.actions_provided, vec!["Vendor action"]);
+        assert!(summary.discovered_plugins.iter().filter(|p| p.source_kind == "BuiltIn").all(|p| p.enabled));
+        fs::remove_dir_all(&root).unwrap();
+        let empty = scan_legacy_streamdock_at(&root, 0);
+        assert_eq!(empty.legacy_plugin_count, 0);
+        assert!(empty.discovered_plugins.iter().all(|p| p.source_kind == "BuiltIn"));
+    }
 
     #[test]
     fn dead_cpu_zone_becomes_a_page_switch() {

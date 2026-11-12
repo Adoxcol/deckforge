@@ -412,11 +412,11 @@ const fallbackBootstrap = (): FullBootstrapPayload => {
     legacySummary: {
       profilesDir: "%APPDATA%\\HotSpot\\StreamDock\\profiles",
       pluginsDir: "%APPDATA%\\HotSpot\\StreamDock\\plugins",
-      legacyProfileCount: 121,
-      namedRootProfilesCount: 28,
-      legacyPluginCount: 24,
-      pluginWsPort: 28196,
-      pluginHostActive: true,
+      legacyProfileCount: 0,
+      namedRootProfilesCount: 0,
+      legacyPluginCount: 0,
+      pluginWsPort: null,
+      pluginHostActive: false,
       discoveredPlugins: [
         {
           id: "builtin.obs",
