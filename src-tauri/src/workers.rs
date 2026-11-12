@@ -123,15 +123,15 @@ fn run_input_work(app_handle: &tauri::AppHandle, shared: &SharedState, work: Inp
     if let Some(dev) = dev {
         let _ = wake_panel(&dev);
     }
-    let message = dispatch_live_action(app_handle, shared, &action);
+    let result = dispatch_live_action(app_handle, shared, &action);
     let mut guard = shared.lock_safe();
     guard.diagnostics.push(DiagnosticEntry {
         id: format!("diag-hw-{}", ts),
         timestamp_ms: ts,
-        level: "success".to_string(),
+        level: if result.success { "success" } else { "error" }.into(),
         device_id: action.device_id,
         stage: "HW_KEY_PRESS".to_string(),
-        message: format!("{} → {}", action.note, message),
+        message: format!("{} → {}", action.note, result.output_message),
         packet_hex: Some(raw_hex),
     });
     if guard.diagnostics.len() > 80 {

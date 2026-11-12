@@ -329,16 +329,15 @@ pub(crate) fn plan_screens(dev: &DeviceDescriptor, page: &ProfilePage, face: &De
 pub(crate) fn apply_brightness_action(
     shared: &SharedState,
     action_id: &str,
-) -> Option<String> {
+) -> Option<Result<String, String>> {
     if !matches!(action_id, "brightness.up" | "brightness.down" | "brightness.toggle") {
         return None;
     }
     let (dev, percent) = {
-        let mut guard = shared.lock().unwrap_or_else(|e| e.into_inner());
-        let dev = guard
-            .devices
-            .iter_mut()
-            .find(|d| d.connected && d.supports_brightness)?;
+        let guard = shared.lock_safe();
+        let Some(dev) = guard.devices.iter().find(|d| d.connected && d.supports_brightness) else {
+            return Some(Err("No connected device supports brightness".into()));
+        };
         let next = match action_id {
             "brightness.up" => dev.brightness.saturating_add(5).min(100),
             "brightness.down" => dev.brightness.saturating_sub(5),
@@ -350,11 +349,11 @@ pub(crate) fn apply_brightness_action(
                 }
             }
         };
-        dev.brightness = next;
         (dev.clone(), next)
     };
-    let _ = write_panel_brightness(&dev, percent);
-    Some(format!("Backlight set to {percent}%"))
+    if let Err(err) = write_panel_brightness(&dev, percent) { return Some(Err(err)); }
+    if let Some(device) = shared.lock_safe().devices.iter_mut().find(|d| d.id == dev.id) { device.brightness = percent; }
+    Some(Ok(format!("Backlight set to {percent}%")))
 }
 
 /// Streams the saved layout after the deck has accepted the handshake.
@@ -568,34 +567,22 @@ pub(crate) fn transmit_layout(
 }
 
 pub(crate) fn dispatch_live_action(
-    app: &tauri::AppHandle,
-    shared: &SharedState,
-    action: &LiveAction,
-) -> String {
-    if action.action_id == "macro.run" {
-        return start_macro(app, shared, &action.param, &action.label);
-    }
-    if action.action_id == "sys.game_mode" {
-        return start_game_mode_toggle(app, shared, &action.param);
-    }
-    if let Some(message) = apply_brightness_action(shared, &action.action_id) {
-        return message;
-    }
-    if let Some(message) = apply_navigation(app, shared, &action.action_id, &action.param) {
-        return message;
-    }
-    let obs = shared
-        .lock()
-        .ok()
-        .map(|guard| guard.obs.clone())
-        .unwrap_or_default();
+    app: &tauri::AppHandle, shared: &SharedState, action: &LiveAction,
+) -> ActionExecutionResult {
+    let start = std::time::Instant::now();
+    let outcome = if action.action_id == "macro.run" {
+        Some(start_macro(app, shared, &action.param, &action.label))
+    } else if action.action_id == "sys.game_mode" {
+        Some(start_game_mode_toggle(app, shared, &action.param))
+    } else {
+        apply_brightness_action(shared, &action.action_id)
+            .or_else(|| apply_navigation(app, shared, &action.action_id, &action.param))
+    };
+    if let Some(outcome) = outcome { return actions::action_result(&action.action_id, &action.label, start, outcome); }
+    let obs = shared.lock_safe().obs.clone();
     let result = execute_key_action_live(&action.action_id, &action.label, &action.param, true, &obs);
-    if face_changes(&action.action_id) {
-        { let mut guard = shared.lock_safe();
-            guard.sample_after_ms = now_ms().saturating_add(160);
-        }
-    }
-    result.output_message
+    if result.success && face_changes(&action.action_id) { shared.lock_safe().sample_after_ms = now_ms().saturating_add(160); }
+    result
 }
 
 /// Nudges the key faces so the Game Mode key flips to GAME ON or back quickly.
@@ -607,24 +594,24 @@ pub(crate) fn nudge_face_sample(shared: &SharedState) {
 
 /// Game Mode closes apps one at a time, so it never runs on the input thread. The key's
 /// parameter picks the mode by id; an empty one uses the mode chosen in the Game Mode tab.
-pub(crate) fn start_game_mode_toggle(app: &tauri::AppHandle, shared: &SharedState, mode: &str) -> String {
+pub(crate) fn start_game_mode_toggle(app: &tauri::AppHandle, shared: &SharedState, mode: &str) -> Result<String, String> {
     if game_mode::is_busy() {
-        return "Game Mode is still working".to_string();
+        return Err("Game Mode is still working".to_string());
     }
     let turning_on = !game_mode::is_active();
     let app = app.clone();
     let shared_for_thread = Arc::clone(shared);
     let mode = mode.trim().to_string();
-    std::thread::spawn(move || {
+    std::thread::Builder::new().name("deckforge-game-mode-action".into()).spawn(move || {
         let message = game_mode::toggle(&app, Some(mode.as_str()).filter(|m| !m.is_empty()));
         nudge_face_sample(&shared_for_thread);
         let _ = app.emit("game-mode-message", &message);
-    });
+    }).map_err(|err| format!("Could not start Game Mode action: {err}"))?;
     nudge_face_sample(shared);
     if turning_on {
-        "Game Mode starting".to_string()
+        Ok("Game Mode start requested; follow progress in Game Mode".into())
     } else {
-        "Game Mode ending".to_string()
+        Ok("Game Mode stop requested; follow progress in Game Mode".into())
     }
 }
 
@@ -633,7 +620,7 @@ pub(crate) fn apply_navigation(
     shared: &SharedState,
     action_id: &str,
     param: &str,
-) -> Option<String> {
+) -> Option<Result<String, String>> {
     if !matches!(
         action_id,
         "profile.next_page" | "profile.prev_page" | "profile.switch_page" | "profile.switch"
@@ -643,7 +630,9 @@ pub(crate) fn apply_navigation(
     let _display = DISPLAY_WRITE.lock_safe();
     let event = {
         let mut guard = shared.lock().unwrap_or_else(|e| e.into_inner());
-        let message = switch_active_page(&mut guard, action_id, param)?;
+        let Some(message) = switch_active_page(&mut guard, action_id, param) else {
+            return Some(Err(format!("No matching profile or page for `{param}`")));
+        };
         DeckContextEvent {
             profile_id: guard.active_profile_id.clone(),
             page_index: guard.active_page_index,
@@ -651,10 +640,10 @@ pub(crate) fn apply_navigation(
         }
     };
     if let Err(err) = push_active_layout_locked(shared, false) {
-        return Some(format!("Page switch failed: {err}"));
+        return Some(Err(format!("Page switch failed: {err}")));
     }
     let _ = app.emit("deck-context", &event);
-    Some(event.message)
+    Some(Ok(event.message))
 }
 
 pub(crate) fn switch_active_page(guard: &mut ManagedAppState, action_id: &str, param: &str) -> Option<String> {
@@ -687,7 +676,7 @@ pub(crate) fn switch_active_page(guard: &mut ManagedAppState, action_id: &str, p
             let next = match action_id {
                 "profile.next_page" => (guard.active_page_index + 1) % pages,
                 "profile.prev_page" => guard.active_page_index.checked_sub(1).unwrap_or(pages - 1),
-                _ => resolve_page_index(guard, param).unwrap_or(guard.active_page_index),
+                _ => resolve_page_index(guard, param)?,
             };
             guard.active_page_index = next;
             let page_name = guard
@@ -959,6 +948,21 @@ mod live_tests {
         assert_eq!(recovery.applied.page.keys[0].action_id, "none");
         transmit_layout(&shared, recovery, |_, _| Ok(())).unwrap();
         assert!(action_for_event(&shared.lock_safe(), &event).is_none());
+    }
+
+    #[test]
+    fn missing_navigation_targets_and_disconnected_brightness_report_failure() {
+        let shared = test_state();
+        let mut guard = shared.lock_safe();
+        let before = (guard.active_profile_id.clone(), guard.active_page_index);
+        assert!(switch_active_page(&mut guard, "profile.switch_page", "nonexistent-page").is_none());
+        assert!(switch_active_page(&mut guard, "profile.switch", "nonexistent-profile").is_none());
+        assert_eq!((guard.active_profile_id.clone(), guard.active_page_index), before);
+        for dev in &mut guard.devices { dev.connected = false; }
+        let brightness = guard.devices[0].brightness;
+        drop(guard);
+        assert!(apply_brightness_action(&shared, "brightness.up").unwrap().is_err());
+        assert_eq!(shared.lock_safe().devices[0].brightness, brightness);
     }
 
     #[test]

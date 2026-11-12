@@ -126,7 +126,7 @@ pub fn save_profiles(profiles: Vec<Profile>, state: State<'_, SharedState>) -> R
 }
 
 #[tauri::command]
-pub fn test_key_action(
+pub async fn test_key_action(
     action_id: String,
     action_label: String,
     action_param: String,
@@ -140,20 +140,14 @@ pub fn test_key_action(
         note: "Test".to_string(),
         device_id: "action-runner".to_string(),
     };
-    let message = dispatch_live_action(&app, state.inner(), &action);
+    let shared = state.inner().clone();
+    let res = tauri::async_runtime::spawn_blocking(move || dispatch_live_action(&app, &shared, &action))
+        .await.map_err(|err| err.to_string())?;
     let mut guard = state.lock_safe();
-    let res = ActionExecutionResult {
-        action_id,
-        action_label,
-        success: !message.contains("failed") && !message.contains("not connected"),
-        elapsed_ms: 1,
-        output_message: message,
-        timestamp_ms: now_ms(),
-    };
     guard.diagnostics.push(DiagnosticEntry {
         id: format!("diag-act-{}", res.timestamp_ms),
         timestamp_ms: res.timestamp_ms,
-        level: "info".to_string(),
+        level: if res.success { "success" } else { "error" }.into(),
         device_id: "action-runner".to_string(),
         stage: "WIN32_ACTION".to_string(),
         message: res.output_message.clone(),

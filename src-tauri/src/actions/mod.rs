@@ -459,7 +459,7 @@ pub fn run_shell_command(command_line: &str) -> Result<String, String> {
             .map_err(|e| format!("Failed to spawn shell command `{}`: {}", clean, e))?;
     }
 
-    Ok(format!("Executed background shell command: `{}`", clean))
+    Ok("Shell command started; completion is not monitored".into())
 }
 
 /// Copies a custom text snippet to the Windows clipboard and pastes it via Ctrl+V.
@@ -472,38 +472,21 @@ pub fn send_text_snippet(text: &str) -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
         let escaped = clean.replace('\'', "''");
-        let ps_script = format!("Set-Clipboard -Value '{}'", escaped);
+        let ps_script = format!("try {{ Set-Clipboard -Value '{}' -ErrorAction Stop; exit 0 }} catch {{ exit 1 }}", escaped);
         let mut cmd = Command::new("powershell");
         cmd.args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", &ps_script]);
         cmd.creation_flags(CREATE_NO_WINDOW);
-        let _ = cmd.status();
-        let _ = send_hotkey_chord("Ctrl+V");
+        let status = cmd.status().map_err(|e| format!("Could not write clipboard: {e}"))?;
+        if !status.success() { return Err(format!("Clipboard command failed: {status}")); }
+        send_hotkey_chord("Ctrl+V")?;
     }
 
     Ok(format!("Copied & pasted text snippet ({} chars)", clean.len()))
 }
 
-/// Triggers an HTTP Webhook / REST request in the background using PowerShell `Invoke-RestMethod`.
+/// Wait for a bounded standalone webhook result instead of detaching the request.
 pub fn trigger_http_webhook(endpoint: &str) -> Result<String, String> {
-    let clean = endpoint.trim();
-    if clean.is_empty() {
-        return Err("Empty webhook URL".to_string());
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        let escaped = clean.replace('\'', "''");
-        let ps_script = format!(
-            "try {{ Invoke-RestMethod -Uri '{}' -TimeoutSec 5 | Out-Null }} catch {{}}",
-            escaped
-        );
-        let mut cmd = Command::new("powershell");
-        cmd.args(["-NoProfile", "-WindowStyle", "Hidden", "-Command", &ps_script]);
-        cmd.creation_flags(CREATE_NO_WINDOW);
-        let _ = cmd.spawn();
-    }
-
-    Ok(format!("Dispatched HTTP Webhook request to `{}`", clean))
+    crate::macro_run::standalone_webhook(endpoint)
 }
 
 /// Launches an application executable or opens an `http(s)://` URL cleanly on Windows.
@@ -515,14 +498,19 @@ pub fn launch_app_or_url(target: &str) -> Result<String, String> {
 
     #[cfg(target_os = "windows")]
     {
-        let mut cmd = Command::new("cmd");
-        cmd.args(["/C", "start", "", clean]);
-        cmd.creation_flags(CREATE_NO_WINDOW);
-        cmd.spawn()
-            .map_err(|e| format!("Failed to launch `{}`: {}", clean, e))?;
+        use windows::{core::{w, PCWSTR}, Win32::UI::{Shell::{ShellExecuteExW, SHELLEXECUTEINFOW, SEE_MASK_FLAG_NO_UI}, WindowsAndMessaging::SW_SHOWNORMAL}};
+        if clean.contains('\0') { return Err("Launch target contains a null character".into()); }
+        let target: Vec<u16> = clean.encode_utf16().chain(Some(0)).collect();
+        let mut info = SHELLEXECUTEINFOW {
+            cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
+            fMask: SEE_MASK_FLAG_NO_UI,
+            lpVerb: w!("open"), lpFile: PCWSTR(target.as_ptr()), nShow: SW_SHOWNORMAL.0,
+            ..Default::default()
+        };
+        unsafe { ShellExecuteExW(&mut info) }.map_err(|e| format!("Could not open launch target: {e}"))?;
     }
 
-    Ok(format!("Launched `{}`", clean))
+    Ok(format!("Launch requested for `{}`; application startup is not monitored", clean))
 }
 
 /// True for the vendor's own app and its watcher: `Stream Dock AJAZZ.exe`,
@@ -626,102 +614,44 @@ pub fn execute_key_action_live(
 ) -> ActionExecutionResult {
     let start = Instant::now();
 
-    let msg = if execute_os_effects {
+    let outcome = if execute_os_effects {
         match action_id {
-            "media.play_pause" => run_media_transport(MediaTransport::Toggle),
-            "media.next" => run_media_transport(MediaTransport::Next),
-            "media.prev" => run_media_transport(MediaTransport::Previous),
-            "media.stop" => run_media_transport(MediaTransport::Stop),
-            "audio.volume_up" => {
-                send_vk_tap(VK_VOLUME_UP);
-                "Executed Win32 VK_VOLUME_UP (0xAF)".to_string()
-            }
-            "audio.volume_down" => {
-                send_vk_tap(VK_VOLUME_DOWN);
-                "Executed Win32 VK_VOLUME_DOWN (0xAE)".to_string()
-            }
-            "audio.mute_mic" => toggle_microphone_mute()
-                .unwrap_or_else(|e| format!("Microphone mute failed: {e}")),
-            "audio.volume_mute" => toggle_speaker_mute()
-                .unwrap_or_else(|e| format!("Speaker mute failed: {e}")),
-            "obs.start_stream"
-            | "obs.toggle_record"
-            | "obs.save_replay"
-            | "obs.next_scene"
-            | "obs.prev_scene"
-            | "obs.toggle_virtualcam"
-            | "obs.toggle_replay"
-            | "obs.pause_record"
-            | "obs.studio_transition"
-            | "obs.set_scene"
-            | "obs.toggle_mute" => run_obs_action(obs, action_id, action_param)
-                .unwrap_or_else(|e| format!("OBS failed: {e}")),
-            id if id.starts_with("hotkey.") => send_hotkey_chord(action_param)
-                .unwrap_or_else(|e| format!("Hotkey `{}`: {}", action_param, e)),
-            "profile.next_page" | "profile.prev_page" | "profile.switch_page" | "profile.switch" => {
-                "Page change is handled by the deck".to_string()
-            }
-            "macro.run" => "Macro run is handled by the deck".to_string(),
-            "sys.game_mode" => "Game Mode is handled by the deck. Press the key on the deck, or use the Game Mode tab.".to_string(),
-            "twitch.chat_marker" | "youtube.go_live" | "plugin.sd_bridge" | "macro.run_sequence" => {
-                format!("{action_label} is not connected. Use a hotkey, an app, OBS, media, or a page.")
-            }
-            "audio.open_mixer" => {
-                let _ = launch_app_or_url("sndvol.exe");
-                "Opened Windows Volume Mixer (sndvol.exe)".to_string()
-            }
-            "sys.show_desktop" => {
-                let _ = send_hotkey_chord("Win+D");
-                "Executed Win32 Show Desktop (Win+D)".to_string()
-            }
-            "sys.screenshot" => {
-                let _ = send_hotkey_chord("Win+Shift+S");
-                "Triggered Windows Snipping Overlay (Win+Shift+S)".to_string()
-            }
-            "sys.task_manager" => {
-                let _ = send_hotkey_chord("Ctrl+Shift+Esc");
-                "Opened Windows Task Manager (Ctrl+Shift+Esc)".to_string()
-            }
-            "sys.lock_pc" => {
-                let _ = run_shell_command("rundll32.exe user32.dll,LockWorkStation");
-                "Triggered Windows Lock Workstation".to_string()
-            }
-            "sys.hotkey" | "custom.hotkey" => send_hotkey_chord(action_param)
-                .unwrap_or_else(|e| format!("Hotkey `{}`: {}", action_param, e)),
-            "sys.launch_app" | "sys.open_url" | "custom.launch" | "custom.url" => {
-                launch_app_or_url(action_param)
-                    .unwrap_or_else(|e| format!("Launch `{}`: {}", action_param, e))
-            }
-            "custom.shell" | "sys.run_command" => run_shell_command(action_param)
-                .unwrap_or_else(|e| format!("Shell `{}`: {}", action_param, e)),
-            "custom.text" | "sys.type_text" => send_text_snippet(action_param)
-                .unwrap_or_else(|e| format!("Snippet `{}`: {}", action_param, e)),
-            "custom.http" | "sys.webhook" => trigger_http_webhook(action_param)
-                .unwrap_or_else(|e| format!("Webhook `{}`: {}", action_param, e)),
-            _ => {
-                if action_param.starts_with("http://") || action_param.starts_with("https://") {
-                    launch_app_or_url(action_param)
-                        .unwrap_or_else(|_| format!("Opened URL `{}`", action_param))
-                } else if action_param.contains('+') {
-                    send_hotkey_chord(action_param).unwrap_or_else(|_| {
-                        format!("Executed `{}` ({})", action_label, action_param)
-                    })
-                } else {
-                    format!("`{action_label}` is not connected. Pick a hotkey, an app, OBS, media, or a page.")
-                }
-            }
+            "media.play_pause" => Ok(run_media_transport(MediaTransport::Toggle)),
+            "media.next" => Ok(run_media_transport(MediaTransport::Next)),
+            "media.prev" => Ok(run_media_transport(MediaTransport::Previous)),
+            "media.stop" => Ok(run_media_transport(MediaTransport::Stop)),
+            "audio.volume_up" => { send_vk_tap(VK_VOLUME_UP); Ok("Sent volume-up key".into()) },
+            "audio.volume_down" => { send_vk_tap(VK_VOLUME_DOWN); Ok("Sent volume-down key".into()) },
+            "audio.mute_mic" => toggle_microphone_mute(),
+            "audio.volume_mute" => toggle_speaker_mute(),
+            "obs.start_stream" | "obs.toggle_record" | "obs.save_replay" | "obs.next_scene"
+            | "obs.prev_scene" | "obs.toggle_virtualcam" | "obs.toggle_replay" | "obs.pause_record"
+            | "obs.studio_transition" | "obs.set_scene" | "obs.toggle_mute" => run_obs_action(obs, action_id, action_param),
+            id if id.starts_with("hotkey.") => send_hotkey_chord(action_param),
+            "audio.open_mixer" => launch_app_or_url("sndvol.exe"),
+            "sys.show_desktop" => send_hotkey_chord("Win+D"),
+            "sys.screenshot" => send_hotkey_chord("Win+Shift+S"),
+            "sys.task_manager" => send_hotkey_chord("Ctrl+Shift+Esc"),
+            "sys.lock_pc" => run_shell_command("rundll32.exe user32.dll,LockWorkStation"),
+            "sys.hotkey" | "custom.hotkey" => send_hotkey_chord(action_param),
+            "sys.launch_app" | "sys.open_url" | "custom.launch" | "custom.url" => launch_app_or_url(action_param),
+            "custom.shell" | "sys.run_command" => run_shell_command(action_param),
+            "custom.text" | "sys.type_text" => send_text_snippet(action_param),
+            "custom.http" | "sys.webhook" => trigger_http_webhook(action_param),
+            "none" | "" => Err("No action is assigned to this key".into()),
+            _ => Err(format!("Unsupported action `{action_id}`. Choose a supported action.")),
         }
     } else {
-        format!("Simulated `{}` ({})", action_label, action_param)
+        Ok(format!("Simulated `{}` ({})", action_label, action_param))
     };
+    action_result(action_id, action_label, start, outcome)
+}
 
+pub(crate) fn action_result(action_id: &str, action_label: &str, start: Instant, outcome: Result<String, String>) -> ActionExecutionResult {
     ActionExecutionResult {
-        action_id: action_id.to_string(),
-        action_label: action_label.to_string(),
-        success: true,
+        action_id: action_id.into(), action_label: action_label.into(), success: outcome.is_ok(),
         elapsed_ms: start.elapsed().as_millis().max(1) as u64,
-        output_message: msg,
-        timestamp_ms: now_ms(),
+        output_message: outcome.unwrap_or_else(|error| error), timestamp_ms: now_ms(),
     }
 }
 
@@ -781,6 +711,32 @@ pub fn run_macro_sequence_test(seq: &MacroSequence, execute_os_effects: bool) ->
 #[cfg(test)]
 mod tests {
     use super::{chord_to_vks, macro_delay_ms};
+
+    #[test]
+    fn action_results_do_not_infer_success_from_message_text() {
+        let failed = super::action_result("test", "Test", std::time::Instant::now(), Err("Access denied".into()));
+        assert!(!failed.success);
+        let success = super::action_result("test", "Test", std::time::Instant::now(), Ok("Opened failed-jobs dashboard".into()));
+        assert!(success.success);
+    }
+
+    #[test]
+    fn invalid_or_unsupported_actions_report_failure_without_os_effects() {
+        for (id, param) in [("custom.hotkey", "not-a-key"), ("custom.launch", ""),
+            ("custom.text", ""), ("custom.shell", ""), ("custom.http", "file:///bad"),
+            ("none", ""), ("plugin.sd_bridge", "https://example.invalid"), ("unknown", "Ctrl+X")] {
+            let result = super::execute_key_action_live(id, "Test", param, true, &super::ObsSettings::default());
+            assert!(!result.success, "{id} unexpectedly succeeded: {}", result.output_message);
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn missing_executable_is_reported_as_failure_without_a_shell_dialog() {
+        let target = std::env::temp_dir().join(format!("deckforge-missing-app-{}-{}.exe", std::process::id(), crate::drivers::hal::now_ms()));
+        assert!(!target.exists());
+        assert!(super::launch_app_or_url(target.to_str().unwrap()).is_err());
+    }
 
     #[test]
     fn vendor_detection_matches_only_known_process_names() {

@@ -748,12 +748,12 @@ export const App: React.FC = () => {
 
   const handleTestSelectedAction = async () => {
     if (!activeKey) return;
-    const res = await deckforgeApi.testKeyAction(
-      activeKey.actionId,
-      activeKey.actionLabel,
-      activeKey.actionParam
-    );
-    triggerToast(`${res.outputMessage} (${res.elapsedMs}ms)`, "info");
+    try {
+      const res = await deckforgeApi.testKeyAction(activeKey.actionId, activeKey.actionLabel, activeKey.actionParam);
+      triggerToast(`${res.outputMessage} (${res.elapsedMs}ms)`, res.success ? "success" : "warning");
+    } catch (error) {
+      triggerToast(`Could not test the action: ${errorText(error)}`, "warning");
+    }
   };
 
   const handleClearSelectedKey = () => {

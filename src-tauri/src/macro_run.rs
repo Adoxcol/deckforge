@@ -61,9 +61,16 @@ fn wait_for_child(child: &mut std::process::Child, control: &RunControl) -> Resu
     result
 }
 
+pub(crate) fn standalone_webhook(endpoint: &str) -> Result<String, String> {
+    run_webhook(endpoint, &RunControl { cancelled: Arc::new(AtomicBool::new(false)), deadline: Instant::now() + Duration::from_secs(6) })
+}
+
 fn run_webhook(endpoint: &str, control: &RunControl) -> Result<String, String> {
+    // Bound both UI tests and physical triggers, including macro webhooks.
+    static WEBHOOK: Mutex<()> = Mutex::new(());
     let clean = endpoint.trim();
     if !(clean.starts_with("https://") || clean.starts_with("http://")) { return Err("Webhook requires an HTTP or HTTPS URL".into()); }
+    let _request = WEBHOOK.try_lock().map_err(|_| "A webhook is already running; try again after it finishes".to_string())?;
     control.check()?;
     #[cfg(target_os = "windows")]
     {
@@ -121,7 +128,8 @@ fn run_one_macro_step(
             }
         }
         "SwitchProfile" => match apply_navigation(app, shared, "profile.switch", &step.parameter) {
-            Some(msg) => (true, msg),
+            Some(Ok(msg)) => (true, msg),
+            Some(Err(err)) => (false, err),
             None => (false, format!("No profile named {}", step.parameter)),
         },
         other => (false, format!("Unknown step {other}")),
@@ -182,12 +190,12 @@ pub(crate) fn start_macro(
     shared: &SharedState,
     macro_id: &str,
     label: &str,
-) -> String {
+) -> Result<String, String> {
     let seq = Some(shared.lock_safe()).and_then(|guard| find_macro(&guard, macro_id));
     let Some(seq) = seq else {
-        return format!("No macro named {macro_id}");
+        return Err(format!("No macro named {macro_id}"));
     };
-    let permit = match reserve_macro(&seq) { Ok(permit) => permit, Err(err) => return err };
+    let permit = reserve_macro(&seq)?;
     let name = seq.name.clone();
     let app = app.clone();
     let shared = shared.clone();
@@ -195,11 +203,11 @@ pub(crate) fn start_macro(
         let report = run_macro_sequence(&app, &shared, &seq, permit);
         let _ = app.emit("macro-finished", &report);
     });
-    if let Err(err) = spawned { return format!("Could not start macro: {err}"); }
+    if let Err(err) = spawned { return Err(format!("Could not start macro: {err}")); }
     if label.is_empty() {
-        format!("Started {name}")
+        Ok(format!("Started {name}"))
     } else {
-        format!("Started {label}")
+        Ok(format!("Started {label}"))
     }
 }
 
@@ -290,6 +298,41 @@ mod tests {
             let mut calls = 0;
             run_sequence_with(&sequence(policy), &permit.control, |_, _| { calls += 1; (false, "failed".into()) });
             assert_eq!(calls, expected);
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    #[test]
+    fn standalone_webhook_observes_http_success_failure_and_rejects_overlap() {
+        use std::{io::{Read, Write}, net::TcpListener, sync::mpsc};
+        for code in [200, 500] {
+            let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+            listener.set_nonblocking(true).unwrap();
+            let endpoint = format!("http://{}/", listener.local_addr().unwrap());
+            let (arrived, received) = mpsc::channel();
+            let (release, proceed) = mpsc::channel();
+            let server = std::thread::spawn(move || {
+                let deadline = Instant::now() + Duration::from_secs(8);
+                let mut socket = loop {
+                    if let Ok((socket, _)) = listener.accept() { break socket; }
+                    assert!(Instant::now() < deadline, "webhook did not reach loopback server");
+                    std::thread::sleep(Duration::from_millis(10));
+                };
+                socket.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+                let _ = socket.read(&mut [0; 4096]).unwrap();
+                arrived.send(()).unwrap();
+                proceed.recv_timeout(Duration::from_secs(2)).unwrap();
+                let reason = if code == 200 { "OK" } else { "Internal Server Error" };
+                socket.write_all(format!("HTTP/1.1 {code} {reason}\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{{}}").as_bytes()).unwrap();
+            });
+            let url = endpoint.clone();
+            let request = std::thread::spawn(move || standalone_webhook(&url));
+            received.recv_timeout(Duration::from_secs(8)).unwrap();
+            assert!(standalone_webhook(&endpoint).unwrap_err().contains("already running"));
+            release.send(()).unwrap();
+            let result = request.join().unwrap();
+            assert_eq!(result.is_ok(), code == 200, "{result:?}");
+            server.join().unwrap();
         }
     }
 
