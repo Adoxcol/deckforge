@@ -59,13 +59,20 @@ pub struct ZonePaint<'a> {
     pub loop_playback: bool,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct MediaStore {
     clips: HashMap<String, StagedClip>,
+    directory: PathBuf,
+}
+
+impl Default for MediaStore {
+    fn default() -> Self { Self { clips: HashMap::new(), directory: media_dir() } }
 }
 
 #[derive(Serialize, Deserialize)]
 struct DiskMeta {
+    #[serde(default)]
+    data_file: Option<String>,
     file_name: String,
     kind: String,
     delay_ms: u32,
@@ -73,8 +80,11 @@ struct DiskMeta {
 
 impl MediaStore {
     pub fn load() -> Self {
-        let mut store = Self::default();
-        let dir = media_dir();
+        Self::load_from(media_dir())
+    }
+
+    fn load_from(dir: PathBuf) -> Self {
+        let mut store = Self { clips: HashMap::new(), directory: dir.clone() };
         let Ok(entries) = fs::read_dir(&dir) else {
             return store;
         };
@@ -88,7 +98,12 @@ impl MediaStore {
             };
             let Ok(meta_raw) = fs::read_to_string(&path) else { continue };
             let Ok(meta) = serde_json::from_str::<DiskMeta>(&meta_raw) else { continue };
-            let bin_path = dir.join(format!("{id}.bin"));
+            let data_file = match meta.data_file.as_deref() {
+                Some(name) if valid_blob_name(name) => name.to_string(),
+                Some(_) => continue,
+                None => format!("{id}.bin"), // Existing installations retain their media.
+            };
+            let bin_path = dir.join(data_file);
             let Ok(bytes) = fs::read(&bin_path) else { continue };
             if let Ok(clip) = decode_into_clip(&id, &meta.file_name, &bytes, &meta.kind, meta.delay_ms) {
                 store.clips.insert(id, clip);
@@ -110,7 +125,8 @@ impl MediaStore {
         let id = sanitize_id(id)?;
         let clip = decode_into_clip(&id, file_name, bytes, "file", 100)?;
         let preview = clip.preview.clone();
-        let _ = persist_clip(&id, file_name, "file", clip.preview.frame_delay_ms, bytes);
+        persist_clip(&self.directory, &id, file_name, "file", clip.preview.frame_delay_ms, bytes)
+            .map_err(|err| format!("Media was not saved: {err}"))?;
         self.clips.insert(id, clip);
         Ok(preview)
     }
@@ -143,7 +159,8 @@ impl MediaStore {
         }
         let clip = decode_into_clip(&id, file_name, &packed, "sequence", delay_ms)?;
         let preview = clip.preview.clone();
-        let _ = persist_clip(&id, file_name, "sequence", delay_ms, &packed);
+        persist_clip(&self.directory, &id, file_name, "sequence", delay_ms, &packed)
+            .map_err(|err| format!("Animation was not saved: {err}"))?;
         self.clips.insert(id, clip);
         Ok(preview)
     }
@@ -754,26 +771,95 @@ fn media_dir() -> PathBuf {
     base.join("DeckForge").join("media")
 }
 
-fn persist_clip(id: &str, file_name: &str, kind: &str, delay_ms: u32, bytes: &[u8]) -> Result<(), String> {
-    let dir = media_dir();
-    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    fs::write(dir.join(format!("{id}.bin")), bytes).map_err(|e| e.to_string())?;
+fn valid_blob_name(name: &str) -> bool {
+    name.strip_suffix(".bin").is_some_and(|hash| hash.len() == 64 && hash.bytes().all(|b| b.is_ascii_hexdigit()))
+}
+
+fn persist_clip(dir: &std::path::Path, id: &str, file_name: &str, kind: &str, delay_ms: u32, bytes: &[u8]) -> Result<(), String> {
+    fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    // Publish new bytes under an immutable content hash, then atomically switch
+    // the metadata pointer. A failed replacement cannot corrupt the old clip.
+    let hash = crate::drivers::frame_cache::AntiFreezeFrameCache::compute_sha256_hex(bytes);
+    let data_file = format!("{hash}.bin");
+    crate::db::write_atomic_bytes(&dir.join(&data_file), bytes)?;
     let meta = DiskMeta {
-        file_name: file_name.to_string(),
-        kind: kind.to_string(),
-        delay_ms,
+        data_file: Some(data_file), file_name: file_name.to_string(), kind: kind.to_string(), delay_ms,
     };
-    fs::write(
-        dir.join(format!("{id}.json")),
-        serde_json::to_string(&meta).unwrap_or_else(|_| "{}".into()),
-    )
-    .map_err(|e| e.to_string())?;
-    Ok(())
+    let raw = serde_json::to_string(&meta).map_err(|e| e.to_string())?;
+    crate::db::write_atomic(&dir.join(format!("{id}.json")), &raw)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    struct TestMediaDir(PathBuf);
+
+    impl TestMediaDir {
+        fn new() -> Self {
+            static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let id = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let dir = std::env::temp_dir().join(format!("deckforge-media-{}-{}-{id}", std::process::id(), crate::drivers::hal::now_ms()));
+            fs::create_dir(&dir).unwrap();
+            Self(dir)
+        }
+        fn store(&self) -> MediaStore { MediaStore::load_from(self.0.clone()) }
+    }
+
+    impl Drop for TestMediaDir {
+        fn drop(&mut self) {
+            // Only direct test-created files and empty failure-injection directories.
+            if let Ok(entries) = fs::read_dir(&self.0) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() { let _ = fs::remove_dir(path); }
+                    else { let _ = fs::remove_file(path); }
+                }
+            }
+            let _ = fs::remove_dir(&self.0);
+        }
+    }
+
+    #[test]
+    fn failed_media_save_is_not_acknowledged_or_added_to_memory() {
+        let dir = TestMediaDir::new();
+        fs::write(dir.0.join("blocked"), b"not a directory").unwrap();
+        let mut store = MediaStore::load_from(dir.0.join("blocked"));
+        assert!(store.stage_bytes("photo", "photo.gif", &tiny_gif()).unwrap_err().contains("not saved"));
+        let frame = STANDARD.encode(encode_jpeg(&RgbImage::new(4, 4), 90));
+        assert!(store.stage_sequence("animation", "animation", &[frame], 80).is_err());
+        assert!(store.previews().is_empty());
+    }
+
+    #[test]
+    fn metadata_failure_preserves_previous_media_in_memory_and_after_reload() {
+        let dir = TestMediaDir::new();
+        let mut store = dir.store();
+        store.stage_bytes("clip", "original.gif", &tiny_gif()).unwrap();
+        fs::create_dir(dir.0.join("clip.json.tmp")).unwrap();
+        let replacement = encode_jpeg(&RgbImage::new(4, 4), 90);
+        assert!(store.stage_bytes("clip", "replacement.jpg", &replacement).is_err());
+        assert_eq!(store.previews()[0].file_name, "original.gif");
+        assert_eq!(dir.store().previews()[0].file_name, "original.gif");
+        fs::remove_dir(dir.0.join("clip.json.tmp")).unwrap();
+        store.stage_bytes("clip", "replacement.jpg", &replacement).unwrap();
+        assert_eq!(dir.store().previews()[0].file_name, "replacement.jpg");
+    }
+
+    #[test]
+    fn sequences_and_legacy_media_survive_reload() {
+        let dir = TestMediaDir::new();
+        fs::write(dir.0.join("legacy.bin"), tiny_gif()).unwrap();
+        fs::write(dir.0.join("legacy.json"), r#"{"file_name":"old.gif","kind":"file","delay_ms":80}"#).unwrap();
+        let mut store = dir.store();
+        assert_eq!(store.previews()[0].file_name, "old.gif");
+        let frame = STANDARD.encode(encode_jpeg(&RgbImage::new(4, 4), 90));
+        store.stage_sequence("sequence", "sequence", &[frame.clone(), frame], 100).unwrap();
+        let reloaded = dir.store();
+        assert_eq!(reloaded.previews().len(), 2);
+        assert!(reloaded.render_fitted("sequence", 112, 112, 0, "cover", [0, 0, 0], None, 1.0, true).is_some());
+        assert!(!valid_blob_name("../outside.bin"));
+    }
 
     fn tiny_gif() -> Vec<u8> {
         let mut buf = Vec::new();
@@ -795,7 +881,8 @@ mod tests {
 
     #[test]
     fn gif_decodes_and_fits_every_screen_size() {
-        let mut store = MediaStore::default();
+        let dir = TestMediaDir::new();
+        let mut store = dir.store();
         let preview = store.stage_bytes("pulse", "pulse.gif", &tiny_gif()).unwrap();
         assert_eq!(preview.kind, "gif");
         assert_eq!(preview.frame_count, 2);

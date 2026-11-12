@@ -194,8 +194,8 @@ pub fn test_key_action(
 }
 #[tauri::command]
 pub fn save_macros(macros: Vec<db::MacroSequence>, state: State<'_, SharedState>) -> Result<(), String> {
-    write_saved_macros(&macros)?;
     let mut guard = state.lock_safe();
+    write_saved_macros(&macros)?;
     guard.macros = macros;
     Ok(())
 }
@@ -392,16 +392,16 @@ pub fn hold_auto_switch(state: State<'_, SharedState>) -> Result<(), String> {
 
 #[tauri::command]
 pub fn save_auto_switch_rules(rules: Vec<AutoSwitchRule>, state: State<'_, SharedState>) -> Result<(), String> {
-    write_auto_switch_rules(&rules)?;
     let mut guard = state.lock_safe();
+    write_auto_switch_rules(&rules)?;
     guard.auto_switch_rules = rules;
     Ok(())
 }
 
 #[tauri::command]
 pub fn save_obs_settings(settings: ObsSettings, state: State<'_, SharedState>) -> Result<(), String> {
-    settings.save()?;
     let mut guard = state.lock_safe();
+    settings.save()?;
     guard.obs = settings;
     Ok(())
 }

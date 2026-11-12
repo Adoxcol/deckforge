@@ -1081,8 +1081,16 @@ pub fn profiles_store_path() -> PathBuf {
 /// Writes to a temporary file first, then swaps it in, so a crash mid-save cannot leave a
 /// half-written file behind.
 pub(crate) fn write_atomic(path: &std::path::Path, raw: &str) -> Result<(), String> {
+    write_atomic_bytes(path, raw.as_bytes())
+}
+
+pub(crate) fn write_atomic_bytes(path: &std::path::Path, bytes: &[u8]) -> Result<(), String> {
+    use std::io::Write;
     let tmp = path.with_extension("json.tmp");
-    fs::write(&tmp, raw).map_err(|e| e.to_string())?;
+    let mut file = fs::File::create(&tmp).map_err(|e| e.to_string())?;
+    file.write_all(bytes).map_err(|e| e.to_string())?;
+    file.sync_all().map_err(|e| e.to_string())?;
+    drop(file);
     fs::rename(&tmp, path).map_err(|e| e.to_string())
 }
 

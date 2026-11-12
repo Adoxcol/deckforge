@@ -39,6 +39,7 @@ import {
   Zap,
 } from "lucide-react";
 import { deckforgeApi, isTauriRuntime } from "./bridge/tauriBridge";
+import { createSaveQueue, savedStatus, type SaveStatus } from "./lib/saveQueue";
 import { AVAILABLE_ICON_NAMES, DeckIcon } from "./components/DeckIcon";
 import { ActionBinding, ObsConnection, actionNeedsParam, splitStoredBinding } from "./components/ActionBinding";
 import { IconStudio } from "./components/IconStudio";
@@ -119,6 +120,17 @@ export const App: React.FC = () => {
 
   // Sync & Persistence States (Spec Section 1 & 14: Distinguish Saved Locally vs Applied to Device)
   const [savedLocally, setSavedLocally] = useState<boolean>(true);
+  const [saveStatuses, setSaveStatuses] = useState<Record<string, SaveStatus>>({});
+  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
+  const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
+  const [saveQueues] = useState(() => {
+    const status = (name: string) => (value: SaveStatus) => setSaveStatuses(prev => ({ ...prev, [name]: value }));
+    return {
+      Macros: createSaveQueue(deckforgeApi.saveMacros, status("Macros")),
+      "Auto-switch rules": createSaveQueue(deckforgeApi.saveAutoSwitchRules, status("Auto-switch rules")),
+      "OBS settings": createSaveQueue(deckforgeApi.saveObsSettings, status("OBS settings")),
+    };
+  });
   const [deviceSynced, setDeviceSynced] = useState<boolean>(false);
   const [undoStack, setUndoStack] = useState<Profile[][]>([]);
   const [redoStack, setRedoStack] = useState<Profile[][]>([]);
@@ -141,7 +153,10 @@ export const App: React.FC = () => {
   };
 
   useEffect(() => {
+    let disposed = false;
+    setBootstrapError(null);
     deckforgeApi.getInitialState().then((data) => {
+      if (disposed) return;
       setDevices(data.devices);
       setProfiles(data.profiles);
       if (data.appliedContext) {
@@ -157,7 +172,7 @@ export const App: React.FC = () => {
       setMediaLibrary(Object.fromEntries((data.mediaLibrary || []).map((item) => [item.id, item])));
       if (data.face) setFace(data.face);
       if (data.obs) setObsSettings(data.obs);
-    });
+    }).catch(error => { if (!disposed) setBootstrapError(errorText(error)); });
 
     let unlistenFn: (() => void) | null = null;
     deckforgeApi.onHardwareInput((evt) => {
@@ -179,31 +194,32 @@ export const App: React.FC = () => {
         );
       }
     }).then((fn) => {
-      unlistenFn = fn;
+      if (disposed) fn(); else unlistenFn = fn;
     });
     let faceUnlisten: (() => void) | null = null;
     let contextUnlisten: (() => void) | null = null;
     deckforgeApi.onDeckFace((next) => setFace(next)).then((fn) => {
-      faceUnlisten = fn;
+      if (disposed) fn(); else faceUnlisten = fn;
     });
     deckforgeApi.onDeckContext((ctx) => {
       setSelectedProfileId(ctx.profileId);
       setSelectedPageIdx(ctx.pageIndex);
       triggerToast(ctx.message, "info");
     }).then((fn) => {
-      contextUnlisten = fn;
+      if (disposed) fn(); else contextUnlisten = fn;
     });
 
     const timer = window.setInterval(() => {
       deckforgeApi.getTelemetry().then(setTelemetry).catch(() => {});
     }, 5000);
     return () => {
+      disposed = true;
       window.clearInterval(timer);
       if (unlistenFn) unlistenFn();
       if (faceUnlisten) faceUnlisten();
       if (contextUnlisten) contextUnlisten();
     };
-  }, []);
+  }, [bootstrapAttempt]);
 
   // Editor navigation does not apply anything to the physical deck.
   useEffect(() => {
@@ -372,17 +388,17 @@ export const App: React.FC = () => {
 
   const saveRules = (rules: AutoSwitchRule[]) => {
     setAutoSwitchRules(rules);
-    deckforgeApi.saveAutoSwitchRules(rules).catch(() => {});
+    saveQueues["Auto-switch rules"].save(rules);
   };
 
   const saveObs = (settings: ObsSettings) => {
     setObsSettings(settings);
-    deckforgeApi.saveObsSettings(settings).catch(() => {});
+    saveQueues["OBS settings"].save(settings);
   };
 
   const persistMacros = (next: MacroSequence[]) => {
     setMacros(next);
-    deckforgeApi.saveMacros(next).catch(() => {});
+    saveQueues.Macros.save(next);
   };
 
   const assignMacroToKey = async (macro: MacroSequence) => {
@@ -421,10 +437,16 @@ export const App: React.FC = () => {
       };
     });
     setProfiles(nextProfiles);
-    await deckforgeApi.saveMacros(macros);
-    await deckforgeApi.saveProfiles(nextProfiles);
-    setSavedLocally(true);
-    triggerToast(`${macro.name} is on key ${activeKey.index + 1}`, "success");
+    saveQueues.Macros.save(macros);
+    if (!await saveQueues.Macros.flush()) return;
+    try {
+      await deckforgeApi.saveProfiles(nextProfiles);
+      setSavedLocally(true);
+      triggerToast(`${macro.name} is on key ${activeKey.index + 1}`, "success");
+    } catch (error) {
+      setSavedLocally(false);
+      triggerToast(`Key assignment was not saved: ${errorText(error)}. Try Save again.`, "warning");
+    }
   };
 
   const activeZone =
@@ -642,9 +664,14 @@ export const App: React.FC = () => {
   };
 
   const handleSaveLocally = async () => {
-    await deckforgeApi.saveProfiles(profiles);
-    setSavedLocally(true);
-    triggerToast("Profile saved locally to transactional store ✓", "success");
+    try {
+      await deckforgeApi.saveProfiles(profiles);
+      setSavedLocally(true);
+      triggerToast("Profile saved locally ✓", "success");
+    } catch (error) {
+      setSavedLocally(false);
+      triggerToast(`Profile was not saved: ${errorText(error)}. Your edits are still here; try Save again.`, "warning");
+    }
   };
 
   const handleApplyToDevice = async () => {
@@ -752,8 +779,13 @@ export const App: React.FC = () => {
       const next = [...profiles, placed.profile];
       pushUndoSnapshot();
       setProfiles(next);
+      if (placed.addedMacros > 0) {
+        persistMacros(placed.macros);
+        if (!await saveQueues.Macros.flush()) {
+          throw new Error("Imported macros were not saved. Retry the macro save, then save the profile; your edits are still here.");
+        }
+      }
       await deckforgeApi.saveProfiles(next);
-      if (placed.addedMacros > 0) persistMacros(placed.macros);
       setSelectedProfileId(placed.profile.id);
       setSelectedPageIdx(0);
       setSelectedKeyIdx(0);
@@ -867,6 +899,14 @@ export const App: React.FC = () => {
     });
   }, [allActionTemplates, actionCategoryFilter, actionSearch]);
 
+  if (bootstrapError) {
+    return <div className="h-screen bg-[#0B0D14] text-[#F4F5FA] flex flex-col items-center justify-center gap-4 p-8" role="alert">
+      <h1 className="text-xl font-bold">Could not load DeckForge</h1>
+      <p className="text-[#F4B860] max-w-xl break-words">{bootstrapError}</p>
+      <button className="px-4 py-2 rounded bg-[#8B5CF6]" onClick={() => setBootstrapAttempt(n => n + 1)}>Retry loading</button>
+    </div>;
+  }
+
   if (!activeDevice || !activeProfile || !activePage || !activeKey) {
     return (
       <div className="h-screen w-screen bg-[#0B0D14] text-[#F4F5FA] flex items-center justify-center">
@@ -880,6 +920,14 @@ export const App: React.FC = () => {
 
   return (
     <div className="h-screen w-screen bg-[#0B0D14] text-[#F4F5FA] flex flex-col overflow-hidden select-none">
+      {Object.entries(saveQueues).map(([name, queue]) => {
+        const status = saveStatuses[name] ?? savedStatus;
+        if (!status.pending) return null;
+        return <div key={name} role={status.error ? "alert" : "status"} className="px-4 py-2 text-xs bg-[#30244F] text-[#F4B860] flex items-center gap-3">
+          <span>{status.error ? `${name} not saved: ${status.error}. Your edits remain in this session.` : `Saving ${name.toLowerCase()}…`}</span>
+          {status.error && <button className="underline font-semibold" onClick={queue.retry}>Retry save</button>}
+        </div>;
+      })}
       <input
         ref={fileRef}
         type="file"
@@ -1145,8 +1193,8 @@ export const App: React.FC = () => {
           </span>
           <DeckStatusBadge onNotify={triggerToast} />
           <span>• Profile: {activeProfile.name}</span>
-          <span className={savedLocally ? "text-[#35C98B]" : "text-[#F4B860]"}>
-            • {savedLocally ? "Saved locally ✓" : "Unsaved local edits ●"}
+          <span className={savedLocally && !Object.values(saveStatuses).some(s => s.pending) ? "text-[#35C98B]" : "text-[#F4B860]"}>
+            • {savedLocally && !Object.values(saveStatuses).some(s => s.pending) ? "Saved locally ✓" : "Unsaved local edits ●"}
           </span>
           <span className={deviceSynced ? "text-[#35C98B]" : "text-[#F4B860]"}>
             • {deviceSynced ? "Device synced ✓" : "Pending Apply to Device ●"}
