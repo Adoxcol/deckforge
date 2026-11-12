@@ -7,7 +7,7 @@ pub mod media;
 use actions::{
     collect_system_telemetry, execute_key_action_live, foreground_window, launch_app_or_url,
     macro_delay_ms, process_is_running, read_audio_face, read_media_face, send_hotkey_chord,
-    trigger_http_webhook, ActionExecutionResult, MacroRunReport,
+    ActionExecutionResult, MacroRunReport,
     ObsSettings, SystemTelemetrySnapshot,
 };
 use db::{
@@ -85,6 +85,7 @@ pub fn run() {
             save_macros,
             test_key_action,
             execute_macro_sequence,
+            stop_macro_execution,
             take_over_from_official_app,
             pause_deck_control,
             get_deck_status,

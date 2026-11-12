@@ -7,6 +7,7 @@ Open-source universal Stream Deck & Stream Dock desktop controller built with **
   - Hardware-verified `1025`-byte (`0x401`) HID output report framing (`CRT\0\0HAN`, `CRT\0\0LIG`, `CRT\0\0BAT`, `CRT\0\0DRA`, `CRT\0\0STP`, `CRT\0\0CLE`) and `ACK\0\0OK` input listener (`MI_00`).
   - Anti-Freeze **SHA-256 Frame Diffing Cache** (`AntiFreezeFrameCache`) that skips redundant USB JPEG transfers when key visuals haven't changed.
   - Built-in procedural keycap & touch-strip JPEG renderer with crisp vector icons and 5×7 pixel-font labels.
+- **Macro execution limits**: one chain runs at a time across hardware and UI triggers; extra starts are rejected. Chains allow up to 256 blocks and 60 seconds total. Block timeouts include retries. Use **Stop running chain** in Macro Studio to cancel waits/webhooks and prevent subsequent blocks. Already-dispatched OS actions cannot be undone.
 - **Live Win32 Action & Macro Engine**:
   - Real `SendInput` keyboard shortcuts, media keys, system commands, shell launcher, URL opener, and HTTP webhook triggers.
   - Interactive **Custom Actions Builder** with live keybind recording (`● Record Keybind`).

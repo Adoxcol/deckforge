@@ -201,7 +201,7 @@ pub fn save_macros(macros: Vec<db::MacroSequence>, state: State<'_, SharedState>
 }
 
 #[tauri::command]
-pub fn execute_macro_sequence(
+pub async fn execute_macro_sequence(
     macro_id: String,
     app: tauri::AppHandle,
     state: State<'_, SharedState>,
@@ -210,23 +210,16 @@ pub fn execute_macro_sequence(
         let guard = state.lock_safe();
         find_macro(&guard, &macro_id).ok_or_else(|| format!("Macro {} not found", macro_id))?
     };
-    let report = run_macro_sequence(&app, state.inner(), &seq);
-    let mut guard = state.lock_safe();
-    guard.diagnostics.push(DiagnosticEntry {
-        id: format!("diag-macro-{}", now_ms()),
-        timestamp_ms: now_ms(),
-        level: "success".to_string(),
-        device_id: "macro-runner".to_string(),
-        stage: "MACRO_TEST".to_string(),
-        message: format!(
-            "Tested macro `{}` ({} steps completed in {}ms)",
-            report.macro_name,
-            report.step_results.len(),
-            report.total_elapsed_ms
-        ),
-        packet_hex: None,
-    });
-    Ok(report)
+    let permit = reserve_macro(&seq)?;
+    let shared = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || run_macro_sequence(&app, &shared, &seq, permit))
+        .await.map_err(|err| err.to_string())
+}
+
+#[tauri::command]
+pub fn stop_macro_execution() -> String {
+    if cancel_running_macro() { "Stop requested. No further macro steps will start.".into() }
+    else { "No macro is running.".into() }
 }
 
 /// Connection state and how the last send went, polled by the status bar.

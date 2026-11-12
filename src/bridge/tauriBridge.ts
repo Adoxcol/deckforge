@@ -703,6 +703,11 @@ export const deckforgeApi = {
     }
   },
 
+  async stopMacroExecution(): Promise<string> {
+    if (isTauriRuntime()) return await invoke<string>("stop_macro_execution");
+    return "No macro is running.";
+  },
+
   async executeMacroSequence(macroId: string): Promise<MacroRunReport> {
     if (isTauriRuntime()) {
       return await invoke<MacroRunReport>("execute_macro_sequence", { macroId });

@@ -61,6 +61,7 @@ export const MacroStudio: React.FC<{
   onSelectStep: (index: number) => void;
   onChange: (macros: MacroSequence[]) => void;
   onRun: (macro: MacroSequence) => void;
+  onStop: () => void;
   onAssign: (macro: MacroSequence) => void;
 }> = ({
   macros,
@@ -73,6 +74,7 @@ export const MacroStudio: React.FC<{
   onSelectStep,
   onChange,
   onRun,
+  onStop,
   onAssign,
 }) => {
   const macro = macros.find((item) => item.id === selectedMacroId) ?? macros[0];
@@ -191,6 +193,12 @@ export const MacroStudio: React.FC<{
               </button>
             </div>
 
+            <div className="flex items-center justify-between gap-3 text-xs text-[#A6AFC4]">
+              <span>One chain at a time. Extra starts are rejected. Limit: 256 blocks and 60 seconds.</span>
+              <button type="button" onClick={onStop} className="px-3 py-2 rounded border border-[#F16B79] text-[#F16B79] shrink-0">
+                Stop running chain
+              </button>
+            </div>
             <div className="rounded-2xl border border-[#272D3D] bg-[#10131D]/90 p-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-semibold text-[#A6AFC4]">Timing</span>
@@ -364,6 +372,15 @@ export const MacroStudio: React.FC<{
                 className="h-8 px-2.5 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs font-mono text-[#F4F5FA] outline-none"
               />
             )}
+            <label className="text-[11px] text-[#A6AFC4]">Block timeout (ms, including retry)</label>
+            <input type="number" min={1} max={60000} value={step.timeoutMs}
+              onChange={(event) => {
+                const timeoutMs = Math.max(1, Math.min(60000, Number(event.target.value) || 1));
+                updateMacro(current => ({ ...current, steps: current.steps.map((item, index) =>
+                  index === selectedStepIdx ? { ...item, timeoutMs } : item) }));
+              }}
+              className="h-8 px-2.5 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs" />
+            <p className="text-[10px] text-[#707B94]">Timeout or Stop ends the chain. An action already dispatched cannot be undone.</p>
             <label className="text-[11px] text-[#A6AFC4]">If this block fails</label>
             <select
               value={step.onError}

@@ -1099,17 +1099,22 @@ export const App: React.FC = () => {
           onSelectStep={setSelectedMacroStepIdx}
           onChange={persistMacros}
           onRun={async (macro) => {
-            const next = macros.some((item) => item.id === macro.id)
-              ? macros.map((item) => (item.id === macro.id ? macro : item))
-              : [macro, ...macros];
-            setMacros(next);
-            await deckforgeApi.saveMacros(next);
-            const report = await deckforgeApi.executeMacroSequence(macro.id);
-            setMacroRunReport(report);
-            triggerToast(
-              `${report.macroName} finished in ${report.totalElapsedMs}ms`,
-              report.stepResults.some((step) => step.status !== "Passed") ? "warning" : "success"
-            );
+            try {
+              const next = macros.some((item) => item.id === macro.id)
+                ? macros.map((item) => (item.id === macro.id ? macro : item)) : [macro, ...macros];
+              persistMacros(next);
+              if (!await saveQueues.Macros.flush()) return;
+              const report = await deckforgeApi.executeMacroSequence(macro.id);
+              setMacroRunReport(report);
+              triggerToast(`${report.macroName} finished in ${report.totalElapsedMs}ms`,
+                report.stepResults.some(step => step.status !== "Passed") ? "warning" : "success");
+            } catch (error) {
+              triggerToast(typeof error === "string" ? error : "Could not run the macro", "warning");
+            }
+          }}
+          onStop={async () => {
+            try { triggerToast(await deckforgeApi.stopMacroExecution(), "info"); }
+            catch { triggerToast("Could not stop the running macro", "warning"); }
           }}
           onAssign={(macro) => {
             void assignMacroToKey(macro);
