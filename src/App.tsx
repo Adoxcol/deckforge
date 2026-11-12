@@ -39,6 +39,8 @@ import {
   Zap,
 } from "lucide-react";
 import { deckforgeApi, isTauriRuntime } from "./bridge/tauriBridge";
+import { createProfilePersistence, profileSnapshot } from "./lib/profilePersistence";
+import { QuitDialog } from "./components/QuitDialog";
 import { createSaveQueue, savedStatus, type SaveStatus } from "./lib/saveQueue";
 import { AVAILABLE_ICON_NAMES, DeckIcon } from "./components/DeckIcon";
 import { ActionBinding, ObsConnection, actionNeedsParam, splitStoredBinding } from "./components/ActionBinding";
@@ -119,8 +121,16 @@ export const App: React.FC = () => {
   const [templatesOpen, setTemplatesOpen] = useState<boolean>(false);
 
   // Sync & Persistence States (Spec Section 1 & 14: Distinguish Saved Locally vs Applied to Device)
-  const [savedLocally, setSavedLocally] = useState<boolean>(true);
+  const [savedSnapshot, setSavedSnapshot] = useState("[]");
+  const savedLocally = profileSnapshot(profiles) === savedSnapshot;
+  const [profilePersistence] = useState(() => createProfilePersistence<Profile[]>(deckforgeApi.saveProfiles, setSavedSnapshot));
+  const [quitOpen, setQuitOpen] = useState(false);
+  const [quitting, setQuitting] = useState(false);
+  const [quitError, setQuitError] = useState<string | null>(null);
+  const latestProfiles = useRef(profiles);
+  latestProfiles.current = profiles;
   const [saveStatuses, setSaveStatuses] = useState<Record<string, SaveStatus>>({});
+  const [bootstrapReady, setBootstrapReady] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
   const [saveQueues] = useState(() => {
@@ -159,6 +169,8 @@ export const App: React.FC = () => {
       if (disposed) return;
       setDevices(data.devices);
       setProfiles(data.profiles);
+      setSavedSnapshot(profileSnapshot(data.profiles));
+      setBootstrapReady(true);
       if (data.appliedContext) {
         setSelectedProfileId(data.appliedContext.profileId);
         setSelectedPageIdx(data.appliedContext.pageIndex);
@@ -221,6 +233,49 @@ export const App: React.FC = () => {
     };
   }, [bootstrapAttempt]);
 
+  useEffect(() => {
+    let disposed = false;
+    let stop: (() => void) | undefined;
+    deckforgeApi.onQuitRequested(() => { setQuitError(null); setQuitOpen(true); })
+      .then(fn => { if (disposed) fn(); else stop = fn; });
+    return () => { disposed = true; stop?.(); };
+  }, []);
+
+  useEffect(() => {
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (!savedLocally || profilePersistence.isPending() || Object.values(saveQueues).some(q => q.isPending())) {
+        event.preventDefault(); event.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", beforeUnload);
+    return () => window.removeEventListener("beforeunload", beforeUnload);
+  }, [savedLocally, profilePersistence, saveQueues]);
+
+  const finishQuit = async (save: boolean) => {
+    setQuitting(true); setQuitError(null);
+    try {
+      if (save) {
+        if (!bootstrapReady) throw new Error("Wait for your profiles to load before saving.");
+        await profilePersistence.save(latestProfiles.current);
+        for (const queue of Object.values(saveQueues)) queue.retry();
+        const results = await Promise.all(Object.values(saveQueues).map(queue => queue.flush()));
+        if (results.some(ok => !ok) || Object.values(saveQueues).some(q => q.isPending())) {
+          throw new Error("Some settings could not be saved. Retry, or cancel to keep editing.");
+        }
+      } else {
+        // Let writes already in progress settle before stopping the process.
+        await Promise.all(Object.values(saveQueues).map(queue => queue.flush()));
+      }
+      await profilePersistence.flush();
+      if (save && (profilePersistence.savedSnapshot() !== profileSnapshot(latestProfiles.current)
+        || Object.values(saveQueues).some(q => q.isPending()))) {
+        throw new Error("Edits changed while saving. Review them and try again.");
+      }
+      await deckforgeApi.quitApplication();
+    } catch (error) { setQuitError(errorText(error)); }
+    finally { setQuitting(false); }
+  };
+
   // Editor navigation does not apply anything to the physical deck.
   useEffect(() => {
     setDeviceSynced(false);
@@ -239,7 +294,10 @@ export const App: React.FC = () => {
   };
 
   const handleImportLegacyProfiles = async () => {
-    const updatedProfiles = await deckforgeApi.importLegacySdProfiles();
+    // Import into the latest editor snapshot, without discarding local edits.
+    const imported = await deckforgeApi.importLegacySdProfiles();
+    const current = latestProfiles.current;
+    const updatedProfiles = [...current, ...imported.filter(p => !current.some(existing => existing.id === p.id))];
     setProfiles(updatedProfiles);
     const firstImported = updatedProfiles.find((p) => p.id.startsWith("imported-"));
     if (firstImported) {
@@ -264,6 +322,7 @@ export const App: React.FC = () => {
   // Keyboard shortcuts (Ctrl+S, Ctrl+Z, Ctrl+Y) + Live Hotkey Recorder
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (quitOpen) return;
       if (hotkeyTarget) {
         e.preventDefault();
         e.stopPropagation();
@@ -431,11 +490,9 @@ export const App: React.FC = () => {
     saveQueues.Macros.save(macros);
     if (!await saveQueues.Macros.flush()) return;
     try {
-      await deckforgeApi.saveProfiles(nextProfiles);
-      setSavedLocally(true);
+      await profilePersistence.save(nextProfiles);
       triggerToast(`${macro.name} is on key ${activeKey.index + 1}`, "success");
     } catch (error) {
-      setSavedLocally(false);
       triggerToast(`Key assignment was not saved: ${errorText(error)}. Try Save again.`, "warning");
     }
   };
@@ -452,7 +509,6 @@ export const App: React.FC = () => {
   const pushUndoSnapshot = () => {
     setUndoStack((prev) => [...prev.slice(-19), JSON.parse(JSON.stringify(profiles))]);
     setRedoStack([]);
-    setSavedLocally(false);
     setDeviceSynced(false);
   };
 
@@ -656,11 +712,9 @@ export const App: React.FC = () => {
 
   const handleSaveLocally = async () => {
     try {
-      await deckforgeApi.saveProfiles(profiles);
-      setSavedLocally(true);
+      await profilePersistence.save(profiles);
       triggerToast("Profile saved locally ✓", "success");
     } catch (error) {
-      setSavedLocally(false);
       triggerToast(`Profile was not saved: ${errorText(error)}. Your edits are still here; try Save again.`, "warning");
     }
   };
@@ -669,8 +723,7 @@ export const App: React.FC = () => {
     if (!activeDevice || !activeProfile || !activePage) return;
     let res;
     try {
-      await deckforgeApi.saveProfiles(profiles);
-      setSavedLocally(true);
+      await profilePersistence.save(profiles);
       res = await deckforgeApi.applyProfileToDevice(
         activeDevice.id,
         activeProfile.id,
@@ -743,7 +796,7 @@ export const App: React.FC = () => {
     };
     setProfiles((prev) => [...prev, newProf]);
     setSelectedProfileId(id);
-    setSavedLocally(false);
+
     triggerToast(`Created ${newProf.name}`, "success");
   };
 
@@ -776,11 +829,10 @@ export const App: React.FC = () => {
           throw new Error("Imported macros were not saved. Retry the macro save, then save the profile; your edits are still here.");
         }
       }
-      await deckforgeApi.saveProfiles(next);
+      await profilePersistence.save(next);
       setSelectedProfileId(placed.profile.id);
       setSelectedPageIdx(0);
       setSelectedKeyIdx(0);
-      setSavedLocally(true);
       const pages = placed.profile.pages.length;
       const extra = placed.addedMacros > 0 ? ` and ${placed.addedMacros} macro${placed.addedMacros === 1 ? "" : "s"}` : "";
       triggerToast(
@@ -805,7 +857,6 @@ export const App: React.FC = () => {
       )
     );
     setSelectedPageIdx(activeProfile.pages.length);
-    setSavedLocally(false);
     triggerToast(`Added ${newPage.name}`, "info");
   };
 
@@ -890,8 +941,13 @@ export const App: React.FC = () => {
     });
   }, [allActionTemplates, actionCategoryFilter, actionSearch]);
 
+  const quitDialog = <QuitDialog open={quitOpen} busy={quitting} error={quitError}
+    dirty={!savedLocally || Object.values(saveStatuses).some(s => s.pending)}
+    onCancel={() => setQuitOpen(false)} onQuit={finishQuit} />;
+
   if (bootstrapError) {
     return <div className="h-screen bg-[#0B0D14] text-[#F4F5FA] flex flex-col items-center justify-center gap-4 p-8" role="alert">
+      {quitDialog}
       <h1 className="text-xl font-bold">Could not load DeckForge</h1>
       <p className="text-[#F4B860] max-w-xl break-words">{bootstrapError}</p>
       <button className="px-4 py-2 rounded bg-[#8B5CF6]" onClick={() => setBootstrapAttempt(n => n + 1)}>Retry loading</button>
@@ -903,6 +959,7 @@ export const App: React.FC = () => {
       <div className="h-screen w-screen bg-[#0B0D14] text-[#F4F5FA] flex items-center justify-center">
         <div className="flex items-center gap-3 text-[#A6AFC4]">
           <RefreshCw className="animate-spin text-[#8B5CF6]" size={20} />
+          {quitDialog}
           <span>Initializing DeckForge Rust Hardware & Action Service...</span>
         </div>
       </div>
@@ -911,6 +968,7 @@ export const App: React.FC = () => {
 
   return (
     <div className="h-screen w-screen bg-[#0B0D14] text-[#F4F5FA] flex flex-col overflow-hidden select-none">
+      {quitDialog}
       {Object.entries(saveQueues).map(([name, queue]) => {
         const status = saveStatuses[name] ?? savedStatus;
         if (!status.pending) return null;

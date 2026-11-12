@@ -676,6 +676,21 @@ export const deckforgeApi = {
     return `Cleared key slot 0x${keyIndex1Based.toString(16).padStart(2, "0")} on ${deviceId}`;
   },
 
+  async onQuitRequested(callback: () => void): Promise<UnlistenFn> {
+    if (isTauriRuntime()) return listen("quit-requested", callback);
+    return () => {};
+  },
+  async quitApplication(): Promise<void> {
+    if (isTauriRuntime()) await invoke("quit_application");
+  },
+  async getLaunchAtLogin(): Promise<boolean> {
+    return isTauriRuntime() ? invoke<boolean>("get_launch_at_login") : false;
+  },
+  async setLaunchAtLogin(enabled: boolean): Promise<boolean> {
+    if (isTauriRuntime()) return invoke<boolean>("set_launch_at_login", { enabled });
+    throw new Error("Launch at sign-in is available in the desktop app");
+  },
+
   async saveProfiles(profiles: Profile[]): Promise<number> {
     if (isTauriRuntime()) {
       return await invoke<number>("save_profiles", { profiles });

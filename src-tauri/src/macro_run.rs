@@ -29,6 +29,7 @@ impl Runner {
     }
 }
 pub(crate) fn reserve_macro(seq: &db::MacroSequence) -> Result<RunPermit, String> { runner().acquire(seq.steps.len()) }
+pub(crate) fn macro_is_running() -> bool { runner().active.lock_safe().is_some() }
 pub(crate) fn cancel_running_macro() -> bool { runner().cancel() }
 impl RunControl {
     fn check(&self) -> Result<(), String> {

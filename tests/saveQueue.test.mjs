@@ -63,3 +63,19 @@ test("an older failure cannot replace the latest save status or block it", async
   assert.equal(statuses.at(-1).pending, false);
   assert.equal(statuses.some(s => s.error), false);
 });
+
+
+test("shutdown flush follows newer settings saves queued during the wait", async () => {
+  let releaseFirst, releaseSecond;
+  const first = new Promise(resolve => { releaseFirst = resolve; });
+  const second = new Promise(resolve => { releaseSecond = resolve; });
+  const queue = createSaveQueue(value => value === 1 ? first : second, () => {});
+  queue.save(1); await Promise.resolve();
+  let finished = false;
+  const flushing = queue.flush().then(ok => { assert.equal(ok, true); finished = true; });
+  queue.save(2); releaseFirst();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(finished, false); assert.equal(queue.isPending(), true);
+  releaseSecond(); await flushing;
+  assert.equal(queue.isPending(), false);
+});

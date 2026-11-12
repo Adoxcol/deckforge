@@ -36,7 +36,7 @@ use media::{decode_b64, MediaPreview, MediaStore};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use tauri::{Emitter, State};
+use tauri::{Emitter, State, Manager};
 
 mod commands;
 mod live;
@@ -44,6 +44,7 @@ mod macro_run;
 mod state;
 mod workers;
 mod instance;
+mod lifecycle;
 
 pub use state::*;
 use commands::*;
@@ -65,6 +66,10 @@ pub fn run() {
         .manage(shared)
         .setup(move |app| {
             let handle = app.handle().clone();
+            lifecycle::setup(&handle)?;
+            if std::env::args().any(|arg| arg == "--background") {
+                if let Some(window) = app.get_webview_window("main") { let _ = window.hide(); }
+            }
             spawn_hardware_input_worker(handle.clone(), Arc::clone(&shared_for_setup));
             spawn_animation_worker(Arc::clone(&shared_for_setup));
             let nudge_shared = Arc::clone(&shared_for_setup);
@@ -75,7 +80,16 @@ pub fn run() {
             spawn_desktop_worker(handle, Arc::clone(&shared_for_setup));
             Ok(())
         })
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide(); // Keep the webview and unsaved editor state alive.
+            }
+        })
         .invoke_handler(tauri::generate_handler![
+            lifecycle::quit_application,
+            lifecycle::get_launch_at_login,
+            lifecycle::set_launch_at_login,
             get_initial_state,
             refresh_usb_devices,
             set_device_brightness,

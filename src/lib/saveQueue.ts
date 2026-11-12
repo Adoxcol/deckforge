@@ -39,6 +39,11 @@ export function createSaveQueue<T>(persist: (value: T) => Promise<unknown>, noti
   return {
     save,
     retry: () => { if (dirty) save(latest); },
-    flush: () => tail,
+    isPending: () => dirty,
+    async flush() {
+      let current, result;
+      do { current = tail; result = await current; } while (current !== tail);
+      return result;
+    },
   };
 }
