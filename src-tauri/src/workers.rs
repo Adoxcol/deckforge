@@ -17,8 +17,9 @@ pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
                 last_sample = now;
                 let changed = {
                     let mut guard = shared.lock().unwrap_or_else(|e| e.into_inner());
+                    let refresh_requested = guard.sample_after_ms > 0;
                     guard.sample_after_ms = 0;
-                    sample_face(&mut guard)
+                    sample_face(&mut guard) || refresh_requested
                 };
                 if changed {
                     push_face_deltas(&shared, &app);
@@ -266,77 +267,95 @@ pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: 
 pub(crate) fn spawn_animation_worker(shared: SharedState) {
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_millis(40));
-        // A full layout owns the display until its bindings have been committed.
-        let Ok(_display) = DISPLAY_WRITE.try_lock() else { continue };
-        let due = {
-            let mut guard = shared.lock_safe();
-            if !guard.layout_ready { continue; }
-            let now = now_ms();
-            let dev = guard
-                .devices
-                .iter()
-                .find(|d| d.id == guard.playback_device_id && d.connected)
-                .cloned();
-            let Some(dev) = dev else { continue };
-            let mut pending = Vec::new();
-            for slot in guard.playback_slots.iter_mut() {
-                if pending.len() >= 3 || now < slot.next_due_ms || slot.jpegs.is_empty() {
-                    continue;
-                }
-                let idx = slot.frame_index.min(slot.jpegs.len() - 1);
-                let jpeg = slot.jpegs[idx].clone();
-                let delay = slot.delays_ms.get(idx).copied().unwrap_or(100).max(80);
-                let slot_id = slot.slot_id.clone();
-                let target = slot.target.clone();
-                if slot.frame_index + 1 >= slot.jpegs.len() {
-                    if slot.loop_playback {
-                        slot.frame_index = 0;
-                    } else {
-                        slot.frame_index = slot.jpegs.len() - 1;
-                        slot.next_due_ms = u64::MAX;
-                    }
-                } else {
-                    slot.frame_index += 1;
-                }
-                if slot.next_due_ms != u64::MAX {
-                    slot.next_due_ms = now.saturating_add(delay);
-                }
-                pending.push((slot_id, target, jpeg));
-            }
-            let mut bursts = Vec::new();
-            for (slot_id, target, jpeg) in pending {
-                if guard
-                    .frame_cache
-                    .should_transmit(&dev.id, &slot_id, &jpeg)
-                    .is_none()
-                {
-                    continue;
-                }
-                let reports = match target {
-                    PlaybackTarget::Key(index) => {
-                        build_key_image_packets(key_image_slot(&dev, index), &jpeg)
-                    }
-                    PlaybackTarget::TouchZone(index) => {
-                        build_key_image_packets(touch_zone_image_slot(&dev, index), &jpeg)
-                    }
-                    PlaybackTarget::Strip { width, height } => {
-                        build_touch_strip_packets(&jpeg, 0, 0, width, height)
-                    }
-                };
-                bursts.push(HidBurst {
-                    reports: reports.into_iter().map(|r| r.to_vec()).collect(),
-                });
-            }
-            if bursts.is_empty() {
-                None
-            } else {
-                Some((dev, bursts))
-            }
-        };
-        if let Some((dev, bursts)) = due {
-            let _ = write_animation_frames(&dev, &bursts);
-        }
+        let _ = animation_tick(&shared, write_animation_frames);
     });
+}
+
+pub(crate) fn animation_tick(
+    shared: &SharedState,
+    write: impl FnOnce(&DeviceDescriptor, &[HidBurst]) -> Result<(), String>,
+) -> Result<(), String> {
+    // A full layout owns the display until its bindings have been committed.
+    let Ok(_display) = DISPLAY_WRITE.try_lock() else { return Ok(()); };
+    let due = {
+        let mut guard = shared.lock_safe();
+        if !guard.layout_ready { return Ok(()); }
+        let now = now_ms();
+        let dev = guard
+            .devices
+            .iter()
+            .find(|d| d.id == guard.playback_device_id && d.connected)
+            .cloned();
+        let Some(dev) = dev else { return Ok(()); };
+        let previous_slots: Vec<_> = guard.playback_slots.iter()
+            .map(|slot| (slot.frame_index, slot.next_due_ms)).collect();
+        let mut pending = Vec::new();
+        for slot in guard.playback_slots.iter_mut() {
+            if pending.len() >= 3 || now < slot.next_due_ms || slot.jpegs.is_empty() {
+                continue;
+            }
+            let idx = slot.frame_index.min(slot.jpegs.len() - 1);
+            let jpeg = slot.jpegs[idx].clone();
+            let delay = slot.delays_ms.get(idx).copied().unwrap_or(100).max(80);
+            let slot_id = slot.slot_id.clone();
+            let target = slot.target.clone();
+            if slot.frame_index + 1 >= slot.jpegs.len() {
+                if slot.loop_playback {
+                    slot.frame_index = 0;
+                } else {
+                    slot.frame_index = slot.jpegs.len() - 1;
+                    slot.next_due_ms = u64::MAX;
+                }
+            } else {
+                slot.frame_index += 1;
+            }
+            if slot.next_due_ms != u64::MAX {
+                slot.next_due_ms = now.saturating_add(delay);
+            }
+            pending.push((slot_id, target, jpeg));
+        }
+        let mut bursts = Vec::new();
+        for (slot_id, target, jpeg) in pending {
+            if guard
+                .frame_cache
+                .should_transmit(&dev.id, &slot_id, &jpeg)
+                .is_none()
+            {
+                continue;
+            }
+            let reports = match target {
+                PlaybackTarget::Key(index) => {
+                    build_key_image_packets(key_image_slot(&dev, index), &jpeg)
+                }
+                PlaybackTarget::TouchZone(index) => {
+                    build_key_image_packets(touch_zone_image_slot(&dev, index), &jpeg)
+                }
+                PlaybackTarget::Strip { width, height } => {
+                    build_touch_strip_packets(&jpeg, 0, 0, width, height)
+                }
+            };
+            bursts.push(HidBurst {
+                reports: reports.into_iter().map(|r| r.to_vec()).collect(),
+            });
+        }
+        if bursts.is_empty() {
+            None
+        } else {
+            Some((dev, bursts, previous_slots))
+        }
+    };
+    if let Some((dev, bursts, previous_slots)) = due {
+        if let Err(err) = transmit_cached_frames(shared, &dev, &bursts, write) {
+            let mut guard = shared.lock_safe();
+            let retry_at = now_ms().saturating_add(250);
+            for (slot, (frame_index, next_due_ms)) in guard.playback_slots.iter_mut().zip(previous_slots) {
+                slot.frame_index = frame_index;
+                slot.next_due_ms = next_due_ms.max(retry_at);
+            }
+            return Err(err);
+        }
+    }
+    Ok(())
 }
 /// The official Stream Dock app starts with Windows, redraws the deck every second and,
 /// when it exits, tells the deck to disconnect, which blanks it. With both programs on the

@@ -396,162 +396,29 @@ pub fn sync_keys_to_hardware(
     frame_cache: &mut AntiFreezeFrameCache,
     diagnostics: &mut Vec<DiagnosticEntry>,
 ) -> SyncKeyResult {
-    let start = Instant::now();
-    let ts = now_ms();
-
-    let mut keys_transmitted = 0usize;
-    let mut keys_skipped = 0usize;
-    let mut bytes_sent = 0usize;
-
-    let api_opt = if dev.connected { HidApi::new().ok() } else { None };
-    let handle_opt = api_opt
-        .as_ref()
-        .and_then(|api| open_crt_device(api, dev).ok());
-
-    if let Some(ref h) = handle_opt {
-        let _ = h.write(&build_screen_on_packet());
-        let _ = h.write(&build_button_mode_packet());
-        let lig = build_brightness_packet(dev.brightness.max(90));
-        let _ = h.write(&lig);
-        std::thread::sleep(std::time::Duration::from_millis(8));
+    let _display = crate::DISPLAY_WRITE.lock_safe();
+    let keys: Vec<_> = key_colors_and_titles.iter().map(|(index, title, icon, accent, bg)| ScreenJob {
+        index: *index, title: title.clone(), show_title: true, icon_name: icon.clone(),
+        accent: accent.clone(), bg: bg.clone(), media_id: None, fit: "cover".into(),
+        speed: 1.0, loop_playback: false, level: None,
+    }).collect();
+    let zones: Vec<_> = touch_zones.iter().map(|(label, value, accent)| ZoneJob {
+        label: label.clone(), value_text: value.clone(), accent: accent.clone(),
+        media_id: None, fit: "cover".into(), speed: 1.0, loop_playback: false,
+    }).collect();
+    let mut outcome = publish_screens(dev, &keys, &zones, None, &MediaStore::default(), frame_cache, diagnostics);
+    let started = Instant::now();
+    let result = write_animation_frames(dev, &outcome.bursts);
+    let elapsed = started.elapsed().as_millis() as u64;
+    frame_cache.finish_transfer(&dev.id, result.is_ok(), outcome.result.bytes_transmitted as u64, elapsed);
+    outcome.result.elapsed_ms = elapsed;
+    outcome.result.status_message = format!("Sent {} changed keys in {elapsed}ms", outcome.result.keys_transmitted);
+    if let Err(err) = result {
+        outcome.result.keys_transmitted = 0;
+        outcome.result.bytes_transmitted = 0;
+        outcome.result.status_message = format!("Layout transfer failed: {err}");
     }
-
-    for (idx, title, icon_name, accent, bg) in key_colors_and_titles {
-        let jpeg = encode_procedural_key_jpeg(
-            dev.keys.pixel_width,
-            dev.keys.pixel_height,
-            accent,
-            bg,
-            icon_name,
-            title,
-            *idx,
-            180,
-            None,
-        );
-        // Include title + icon + style in frame hash input so label/icon edits trigger a sync while identical keys are skipped
-        let mut hash_input = jpeg.clone();
-        hash_input.extend_from_slice(title.as_bytes());
-        hash_input.extend_from_slice(icon_name.as_bytes());
-
-        let slot_id = format!("key-{}", idx);
-        if frame_cache
-            .should_transmit(&dev.id, &slot_id, &hash_input)
-            .is_some()
-        {
-            let pkts = build_key_image_packets(key_image_slot(dev, *idx), &jpeg);
-            if let Some(ref h) = handle_opt {
-                for pkt in &pkts {
-                    let _ = h.write(pkt);
-                }
-                std::thread::sleep(std::time::Duration::from_millis(6));
-            }
-            keys_transmitted += 1;
-            bytes_sent += pkts.len() * 1025;
-        } else {
-            keys_skipped += 1;
-        }
-    }
-
-    // AKP05E touch zones are four image slots under the keys. A full-width
-    // draw at y=0 lands on the top key row, so each zone is its own JPEG.
-    if device_uses_akp05e_face(dev) && !touch_zones.is_empty() {
-        for (i, zone) in touch_zones.iter().take(4).enumerate() {
-            let jpeg = encode_touch_strip_jpeg(
-                AKP05E_TOUCH_WINDOW_W,
-                AKP05E_TOUCH_WINDOW_H,
-                std::slice::from_ref(zone),
-                dev.keys.rotation,
-            );
-            let slot_id = format!("touch-zone-{i}");
-            if frame_cache
-                .should_transmit(&dev.id, &slot_id, &jpeg)
-                .is_some()
-            {
-                let pkts = build_key_image_packets(touch_zone_image_slot(dev, i as u8), &jpeg);
-                if let Some(ref h) = handle_opt {
-                    for pkt in &pkts {
-                        let _ = h.write(pkt);
-                    }
-                    std::thread::sleep(std::time::Duration::from_millis(6));
-                }
-                bytes_sent += pkts.len() * 1025;
-            }
-        }
-    } else if let Some(ref ts_caps) = dev.touch_strip {
-        if !touch_zones.is_empty() {
-            let strip_jpeg = encode_touch_strip_jpeg(
-                ts_caps.pixel_width,
-                ts_caps.pixel_height,
-                touch_zones,
-                dev.keys.rotation,
-            );
-            if frame_cache
-                .should_transmit(&dev.id, "touch-strip-800x100", &strip_jpeg)
-                .is_some()
-            {
-                let strip_pkts = build_touch_strip_packets(
-                    &strip_jpeg,
-                    0,
-                    0,
-                    ts_caps.pixel_width as u16,
-                    ts_caps.pixel_height as u16,
-                );
-                if let Some(ref h) = handle_opt {
-                    for pkt in &strip_pkts {
-                        let _ = h.write(pkt);
-                    }
-                    std::thread::sleep(std::time::Duration::from_millis(8));
-                }
-                bytes_sent += strip_pkts.len() * 1025;
-            }
-        }
-    }
-
-    let elapsed_ms = start.elapsed().as_millis() as u64;
-    frame_cache.stats.last_transfer_latency_ms = elapsed_ms;
-
-    let status_message = if handle_opt.is_some() {
-        format!(
-            "Synced {}/{} changed keys to physical {} in {}ms ({} unchanged keys skipped via SHA-256 cache)",
-            keys_transmitted,
-            key_colors_and_titles.len(),
-            dev.model_name,
-            elapsed_ms,
-            keys_skipped
-        )
-    } else {
-        format!(
-            "Validated {}/{} changed keys in simulator ({}ms, {} unchanged keys skipped via SHA-256 cache)",
-            keys_transmitted,
-            key_colors_and_titles.len(),
-            elapsed_ms,
-            keys_skipped
-        )
-    };
-
-    diagnostics.push(DiagnosticEntry {
-        id: format!("diag-{}", ts),
-        timestamp_ms: ts,
-        level: if handle_opt.is_some() { "success" } else { "info" }.to_string(),
-        device_id: dev.id.clone(),
-        stage: "SYNC_PROFILE_KEYS".to_string(),
-        message: status_message.clone(),
-        packet_hex: Some(format!(
-            "CRT..BAT ({} keys transmitted, {} deduplicated, {} bytes)",
-            keys_transmitted, keys_skipped, bytes_sent
-        )),
-    });
-
-    SyncKeyResult {
-        device_id: dev.id.clone(),
-        connected_physical: handle_opt.is_some(),
-        keys_evaluated: key_colors_and_titles.len(),
-        keys_transmitted,
-        keys_deduplicated_skipped: keys_skipped,
-        bytes_transmitted: bytes_sent,
-        elapsed_ms,
-        status_message,
-    }
+    outcome.result
 }
 
 #[derive(Debug, Clone)]
@@ -915,9 +782,8 @@ pub fn publish_screens(
     }
 
     let elapsed_ms = start.elapsed().as_millis() as u64;
-    frame_cache.stats.last_transfer_latency_ms = elapsed_ms;
     let status_message = format!(
-        "Updated {}/{} screens on {} ({}×{}px, {}°). {} animation{}. {}",
+        "Prepared {}/{} screens for {} ({}×{}px, {}°). {} animation{}. {}",
         keys_transmitted,
         keys.len(),
         dev.model_name,
@@ -931,7 +797,7 @@ pub fn publish_screens(
     diagnostics.push(DiagnosticEntry {
         id: format!("diag-publish-{ts}"),
         timestamp_ms: ts,
-        level: "success".to_string(),
+        level: "info".to_string(),
         device_id: dev.id.clone(),
         stage: "SYNC_PROFILE_KEYS".to_string(),
         message: status_message.clone(),
@@ -977,9 +843,10 @@ fn write_reports(
     bursts: &[HidBurst],
     session_setup: bool,
 ) -> Result<(), String> {
-    if !dev.connected || bursts.is_empty() {
-        return Ok(());
+    if !dev.connected || dev.is_simulator {
+        return Err("Deck is not connected".into());
     }
+    if bursts.is_empty() { return Ok(()); }
     // DIS is only for a full connect. Ajazz names that packet disconnect, and
     // sending it before a one-key update clears every icon that was not in the update.
     // HAN is sleep, and sending it is what made a press go black.
@@ -1029,9 +896,10 @@ fn nudged_brightness(percent: u8) -> u8 {
 }
 
 pub fn write_one_report(dev: &DeviceDescriptor, report: &[u8]) -> Result<(), String> {
-    if !dev.connected || report.is_empty() {
-        return Ok(());
+    if !dev.connected || dev.is_simulator {
+        return Err("Deck is not connected".into());
     }
+    if report.is_empty() { return Ok(()); }
     deck_write(vec![(report.to_vec(), 0)])
 }
 
@@ -1310,6 +1178,16 @@ fn run_debug_script(handle: &hidapi::HidDevice, script: &str) {
     }
 }
 
+fn validate_report_length(written: usize, expected: usize) -> Result<(), String> {
+    if written == expected { Ok(()) }
+    else { Err(format!("Short HID write: {written}/{expected} bytes")) }
+}
+
+fn write_complete_report(handle: &hidapi::HidDevice, data: &[u8]) -> Result<(), String> {
+    let written = handle.write(data).map_err(|e| e.to_string())?;
+    validate_report_length(written, data.len())
+}
+
 fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
     let mut open: Option<(HidApi, hidapi::HidDevice)> = None;
     let mut errors = 0u8;
@@ -1360,7 +1238,7 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
             last_heartbeat = Instant::now();
             if debug_flag("no-heartbeat") {
                 deck_log("heartbeat skipped (debug flag)");
-            } else if let Err(err) = handle.write(&build_heartbeat_packet()) {
+            } else if let Err(err) = write_complete_report(handle, &build_heartbeat_packet()) {
                 deck_log(&format!("heartbeat write failed: {err}"));
                 lost = true;
             } else {
@@ -1396,7 +1274,7 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
             let started = Instant::now();
             let mut result = Ok(());
             for (data, pause_ms) in &job.steps {
-                if let Err(err) = handle.write(data) {
+                if let Err(err) = write_complete_report(handle, data) {
                     result = Err(format!("USB HID write failed: {err}"));
                     lost = true;
                     break;
@@ -1496,21 +1374,6 @@ pub fn deck_note(line: &str) {
     deck_log(line);
 }
 
-fn open_crt_device(api: &HidApi, dev: &DeviceDescriptor) -> Result<hidapi::HidDevice, String> {
-    // Try opening by preferred MI_00 path first, then fallback to open(vid, pid)
-    for info in api.device_list() {
-        if info.vendor_id() == dev.vid && info.product_id() == dev.pid {
-            let p = info.path().to_string_lossy().to_lowercase();
-            if p.contains("mi_00") || info.interface_number() == 0 {
-                if let Ok(h) = info.open_device(api) {
-                    return Ok(h);
-                }
-            }
-        }
-    }
-    api.open(dev.vid, dev.pid)
-        .map_err(|e| format!("Could not open USB HID {}: {}", dev.vid_pid_hex, e))
-}
 
 pub fn get_cache_stats(cache: &AntiFreezeFrameCache) -> FrameCacheStats {
     cache.stats.clone()
@@ -1521,6 +1384,16 @@ mod tests {
     use super::*;
     use crate::drivers::frame_cache::AntiFreezeFrameCache;
     use crate::media::MediaStore;
+
+    #[test]
+    fn short_writes_and_disconnected_decks_cannot_report_success() {
+        assert!(validate_report_length(1024, 1025).is_err());
+        assert!(validate_report_length(0, 1025).is_err());
+        assert!(validate_report_length(1025, 1025).is_ok());
+        let dev = builtin_device_catalog().remove(0);
+        assert!(write_animation_frames(&dev, &[]).is_err());
+        assert!(write_one_report(&dev, &[0; 1025]).is_err());
+    }
 
     fn job(index: u8) -> ScreenJob {
         ScreenJob {

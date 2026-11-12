@@ -142,7 +142,7 @@ pub fn clear_device_key(
         guard.diagnostics = diags;
         (dev, packet, message)
     };
-    let _ = write_one_report(&dev, &packet);
+    write_one_report(&dev, &packet)?;
     Ok(message)
 }
 

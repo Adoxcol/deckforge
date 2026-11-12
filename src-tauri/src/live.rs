@@ -525,8 +525,12 @@ pub(crate) fn transmit_layout(
     prepared: PreparedLayout,
     write: impl FnOnce(&DeviceDescriptor, &[HidBurst]) -> Result<(), String>,
 ) -> Result<SyncKeyResult, String> {
+    let started = std::time::Instant::now();
     let result = write(&prepared.dev, &prepared.outcome.bursts);
+    let elapsed_ms = started.elapsed().as_millis() as u64;
     let mut guard = shared.lock_safe();
+    guard.frame_cache.finish_transfer(&prepared.dev.id, result.is_ok(),
+        prepared.outcome.result.bytes_transmitted as u64, elapsed_ms);
     if let Err(err) = result {
         guard.frame_cache.invalidate_device(&prepared.dev.id);
         guard.layout_ready = false;
@@ -547,6 +551,8 @@ pub(crate) fn transmit_layout(
     guard.playback_device_id = prepared.dev.id;
     guard.applied_to_device_at_ms = Some(now_ms());
     let mut result = prepared.outcome.result;
+    result.elapsed_ms = elapsed_ms;
+    result.status_message = format!("Sent layout to {} in {elapsed_ms}ms", prepared.dev.model_name);
     if let Err(err) = guard.persist_applied_layout() {
         let warning = format!("Layout sent, but could not save it for restart: {err}");
         let device_id = guard.playback_device_id.clone();
@@ -756,7 +762,34 @@ pub(crate) fn push_face_deltas(shared: &SharedState, app: &tauri::AppHandle) {
     if bursts.is_empty() {
         return;
     }
-    let _ = write_animation_frames(&dev, &bursts);
+    let _ = transmit_cached_frames(shared, &dev, &bursts, write_animation_frames);
+}
+
+/// Caller holds DISPLAY_WRITE from planning through completion. Background
+/// redraws retain their bindings, but failed frames must never enter the cache.
+pub(crate) fn transmit_cached_frames(
+    shared: &SharedState,
+    dev: &DeviceDescriptor,
+    bursts: &[HidBurst],
+    write: impl FnOnce(&DeviceDescriptor, &[HidBurst]) -> Result<(), String>,
+) -> Result<(), String> {
+    let started = std::time::Instant::now();
+    let result = write(dev, bursts);
+    let bytes = bursts.iter().flat_map(|b| &b.reports).map(|r| r.len() as u64).sum();
+    let mut guard = shared.lock_safe();
+    guard.frame_cache.finish_transfer(&dev.id, result.is_ok(), bytes, started.elapsed().as_millis() as u64);
+    if let Err(err) = &result {
+        // Retry even if the OS face values do not change again.
+        guard.sample_after_ms = now_ms().saturating_add(500);
+        guard.diagnostics.push(DiagnosticEntry {
+            id: format!("diag-frame-failed-{}", now_ms()), timestamp_ms: now_ms(),
+            level: "warning".into(), device_id: dev.id.clone(), stage: "FRAME_TRANSFER".into(),
+            message: format!("Frame transfer failed; will retry: {err}"), packet_hex: None,
+        });
+        let excess = guard.diagnostics.len().saturating_sub(80);
+        guard.diagnostics.drain(..excess);
+    }
+    result
 }
 
 pub(crate) fn face_delta_bursts(guard: &mut ManagedAppState, face: &DeckFaceState) -> Option<(DeviceDescriptor, Vec<HidBurst>)> {
@@ -891,6 +924,73 @@ mod live_tests {
         let dev = guard.devices[0].clone();
         let id = guard.profiles[0].id.clone();
         prepare_layout(&mut guard, dev, &id, 0, true).unwrap()
+    }
+
+    #[test]
+    fn full_layout_stats_commit_only_after_successful_transport() {
+        let shared = test_state();
+        let prepared = prepare_first(&shared);
+        assert_eq!(shared.lock_safe().frame_cache.stats.frames_transmitted, 0);
+        assert!(transmit_layout(&shared, prepared, |_, _| Err("partial write".into())).is_err());
+        assert_eq!(shared.lock_safe().frame_cache.stats.bytes_transmitted, 0);
+        let prepared = prepare_first(&shared);
+        let bytes = prepared.outcome.result.bytes_transmitted as u64;
+        let count = prepared.outcome.bursts.len() as u64;
+        transmit_layout(&shared, prepared, |_, _| Ok(())).unwrap();
+        let guard = shared.lock_safe();
+        assert_eq!(guard.frame_cache.stats.bytes_transmitted, bytes);
+        assert_eq!(guard.frame_cache.stats.frames_transmitted, count);
+    }
+
+    #[test]
+    fn unchanged_live_face_is_retryable_after_a_failed_redraw() {
+        let shared = test_state();
+        shared.lock_safe().profiles[0].pages[0].keys[0].action_id = "audio.volume_up".into();
+        let prepared = prepare_first(&shared);
+        transmit_layout(&shared, prepared, |_, _| Ok(())).unwrap();
+        let face = DeckFaceState { volume_percent: Some(73), ..Default::default() };
+        let count = shared.lock_safe().frame_cache.stats.frames_transmitted;
+        let (dev, bursts) = face_delta_bursts(&mut shared.lock_safe(), &face).unwrap();
+        assert!(!bursts.is_empty());
+        assert!(transmit_cached_frames(&shared, &dev, &bursts, |_, _| Err("write failed".into())).is_err());
+        assert_eq!(shared.lock_safe().frame_cache.stats.frames_transmitted, count);
+        assert!(shared.lock_safe().sample_after_ms > 0);
+        let (dev, retry) = face_delta_bursts(&mut shared.lock_safe(), &face).unwrap();
+        assert!(!retry.is_empty());
+        transmit_cached_frames(&shared, &dev, &retry, |_, _| Ok(())).unwrap();
+        let (_, unchanged) = face_delta_bursts(&mut shared.lock_safe(), &face).unwrap();
+        assert!(unchanged.is_empty());
+    }
+
+    #[test]
+    fn non_looping_animation_retries_its_final_frame_after_write_failure() {
+        let shared = test_state();
+        let prepared = prepare_first(&shared);
+        transmit_layout(&shared, prepared, |_, _| Ok(())).unwrap();
+        {
+            let mut guard = shared.lock_safe();
+            guard.playback_slots = vec![PlaybackSlot {
+                slot_id: "key-0".into(), target: PlaybackTarget::Key(0),
+                jpegs: vec![b"first".to_vec(), b"last".to_vec()],
+                delays_ms: vec![80, 80], loop_playback: false, frame_index: 1, next_due_ms: 0,
+            }];
+        }
+        let before = shared.lock_safe().frame_cache.stats.frames_transmitted;
+        assert!(workers::animation_tick(&shared, |_, _| Err("USB dropped".into())).is_err());
+        {
+            let mut guard = shared.lock_safe();
+            assert_eq!(guard.playback_slots[0].frame_index, 1);
+            assert_ne!(guard.playback_slots[0].next_due_ms, u64::MAX);
+            assert_eq!(guard.frame_cache.stats.frames_transmitted, before);
+            guard.playback_slots[0].next_due_ms = 0;
+        }
+        workers::animation_tick(&shared, |_, bursts| {
+            assert_eq!(bursts.len(), 1);
+            Ok(())
+        }).unwrap();
+        let guard = shared.lock_safe();
+        assert_eq!(guard.playback_slots[0].next_due_ms, u64::MAX);
+        assert_eq!(guard.frame_cache.stats.frames_transmitted, before + 1);
     }
 
     fn press(kind: InputControlKind, index: u8) -> HardwareInputEvent {
