@@ -1111,120 +1111,76 @@ fn parse_or_quarantine<T: serde::de::DeserializeOwned>(path: &std::path::Path, r
     }
 }
 
-pub fn load_saved_profiles() -> Vec<Profile> {
-    let path = profiles_store_path();
-    let Ok(raw) = fs::read_to_string(&path) else {
-        return default_profiles();
-    };
-    let mut profiles: Vec<Profile> = parse_or_quarantine(&path, &raw).unwrap_or_else(default_profiles);
-    let before = serde_json::to_string(&profiles).ok();
-    install_ready_pages(&mut profiles);
-    migrate_dead_zones(&mut profiles);
-    if before != serde_json::to_string(&profiles).ok() {
-        let _ = write_saved_profiles(&profiles);
+const PROFILE_SCHEMA_VERSION: u32 = 1;
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ProfileStore {
+    schema_version: u32,
+    profiles: Vec<Profile>,
+}
+
+// Legacy arrays are version 0. Upgrading the container must never infer edits
+// to actions/pages from titles or profile IDs.
+fn decode_profiles(raw: &str) -> Result<(Vec<Profile>, bool), String> {
+    let value: serde_json::Value = serde_json::from_str(raw).map_err(|e| format!("Invalid profile store: {e}"))?;
+    if value.is_array() {
+        return serde_json::from_value(value).map(|profiles| (profiles, true)).map_err(|e| e.to_string());
     }
-    profiles
-}
-
-fn is_stock_stream_page(page: &ProfilePage) -> bool {
-    let titles: Vec<&str> = page.keys.iter().take(6).map(|key| key.title.as_str()).collect();
-    titles == ["Start Stream", "Scene +", "Scene -", "Mute Mic", "Vol Up", "Record"]
-}
-
-fn is_fake_telemetry(page: &ProfilePage) -> bool {
-    page.name.to_lowercase().contains("telemetry")
-        && page
-            .keys
-            .first()
-            .is_some_and(|key| key.title == "CPU Monitor" && key.action_id == "obs.start_stream")
-}
-
-fn page_named(profile: &Profile, name: &str) -> bool {
-    profile.pages.iter().any(|page| page.name.eq_ignore_ascii_case(name))
-}
-
-fn push_page(profile: &mut Profile, page: ProfilePage) {
-    if page_named(profile, &page.name) {
-        return;
+    let version = value.get("schemaVersion").and_then(|v| v.as_u64())
+        .ok_or("Profile store is missing a valid schemaVersion")?;
+    if version != u64::from(PROFILE_SCHEMA_VERSION) {
+        return Err(format!("Unsupported profile schema version {version}; this build supports {PROFILE_SCHEMA_VERSION}. The file was not changed."));
     }
-    profile.pages.push(page);
+    let store: ProfileStore = serde_json::from_value(value).map_err(|e| e.to_string())?;
+    Ok((store.profiles, false))
 }
 
-/// Streaming keeps its first page. The old telemetry page was a copy of that
-/// layout with two titles changed, so it becomes Desktop. Other profiles that
-/// were still the stream preset get a page that matches their name.
-fn install_ready_pages(profiles: &mut [Profile]) {
-    for profile in profiles {
-        if profile.id == "profile-streaming" {
-            for page in &mut profile.pages {
-                if is_fake_telemetry(page) {
-                    let id = page.id.clone();
-                    *page = desktop_page();
-                    page.id = id;
-                }
-                for key in &mut page.keys {
-                    if key.action_id == "profile.switch_page" && key.action_param.starts_with("Page 2") {
-                        key.action_param = "Desktop".to_string();
-                    }
-                }
+pub fn load_saved_profiles() -> Result<Vec<Profile>, String> {
+    load_profiles_at(&profiles_store_path())
+}
+
+fn load_profiles_at(path: &std::path::Path) -> Result<Vec<Profile>, String> {
+    match fs::read_to_string(path) {
+        Ok(raw) => decode_profiles(&raw).map(|(profiles, _)| profiles),
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(default_profiles()),
+        Err(err) => Err(format!("Could not read {}: {err}", path.display())),
+    }
+}
+
+fn backup_legacy_profiles(path: &std::path::Path, raw: &str) -> Result<(), String> {
+    use std::io::Write;
+    // create_new prevents an older backup from being overwritten, including
+    // when a user restores an array file and upgrades it a second time.
+    for index in 0..1000 {
+        let backup = path.with_extension(format!("pre-v1-{index}.json"));
+        match fs::OpenOptions::new().write(true).create_new(true).open(&backup) {
+            Ok(mut file) => {
+                file.write_all(raw.as_bytes()).and_then(|_| file.sync_all())
+                    .map_err(|e| format!("Could not preserve legacy profiles at {}: {e}", backup.display()))?;
+                return Ok(());
             }
-        } else if let Some(page) = profile.pages.first_mut() {
-            if is_stock_stream_page(page) {
-                let id = page.id.clone();
-                let replacement = match profile.id.as_str() {
-                    "profile-gaming" => game_page(),
-                    "profile-editing" => edit_page(),
-                    "profile-work" => work_page(),
-                    _ => home_page(),
-                };
-                *page = replacement;
-                page.id = id;
-                if profile.id == "profile-work" {
-                    work_zone_needs_param(&mut page.touch_zones);
-                }
-            }
-        }
-        push_page(profile, desktop_page());
-        push_page(profile, music_page());
-    }
-}
-
-fn looks_like_chord(value: &str) -> bool {
-    let value = value.trim();
-    if value.is_empty() {
-        return false;
-    }
-    if value.contains('+') {
-        return true;
-    }
-    let upper = value.to_uppercase();
-    matches!(
-        upper.as_str(),
-        "SPACE" | "ENTER" | "TAB" | "ESC" | "ESCAPE" | "LEFT" | "RIGHT" | "UP" | "DOWN"
-    ) || upper.starts_with("VK_")
-        || (upper.starts_with('F') && upper.len() <= 3 && upper[1..].chars().all(|ch| ch.is_ascii_digit()))
-}
-
-/// The stock CPU zone stored a label as its shortcut, so the tap did nothing.
-fn migrate_dead_zones(profiles: &mut [Profile]) {
-    for profile in profiles {
-        for page in &mut profile.pages {
-            for zone in &mut page.touch_zones {
-                if zone.tap_action_id != "sys.hotkey" || !zone.tap_action_param.is_empty() {
-                    continue;
-                }
-                if looks_like_chord(&zone.value_text) {
-                    zone.tap_action_param = zone.value_text.clone();
-                    continue;
-                }
-                if zone.label.eq_ignore_ascii_case("CPU LOAD") {
-                    zone.tap_action_id = "profile.next_page".to_string();
-                    zone.label = "NEXT PAGE".to_string();
-                    zone.value_text = "Next page".to_string();
-                }
-            }
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(err) => return Err(format!("Could not back up legacy profiles: {err}")),
         }
     }
+    Err("No available legacy profile backup filename; original file was not changed".into())
+}
+
+fn write_profiles_at(path: &std::path::Path, profiles: &[Profile]) -> Result<(), String> {
+    if let Some(parent) = path.parent() { fs::create_dir_all(parent).map_err(|e| e.to_string())?; }
+    // Do not overwrite a malformed or newer-format store with fallback defaults.
+    match fs::read_to_string(path) {
+        Ok(raw) => {
+            let (_, legacy) = decode_profiles(&raw)?;
+            if legacy { backup_legacy_profiles(path, &raw)?; }
+        }
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => {},
+        Err(err) => return Err(format!("Could not inspect existing profiles before save: {err}")),
+    }
+    let store = ProfileStore { schema_version: PROFILE_SCHEMA_VERSION, profiles: profiles.to_vec() };
+    let raw = serde_json::to_string_pretty(&store).map_err(|e| e.to_string())?;
+    write_atomic(path, &raw)
 }
 
 pub fn auto_switch_store_path() -> PathBuf {
@@ -1272,12 +1228,7 @@ pub fn write_saved_macros(macros: &[MacroSequence]) -> Result<(), String> {
 }
 
 pub fn write_saved_profiles(profiles: &[Profile]) -> Result<(), String> {
-    let path = profiles_store_path();
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-    let raw = serde_json::to_string_pretty(profiles).map_err(|e| e.to_string())?;
-    write_atomic(&path, &raw)
+    write_profiles_at(&profiles_store_path(), profiles)
 }
 
 #[cfg(test)]
@@ -1308,47 +1259,125 @@ mod tests {
         assert!(empty.discovered_plugins.iter().all(|p| p.source_kind == "BuiltIn"));
     }
 
-    #[test]
-    fn dead_cpu_zone_becomes_a_page_switch() {
-        let mut zone = default_touch_zones().remove(1);
-        zone.label = "CPU LOAD".to_string();
-        zone.tap_action_id = "sys.hotkey".to_string();
-        zone.value_text = "Live Telemetry".to_string();
-        zone.tap_action_param.clear();
-        let mut profile = default_profiles().remove(0);
-        profile.pages[0].touch_zones[1] = zone;
-        let mut profiles = vec![profile];
-        migrate_dead_zones(&mut profiles);
-        let zone = &profiles[0].pages[0].touch_zones[1];
-        assert_eq!(zone.tap_action_id, "profile.next_page");
-        assert_eq!(zone.label, "NEXT PAGE");
+    struct ProfileFixture(PathBuf);
+    impl ProfileFixture {
+        fn new() -> Self {
+            static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let serial = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let root = std::env::temp_dir().join(format!("deckforge-profile-test-{}-{}-{serial}", std::process::id(), now_ms()));
+            fs::create_dir(&root).unwrap();
+            Self(root)
+        }
+        fn path(&self) -> PathBuf { self.0.join("profiles.json") }
+    }
+    impl Drop for ProfileFixture {
+        fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); }
+    }
+
+    fn custom_profiles() -> Vec<Profile> {
+        let mut profiles = default_profiles();
+        // Same stock titles/ID that used to trigger wholesale replacement,
+        // but with customized bindings, and deliberately absent stock pages.
+        let mut stream = profiles[0].pages[0].clone();
+        stream.keys[0].action_id = "sys.hotkey".into();
+        stream.keys[0].action_param = "Ctrl+Alt+F9".into();
+        stream.keys[1].action_id = "profile.switch_page".into();
+        stream.keys[1].action_param = "Page 2 Custom".into();
+        stream.touch_zones[0].tap_action_id = "sys.hotkey".into();
+        stream.touch_zones[0].tap_action_param.clear();
+        stream.touch_zones[0].label = "CPU LOAD".into();
+        stream.touch_zones[0].value_text = "Ctrl+F8".into();
+        profiles[1].pages = vec![stream.clone()];
+        let mut telemetry = stream.clone();
+        telemetry.name = "Page 2 (Telemetry)".into();
+        telemetry.keys[0].title = "CPU Monitor".into();
+        telemetry.keys[0].action_id = "obs.start_stream".into();
+        profiles[0].pages = vec![stream, telemetry];
+        profiles[2].pages.retain(|p| p.name != "Desktop");
+        profiles[2].pages.iter_mut().filter(|p| p.name == "Music").for_each(|p| p.name = "My Music".into());
+        profiles
     }
 
     #[test]
-    fn other_pages_become_real_layouts() {
-        let stream = default_profiles().remove(0).pages.remove(0);
-        let mut fake = stream.clone();
-        fake.id = "page-2".to_string();
-        fake.name = "Page 2 (Telemetry)".to_string();
-        fake.keys[0].title = "CPU Monitor".to_string();
-        fake.keys[0].action_id = "obs.start_stream".to_string();
-        let mut gaming = default_profiles().into_iter().find(|p| p.id == "profile-gaming").unwrap();
-        gaming.pages = vec![stream.clone()];
-        let mut profiles = vec![
-            Profile {
-                pages: vec![stream, fake],
-                ..default_profiles().remove(0)
-            },
-            gaming,
-        ];
-        install_ready_pages(&mut profiles);
-        assert_eq!(profiles[0].pages[0].keys[0].title, "Start Stream");
-        assert_eq!(profiles[0].pages[1].name, "Desktop");
-        assert_eq!(profiles[0].pages[1].keys[0].title, "Screenshot");
-        assert!(profiles[0].pages.iter().any(|page| page.name == "Music"));
-        assert_eq!(profiles[1].pages[0].name, "Game");
-        assert_ne!(profiles[1].pages[0].keys[0].title, "Start Stream");
-        assert!(profiles[1].pages.iter().any(|page| page.name == "Music"));
-        assert!(profiles[1].pages.iter().any(|page| page.name == "Desktop"));
+    fn legacy_startup_preserves_custom_actions_titles_deleted_and_renamed_pages() {
+        let fixture = ProfileFixture::new(); let path = fixture.path();
+        let profiles = custom_profiles();
+        let raw = serde_json::to_string_pretty(&profiles).unwrap();
+        fs::write(&path, &raw).unwrap();
+        for _ in 0..3 {
+            let loaded = load_profiles_at(&path).unwrap();
+            assert_eq!(serde_json::to_value(&loaded).unwrap(), serde_json::to_value(&profiles).unwrap());
+            assert_eq!(fs::read_to_string(&path).unwrap(), raw);
+        }
+        assert_eq!(fs::read_dir(&fixture.0).unwrap().count(), 1, "startup must not write backups or rewrite storage");
     }
+
+    #[test]
+    fn explicit_save_upgrades_container_once_and_keeps_original_bytes() {
+        let fixture = ProfileFixture::new(); let path = fixture.path();
+        let mut profiles = custom_profiles();
+        let original = serde_json::to_string(&profiles).unwrap();
+        fs::write(&path, &original).unwrap();
+        profiles[0].name = "Edited after loading".into();
+        write_profiles_at(&path, &profiles).unwrap();
+        assert_eq!(fs::read_to_string(path.with_extension("pre-v1-0.json")).unwrap(), original);
+        for _ in 0..3 {
+            let loaded = load_profiles_at(&path).unwrap();
+            assert_eq!(serde_json::to_value(&loaded).unwrap(), serde_json::to_value(&profiles).unwrap());
+            write_profiles_at(&path, &loaded).unwrap();
+        }
+        let value: serde_json::Value = serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(value["schemaVersion"], 1);
+        assert_eq!(fs::read_dir(&fixture.0).unwrap().count(), 2, "upgraded files need no repeat migration backups");
+    }
+
+    #[test]
+    fn existing_backup_is_never_overwritten() {
+        let fixture = ProfileFixture::new(); let path = fixture.path();
+        fs::write(path.with_extension("pre-v1-0.json"), "older original").unwrap();
+        fs::write(&path, "[]").unwrap();
+        write_profiles_at(&path, &[]).unwrap();
+        assert_eq!(fs::read_to_string(path.with_extension("pre-v1-0.json")).unwrap(), "older original");
+        assert_eq!(fs::read_to_string(path.with_extension("pre-v1-1.json")).unwrap(), "[]");
+        assert!(load_profiles_at(&path).unwrap().is_empty());
+    }
+
+    #[test]
+    fn invalid_and_future_stores_cannot_be_overwritten_by_defaults() {
+        let fixture = ProfileFixture::new(); let path = fixture.path();
+        for raw in ["broken json", r#"{"schemaVersion":2,"profiles":[]}"#,
+            r#"{"schemaVersion":1,"profiles":[{}]}"#, r#"{"profiles":[]}"#] {
+            fs::write(&path, raw).unwrap();
+            assert!(load_profiles_at(&path).is_err());
+            assert!(write_profiles_at(&path, &default_profiles()).is_err());
+            assert_eq!(fs::read_to_string(&path).unwrap(), raw);
+        }
+        assert_eq!(fs::read_dir(&fixture.0).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn failed_backup_or_replacement_preserves_legacy_store() {
+        let fixture = ProfileFixture::new(); let path = fixture.path();
+        fs::write(&path, "[]").unwrap();
+        fs::create_dir(path.with_extension("json.tmp")).unwrap();
+        assert!(write_profiles_at(&path, &default_profiles()).is_err());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "[]");
+        assert_eq!(fs::read_to_string(path.with_extension("pre-v1-0.json")).unwrap(), "[]");
+        fs::remove_dir(path.with_extension("json.tmp")).unwrap();
+        for index in 1..1000 { fs::write(path.with_extension(format!("pre-v1-{index}.json")), "old backup").unwrap(); }
+        assert!(write_profiles_at(&path, &default_profiles()).unwrap_err().contains("backup filename"));
+        assert_eq!(fs::read_to_string(&path).unwrap(), "[]");
+    }
+
+    #[test]
+    fn first_run_defaults_are_not_written_until_explicit_save() {
+        let fixture = ProfileFixture::new(); let path = fixture.path();
+        let defaults = load_profiles_at(&path).unwrap();
+        assert!(!defaults.is_empty());
+        assert!(!path.exists());
+        write_profiles_at(&path, &defaults).unwrap();
+        assert_eq!(fs::read_dir(&fixture.0).unwrap().count(), 1);
+        assert_eq!(load_profiles_at(&path).unwrap().len(), defaults.len());
+    }
+
 }

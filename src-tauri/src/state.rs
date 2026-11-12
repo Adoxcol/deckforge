@@ -117,7 +117,15 @@ impl Default for ManagedAppState {
         }];
         scan_usb_devices(&mut devices, &mut diagnostics);
 
-        let profiles = load_saved_profiles();
+        let profiles = load_saved_profiles().unwrap_or_else(|err| {
+            diagnostics.push(DiagnosticEntry {
+                id: "diag-profiles-load".into(), timestamp_ms: now_ms(), level: "error".into(),
+                device_id: "system".into(), stage: "RESTORE_PROFILES".into(),
+                message: format!("Could not load profiles: {err}. Showing defaults; saving is blocked until the original file is repaired or moved aside."),
+                packet_hex: None,
+            });
+            db::default_profiles()
+        });
         let applied_layout_path = db::profiles_store_path().with_file_name("applied-layout.json");
         let applied_layout = load_applied_layout(&applied_layout_path).unwrap_or_else(|err| {
             diagnostics.push(DiagnosticEntry {
