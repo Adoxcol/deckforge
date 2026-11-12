@@ -113,6 +113,7 @@ fn run_input_work(app_handle: &tauri::AppHandle, shared: &SharedState, work: Inp
     // Presses suppressed during a layout transition must not queue extra wake
     // writes behind that transfer and delay the next valid action.
     let Some(action) = action else { return; };
+    if !drivers::hal::deck_control_available() { return; }
     let dev = shared
         .lock_safe()
         .devices
@@ -358,31 +359,4 @@ pub(crate) fn animation_tick(
         }
     }
     Ok(())
-}
-/// The official Stream Dock app starts with Windows, redraws the deck every second and,
-/// when it exits, tells the deck to disconnect, which blanks it. With both programs on the
-/// same deck neither gets a stable picture. This stops the official app whenever it shows
-/// up and sends the layout again afterwards. Creating `%APPDATA%\DeckForge\allow-official-app`
-/// turns this off for people who want to run both.
-pub(crate) fn spawn_official_app_guard() {
-    std::thread::spawn(|| {
-        let marker = std::env::var_os("APPDATA")
-            .map(|dir| std::path::PathBuf::from(dir).join("DeckForge").join("allow-official-app"));
-        std::thread::sleep(Duration::from_secs(1));
-        loop {
-            let allowed = marker.as_ref().map(|p| p.exists()).unwrap_or(false);
-            if !allowed {
-                let stopped = actions::kill_official_streamdock();
-                if !stopped.is_empty() {
-                    deck_note(&format!(
-                        "official app stopped: {} (create allow-official-app to keep it)",
-                        stopped.join(", ")
-                    ));
-                    std::thread::sleep(Duration::from_millis(1500));
-                    request_full_push("official app was running");
-                }
-            }
-            std::thread::sleep(Duration::from_secs(5));
-        }
-    });
 }

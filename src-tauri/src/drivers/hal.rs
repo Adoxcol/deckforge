@@ -1036,6 +1036,89 @@ static DECK_IO: OnceLock<DeckIo> = OnceLock::new();
 static DECK_GENERATION: AtomicU64 = AtomicU64::new(0);
 // Unlike DECK_GENERATION this changes only on a real connection open, not a resend.
 static CONNECTION_EPOCH: AtomicU64 = AtomicU64::new(0);
+static CONTROL: Mutex<ControlPolicy> = Mutex::new(ControlPolicy { paused: false, vendor_running: false });
+static CONTROL_OPEN: AtomicBool = AtomicBool::new(false);
+
+struct ControlPolicy {
+    paused: bool,
+    vendor_running: bool,
+}
+
+impl ControlPolicy {
+    fn observe_vendor(&mut self, running: bool) {
+        self.vendor_running = running;
+        // Once a conflict is seen, only an explicit resume may reclaim the deck.
+        if running { self.paused = true; }
+    }
+    fn available(&self) -> bool { !self.paused && !self.vendor_running }
+    fn resume(&mut self) -> Result<(), String> {
+        if self.vendor_running {
+            return Err("Close the AJAZZ/Stream Dock app and its tray watcher, then choose Use DeckForge. DeckForge will not close them for you.".into());
+        }
+        self.paused = false;
+        Ok(())
+    }
+    fn suspended_state(&self) -> &'static str {
+        if self.vendor_running { "conflict" } else { "paused" }
+    }
+}
+
+#[cfg(test)]
+mod control_tests {
+    use super::ControlPolicy;
+
+    #[test]
+    fn vendor_conflict_requires_explicit_resume_after_vendor_exits() {
+        let mut policy = ControlPolicy { paused: false, vendor_running: false };
+        assert!(policy.available());
+        policy.observe_vendor(true);
+        assert!(!policy.available());
+        assert_eq!(policy.suspended_state(), "conflict");
+        assert!(policy.resume().is_err());
+        policy.observe_vendor(false);
+        assert!(!policy.available());
+        assert_eq!(policy.suspended_state(), "paused");
+        policy.resume().unwrap();
+        assert!(policy.available());
+    }
+
+    #[test]
+    fn manual_pause_survives_vendor_scans() {
+        let mut policy = ControlPolicy { paused: true, vendor_running: false };
+        policy.observe_vendor(false);
+        assert!(!policy.available());
+        policy.resume().unwrap();
+        assert!(policy.available());
+    }
+}
+
+pub fn deck_control_available() -> bool { CONTROL.lock_safe().available() }
+
+fn refresh_control_policy(last_scan: &mut Instant) {
+    if last_scan.elapsed() >= Duration::from_secs(1) {
+        let running = !crate::actions::official_streamdock_processes().is_empty();
+        CONTROL.lock_safe().observe_vendor(running);
+        *last_scan = Instant::now();
+    }
+}
+
+pub fn pause_deck_control() -> String {
+    CONTROL.lock_safe().paused = true;
+    update_status(|s| s.state = if CONTROL_OPEN.load(Ordering::SeqCst) { "pausing" } else { "paused" });
+    let _ = deck_io();
+    "Pause requested. Wait for DeckForge paused before opening AJAZZ.".into()
+}
+
+pub fn resume_deck_control() -> Result<String, String> {
+    let running = !crate::actions::official_streamdock_processes().is_empty();
+    {
+        let mut control = CONTROL.lock_safe();
+        control.observe_vendor(running);
+        control.resume()?;
+    }
+    request_full_push("user chose Use DeckForge");
+    Ok("DeckForge will reconnect and restore your last applied layout.".into())
+}
 
 /// What the deck connection is doing, for the status line in the app.
 #[derive(Debug, Clone, Serialize)]
@@ -1218,14 +1301,18 @@ struct HidTransport<'a> {
     handle: &'a hidapi::HidDevice,
     reports: &'a mpsc::Sender<Vec<u8>>,
     heartbeat_enabled: bool,
+    last_control_scan: &'a mut Instant,
 }
 
 impl Transport for HidTransport<'_> {
     fn now(&self) -> Instant { Instant::now() }
     fn write(&mut self, report: &[u8]) -> Result<(), String> {
+        if !deck_control_available() { return Err("DeckForge device control is paused".into()); }
         write_complete_report(self.handle, report)
     }
     fn poll_input(&mut self, timeout_ms: i32) -> Result<(), String> {
+        refresh_control_policy(self.last_control_scan);
+        if !deck_control_available() { return Err("DeckForge device control is paused".into()); }
         let mut buf = [0u8; 2048];
         let n = self.handle.read_timeout(&mut buf, timeout_ms).map_err(|e| e.to_string())?;
         if n > 0 {
@@ -1234,6 +1321,7 @@ impl Transport for HidTransport<'_> {
         Ok(())
     }
     fn heartbeat(&mut self) -> Result<(), String> {
+        if !deck_control_available() { return Err("DeckForge device control is paused".into()); }
         if self.heartbeat_enabled { write_complete_report(self.handle, &build_heartbeat_packet())?; }
         Ok(())
     }
@@ -1260,8 +1348,19 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
     let mut buf = [0u8; 2048];
     let mut last_heartbeat = Instant::now();
     let mut last_full_push: Option<Instant> = None;
+    let mut last_control_scan = Instant::now() - Duration::from_secs(2);
     deck_log("io thread started");
     loop {
+        refresh_control_policy(&mut last_control_scan);
+        if !deck_control_available() {
+            open = None; // Drop the HID handle; do not send a disconnect or heartbeat.
+            CONTROL_OPEN.store(false, Ordering::SeqCst);
+            reject_queued_jobs(&jobs, "DeckForge device control is paused");
+            let state = CONTROL.lock_safe().suspended_state();
+            update_status(|s| s.state = state);
+            std::thread::sleep(Duration::from_millis(100));
+            continue;
+        }
         if open.is_none() {
             let opened = HidApi::new()
                 .ok()
@@ -1273,11 +1372,14 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
                     last_full_push = None;
                     last_heartbeat = Instant::now() - std::time::Duration::from_secs(60);
                     open = Some(pair);
+                    CONTROL_OPEN.store(true, Ordering::SeqCst);
                     deck_log("opened deck, waiting for firmware to settle");
                     // A deck that just re-enumerated is still booting. Pictures sent in
                     // that window are dropped and nothing sends them again, which left the
                     // panel black.
                     std::thread::sleep(std::time::Duration::from_millis(2500));
+                    refresh_control_policy(&mut last_control_scan);
+                    if !deck_control_available() { continue; }
                     let generation = DECK_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
                     update_status(|s| {
                         if s.opened_at_ms.is_some() {
@@ -1337,7 +1439,8 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
                         last_full_push.map(|done| Duration::from_millis(1500).saturating_sub(done.elapsed())).unwrap_or_default()
                     } else { Duration::ZERO };
                     let started = Instant::now();
-                    let mut transport = HidTransport { handle, reports: &reports, heartbeat_enabled: !debug_flag("no-heartbeat") };
+                    let mut transport = HidTransport { handle, reports: &reports,
+                        heartbeat_enabled: !debug_flag("no-heartbeat"), last_control_scan: &mut last_control_scan };
                     let result = scheduler::run_job(&mut transport, &job.steps, settle,
                         job.deadline, &job.cancelled, &mut last_heartbeat);
                     if job.steps.len() > 1 || result.is_err() {
@@ -1375,6 +1478,7 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
             deck_log("deck connection lost, closing");
             update_status(|s| s.state = "reconnecting");
             open = None;
+            CONTROL_OPEN.store(false, Ordering::SeqCst);
             reject_queued_jobs(&jobs, "Deck connection lost; queued output discarded");
             std::thread::sleep(std::time::Duration::from_millis(500));
         }
@@ -1388,6 +1492,7 @@ pub fn deck_write(steps: Vec<(Vec<u8>, u64)>) -> Result<(), String> {
 
 fn deck_write_steps(steps: Vec<IoStep>) -> Result<(), String> {
     if steps.is_empty() { return Ok(()); }
+    if !deck_control_available() { return Err("DeckForge is paused. Close AJAZZ, then choose Use DeckForge.".into()); }
     scheduler::validate_steps(&steps)?;
     let io = deck_io();
     let (reply, wait) = mpsc::channel();

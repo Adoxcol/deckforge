@@ -226,15 +226,6 @@ export const App: React.FC = () => {
     setDeviceSynced(false);
   }, [selectedDeviceId, selectedProfileId, selectedPageIdx]);
 
-  const handleTakeOverHardware = async () => {
-    const msg = await deckforgeApi.takeOverFromOfficialApp();
-    const updatedDevs = await deckforgeApi.refreshUsbDevices();
-    const updatedTel = await deckforgeApi.getTelemetry();
-    setDevices(updatedDevs);
-    setTelemetry(updatedTel);
-    triggerToast(msg, "success");
-  };
-
   const handleRescanDevices = () => {
     deckforgeApi.refreshUsbDevices().then(setDevices);
     triggerToast("USB HID discovery refreshed", "info");
@@ -1025,14 +1016,9 @@ export const App: React.FC = () => {
         {/* Right Controls */}
         <div className="flex items-center gap-2">
           {telemetry?.officialStreamdockRunning && (
-            <button
-              onClick={handleTakeOverHardware}
-              title="Stop official StreamDock.exe so it stops flooding USB and give DeckForge exclusive hardware access"
-              className="h-8 px-2.5 rounded-md bg-[#F4B860]/15 border border-[#F4B860]/60 text-[#F4B860] hover:bg-[#F4B860]/25 text-[11.5px] font-semibold flex items-center gap-1.5 cursor-pointer"
-            >
-              <Zap size={13} />
-              <span>Take Over Hardware (Stop Official App)</span>
-            </button>
+            <span className="text-xs text-[#F4B860] max-w-[250px]">
+              AJAZZ detected. Close it, then choose Use DeckForge in the status bar.
+            </span>
           )}
           <button
             onClick={handleImportLegacyProfiles}

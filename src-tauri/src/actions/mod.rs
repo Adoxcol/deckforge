@@ -530,7 +530,7 @@ pub fn launch_app_or_url(target: &str) -> Result<String, String> {
 /// names its program "Stream Dock AJAZZ.exe", which a plain `streamdock` match misses.
 fn is_official_streamdock_process(name: &str) -> bool {
     let compact: String = name.to_lowercase().chars().filter(|c| !c.is_whitespace()).collect();
-    compact.contains("streamdock") && !compact.contains("deckforge")
+    matches!(compact.trim_end_matches(".exe"), "streamdock" | "streamdockajazz" | "streamdockwatcher")
 }
 
 /// Process ids and names of the official Stream Dock app that are running right now.
@@ -544,46 +544,6 @@ pub fn official_streamdock_processes() -> Vec<(u32, String)> {
             is_official_streamdock_process(&name).then(|| (pid.as_u32(), name))
         })
         .collect()
-}
-
-/// Force-stops the official Stream Dock app and its watcher so it stops redrawing the deck
-/// and stops answering key presses. A forced stop is deliberate: when the app quits by
-/// itself it sends the deck a disconnect command, and the deck goes black.
-/// Returns the names that were stopped.
-pub fn kill_official_streamdock() -> Vec<String> {
-    let mut stopped: Vec<String> = Vec::new();
-    #[cfg(target_os = "windows")]
-    {
-        // The watcher restarts the app, so end it first.
-        let mut running = official_streamdock_processes();
-        running.sort_by_key(|(_, name)| !name.to_lowercase().contains("watcher"));
-        for (pid, name) in running {
-            let mut cmd = Command::new("taskkill");
-            cmd.args(["/F", "/T", "/PID", &pid.to_string()]);
-            cmd.creation_flags(CREATE_NO_WINDOW);
-            if cmd.output().map(|o| o.status.success()).unwrap_or(false) && !stopped.contains(&name) {
-                stopped.push(name);
-            }
-        }
-    }
-    stopped
-}
-
-/// Stops the official Stream Dock app on request (the "take over" button).
-pub fn stop_official_streamdock_app() -> Result<String, String> {
-    #[cfg(target_os = "windows")]
-    {
-        let stopped = kill_official_streamdock();
-        if stopped.is_empty() {
-            return Ok("The official Stream Dock app is not running.".to_string());
-        }
-        return Ok(format!(
-            "Stopped {}. DeckForge now has the deck to itself.",
-            stopped.join(", ")
-        ));
-    }
-    #[cfg(not(target_os = "windows"))]
-    Ok("Not on Windows".to_string())
 }
 
 pub fn process_is_running(name: &str) -> bool {
@@ -821,6 +781,16 @@ pub fn run_macro_sequence_test(seq: &MacroSequence, execute_os_effects: bool) ->
 #[cfg(test)]
 mod tests {
     use super::{chord_to_vks, macro_delay_ms};
+
+    #[test]
+    fn vendor_detection_matches_only_known_process_names() {
+        for name in ["StreamDock.exe", "Stream Dock AJAZZ.exe", "STREAMDOCKWATCHER.EXE"] {
+            assert!(super::is_official_streamdock_process(name));
+        }
+        for name in ["deckforge.exe", "streamdock-notes.exe", "my-streamdock-backup.exe"] {
+            assert!(!super::is_official_streamdock_process(name));
+        }
+    }
 
     /// Every shortcut preset in the catalog must turn into one key per `+` part, or the
     /// deck key would press fewer keys than its label says.

@@ -629,6 +629,8 @@ let mockGameModeStatus: GameModeStatus = mockEmptyStatus();
 const mockGameModeListeners = new Set<(status: GameModeStatus) => void>();
 const emitMockGameMode = () => mockGameModeListeners.forEach((fn) => fn({ ...mockGameModeStatus }));
 
+let mockDeckPaused = false;
+
 export const deckforgeApi = {
   async getInitialState(): Promise<FullBootstrapPayload> {
     if (isTauriRuntime()) {
@@ -725,7 +727,14 @@ export const deckforgeApi = {
     if (isTauriRuntime()) {
       return await invoke<string>("take_over_from_official_app");
     }
-    return "Stopped official StreamDock.exe process tree — DeckForge now has exclusive access!";
+    mockDeckPaused = false;
+    return "DeckForge will reconnect and restore your last applied layout.";
+  },
+
+  async pauseDeckControl(): Promise<string> {
+    if (isTauriRuntime()) return await invoke<string>("pause_deck_control");
+    mockDeckPaused = true;
+    return "DeckForge paused. You can now open AJAZZ.";
   },
 
   async importLegacySdProfiles(): Promise<Profile[]> {
@@ -740,7 +749,7 @@ export const deckforgeApi = {
       return await invoke<DeckStatus>("get_deck_status");
     }
     return {
-      state: "connected",
+      state: mockDeckPaused ? "paused" : "connected",
       openedAtMs: Date.now() - 60_000,
       lastPushAtMs: Date.now() - 55_000,
       lastPushOk: true,

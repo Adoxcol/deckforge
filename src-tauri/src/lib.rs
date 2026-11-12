@@ -7,7 +7,7 @@ pub mod media;
 use actions::{
     collect_system_telemetry, execute_key_action_live, foreground_window, launch_app_or_url,
     macro_delay_ms, process_is_running, read_audio_face, read_media_face, send_hotkey_chord,
-    stop_official_streamdock_app, trigger_http_webhook, ActionExecutionResult, MacroRunReport,
+    trigger_http_webhook, ActionExecutionResult, MacroRunReport,
     ObsSettings, SystemTelemetrySnapshot,
 };
 use db::{
@@ -43,6 +43,7 @@ mod live;
 mod macro_run;
 mod state;
 mod workers;
+mod instance;
 
 pub use state::*;
 use commands::*;
@@ -52,6 +53,11 @@ use workers::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let _instance = match instance::acquire() {
+        Ok(Some(guard)) => guard,
+        Ok(None) => { instance::focus_existing(); return; }
+        Err(err) => { eprintln!("Could not establish exclusive DeckForge instance: {err}"); return; }
+    };
     let shared: SharedState = Arc::new(Mutex::new(ManagedAppState::default()));
     let shared_for_setup = Arc::clone(&shared);
 
@@ -60,7 +66,6 @@ pub fn run() {
         .setup(move |app| {
             let handle = app.handle().clone();
             spawn_hardware_input_worker(handle.clone(), Arc::clone(&shared_for_setup));
-            spawn_official_app_guard();
             spawn_animation_worker(Arc::clone(&shared_for_setup));
             let nudge_shared = Arc::clone(&shared_for_setup);
             game_mode::spawn_watcher(
@@ -81,6 +86,7 @@ pub fn run() {
             test_key_action,
             execute_macro_sequence,
             take_over_from_official_app,
+            pause_deck_control,
             get_deck_status,
             resend_layout,
             save_export_file,

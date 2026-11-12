@@ -333,23 +333,15 @@ mod export_tests {
 
 #[tauri::command]
 pub fn take_over_from_official_app(state: State<'_, SharedState>) -> Result<String, String> {
-    let msg = stop_official_streamdock_app()?;
+    let msg = drivers::hal::resume_deck_control()?;
     let mut guard = state.lock_safe();
-    let mut devices = guard.devices.clone();
-    let mut diags = guard.diagnostics.clone();
-    scan_usb_devices(&mut devices, &mut diags);
-    diags.push(DiagnosticEntry {
-        id: format!("diag-takeover-{}", now_ms()),
-        timestamp_ms: now_ms(),
-        level: "success".to_string(),
-        device_id: "ajazz-akp05e-pro".to_string(),
-        stage: "EXCLUSIVE_HANDOFF".to_string(),
-        message: msg.clone(),
-        packet_hex: Some("CRT\\0\\0HAN".to_string()),
-    });
-    guard.devices = devices;
-    guard.diagnostics = diags;
+    guard.layout_ready = false;
     Ok(msg)
+}
+
+#[tauri::command]
+pub fn pause_deck_control() -> String {
+    drivers::hal::pause_deck_control()
 }
 
 #[tauri::command]

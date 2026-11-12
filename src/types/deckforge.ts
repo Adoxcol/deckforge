@@ -197,7 +197,7 @@ export interface LegacyStreamDockSummary {
 
 /** Connection state of the physical deck and how the last layout send went. */
 export interface DeckStatus {
-  state: "searching" | "connected" | "reconnecting";
+  state: "searching" | "connected" | "reconnecting" | "paused" | "pausing" | "conflict";
   openedAtMs: number | null;
   lastPushAtMs: number | null;
   lastPushOk: boolean | null;

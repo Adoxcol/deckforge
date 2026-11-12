@@ -19,6 +19,18 @@ export function describeDeckStatus(status: DeckStatus | null): { text: string; c
   if (!status) {
     return { text: "Checking the deck…", color: "#707B94", detail: "" };
   }
+  if (status.state === "conflict") {
+    return { text: "AJAZZ running · DeckForge paused", color: "#F4B860",
+      detail: "Save your work and close AJAZZ and its tray watcher, then choose Use DeckForge. No application is closed automatically." };
+  }
+  if (status.state === "paused") {
+    return { text: "DeckForge paused", color: "#F4B860",
+      detail: "Device control is released. You can use AJAZZ. Close it before choosing Use DeckForge." };
+  }
+  if (status.state === "pausing") {
+    return { text: "Releasing the deck…", color: "#F4B860",
+      detail: "Wait for DeckForge paused before opening AJAZZ." };
+  }
   if (status.state === "searching") {
     return {
       text: "Looking for the deck…",
@@ -56,6 +68,7 @@ export function describeDeckStatus(status: DeckStatus | null): { text: string; c
 export const DeckStatusBadge: React.FC<Props> = ({ onNotify }) => {
   const [status, setStatus] = useState<DeckStatus | null>(null);
   const [sending, setSending] = useState(false);
+  const [changingControl, setChangingControl] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -86,6 +99,17 @@ export const DeckStatusBadge: React.FC<Props> = ({ onNotify }) => {
   }, [onNotify]);
 
   const view = describeDeckStatus(status);
+  const suspended = status?.state === "paused" || status?.state === "conflict";
+  const changeControl = async () => {
+    setChangingControl(true);
+    try {
+      const message = suspended ? await deckforgeApi.takeOverFromOfficialApp() : await deckforgeApi.pauseDeckControl();
+      onNotify(message, "info");
+      setStatus(await deckforgeApi.getDeckStatus());
+    } catch (error) {
+      onNotify(typeof error === "string" ? error : "Could not change device control", "warning");
+    } finally { setChangingControl(false); }
+  };
 
   return (
     <span className="flex items-center gap-2" title={view.detail || undefined}>
@@ -102,6 +126,12 @@ export const DeckStatusBadge: React.FC<Props> = ({ onNotify }) => {
       >
         <RefreshCw size={10} className={sending ? "animate-spin" : ""} />
         <span>Re-send layout</span>
+      </button>
+      <button type="button" onClick={changeControl}
+        disabled={!status || changingControl || status.state === "pausing"}
+        className="h-5 px-1.5 rounded border border-[#272D3D] text-[10.5px] text-[#F4B860] disabled:opacity-40"
+        title={suspended ? "Close AJAZZ first, then reconnect with DeckForge" : "Release the deck so you can use AJAZZ"}>
+        {suspended ? "Use DeckForge" : "Pause DeckForge"}
       </button>
     </span>
   );
