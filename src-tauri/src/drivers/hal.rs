@@ -4,13 +4,14 @@ use crate::drivers::akp05e_protocol::{
     encode_procedural_key_jpeg, encode_touch_strip_jpeg, parse_hex_color,
 };
 use crate::drivers::frame_cache::{AntiFreezeFrameCache, FrameCacheStats};
+use super::scheduler::{self, IoStep, Transport};
 use crate::media::{pace_delay, MediaStore, RenderedFrames, ZonePaint};
 use hidapi::HidApi;
 use serde::{Deserialize, Serialize};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{mpsc, Mutex, OnceLock};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{mpsc, Arc, Mutex, OnceLock};
 use crate::LockExt;
-use std::time::{Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -852,7 +853,7 @@ fn write_reports(
     // HAN is sleep, and sending it is what made a press go black.
     let brightness = panel_brightness(dev);
     let lig = build_brightness_packet(brightness);
-    let mut steps: Vec<(Vec<u8>, u64)> = Vec::new();
+    let mut steps: Vec<IoStep> = Vec::new();
     if session_setup {
         // DIS resets the panel. Give it time to finish before anything else arrives. The
         // `no-dis` marker file skips it for comparison. The black panels that blamed this
@@ -860,10 +861,10 @@ fn write_reports(
         // A deck that has just rebooted drops pictures that arrive while it is still
         // finishing the reset: about half of the keys stayed blank with a 400 ms wait.
         if !debug_flag("no-dis") {
-            steps.push((build_screen_on_packet().to_vec(), 1200));
+            steps.push(IoStep::command(build_screen_on_packet().to_vec(), 1200));
         }
-        steps.push((build_button_mode_packet().to_vec(), 150));
-        steps.push((lig.to_vec(), 150));
+        steps.push(IoStep::command(build_button_mode_packet().to_vec(), 150));
+        steps.push(IoStep::command(lig.to_vec(), 150));
     }
     // A full push sends every picture back to back. Give the firmware a moment to decode
     // each one before the next header arrives.
@@ -871,17 +872,18 @@ fn write_reports(
     for burst in bursts {
         let last = burst.reports.len().saturating_sub(1);
         for (i, report) in burst.reports.iter().enumerate() {
-            steps.push((report.clone(), if i == last { after_picture } else { 0 }));
+            steps.push(IoStep { report: report.clone(),
+                pause_ms: if i == last { after_picture } else { 0 }, boundary_after: i == last });
         }
     }
     if session_setup {
         // The backlight stayed off after a push on a deck that was already running: the
         // firmware ignores a brightness that matches the one it holds. A different value
         // first forces it to apply the real one.
-        steps.push((build_brightness_packet(nudged_brightness(brightness)).to_vec(), 200));
+        steps.push(IoStep::command(build_brightness_packet(nudged_brightness(brightness)).to_vec(), 200));
     }
-    steps.push((lig.to_vec(), 0));
-    let result = deck_write(steps);
+    steps.push(IoStep::command(lig.to_vec(), 0));
+    let result = deck_write_steps(steps);
     note_push(&result, session_setup);
     result
 }
@@ -1008,17 +1010,32 @@ fn render_touch_window(
 // from several places at once is what made the firmware reset, drop icons, and
 // sleep the panel on a press.
 struct DeckJob {
-    steps: Vec<(Vec<u8>, u64)>,
+    steps: Vec<IoStep>,
     reply: mpsc::Sender<Result<(), String>>,
+    deadline: Instant,
+    cancelled: Arc<AtomicBool>,
+    connection_epoch: u64,
+}
+
+impl DeckJob {
+    fn validate(&self, now: Instant, connection_epoch: u64) -> Result<(), String> {
+        scheduler::check_deadline(now, self.deadline, &self.cancelled)?;
+        if self.connection_epoch != connection_epoch {
+            return Err("Deck connection changed; stale output discarded".into());
+        }
+        Ok(())
+    }
 }
 
 struct DeckIo {
-    jobs: mpsc::Sender<DeckJob>,
+    jobs: mpsc::SyncSender<DeckJob>,
     reports: Mutex<mpsc::Receiver<Vec<u8>>>,
 }
 
 static DECK_IO: OnceLock<DeckIo> = OnceLock::new();
 static DECK_GENERATION: AtomicU64 = AtomicU64::new(0);
+// Unlike DECK_GENERATION this changes only on a real connection open, not a resend.
+static CONNECTION_EPOCH: AtomicU64 = AtomicU64::new(0);
 
 /// What the deck connection is doing, for the status line in the app.
 #[derive(Debug, Clone, Serialize)]
@@ -1076,7 +1093,7 @@ pub fn deck_status() -> DeckStatus {
 
 fn deck_io() -> &'static DeckIo {
     DECK_IO.get_or_init(|| {
-        let (job_tx, job_rx) = mpsc::channel::<DeckJob>();
+        let (job_tx, job_rx) = mpsc::sync_channel::<DeckJob>(scheduler::QUEUE_CAPACITY);
         let (report_tx, report_rx) = mpsc::channel::<Vec<u8>>();
         std::thread::spawn(move || deck_io_loop(job_rx, report_tx));
         DeckIo {
@@ -1150,32 +1167,41 @@ fn debug_file_take(name: &str) -> Option<String> {
 /// Runs a protocol experiment from `%APPDATA%\DeckForge\deck-cmd.txt`: space-separated
 /// tokens such as `LIG95 CON W3000 MOD1`. Each result goes to `deck-io.log`. This is how
 /// a wake sequence is tried on the real deck without rebuilding the app.
-fn run_debug_script(handle: &hidapi::HidDevice, script: &str) {
-    for token in script.split_whitespace() {
+fn run_debug_script(script: &str) {
+    let mut steps = Vec::new();
+    for token in script.split_whitespace().take(256) {
         let upper = token.to_ascii_uppercase();
-        let result = if let Some(ms) = upper.strip_prefix('W').and_then(|v| v.parse::<u64>().ok()) {
-            std::thread::sleep(std::time::Duration::from_millis(ms));
-            deck_log(&format!("debug wait {ms}ms"));
+        if let Some(ms) = upper.strip_prefix('W').and_then(|v| v.parse::<u64>().ok()) {
+            steps.push(IoStep::command(Vec::new(), ms));
             continue;
-        } else if let Some(percent) = upper.strip_prefix("LIG").and_then(|v| v.parse::<u8>().ok()) {
-            handle.write(&build_brightness_packet(percent))
+        }
+        let report = if let Some(percent) = upper.strip_prefix("LIG").and_then(|v| v.parse::<u8>().ok()) {
+            build_brightness_packet(percent)
         } else {
             match upper.as_str() {
-                "DIS" => handle.write(&build_screen_on_packet()),
-                "MOD1" => handle.write(&build_button_mode_packet()),
-                "CON" => handle.write(&build_heartbeat_packet()),
-                "STP" => handle.write(&crate::drivers::akp05e_protocol::build_finish_packet()),
-                "CLE" => handle.write(&build_clear_key_packet(0xFF)),
-                "VER" => handle.write(&crate::drivers::akp05e_protocol::build_firmware_version_packet()),
-                other => {
-                    deck_log(&format!("debug unknown token {other}"));
-                    continue;
-                }
+                "DIS" => build_screen_on_packet(),
+                "MOD1" => build_button_mode_packet(),
+                "CON" => build_heartbeat_packet(),
+                "STP" => crate::drivers::akp05e_protocol::build_finish_packet(),
+                "CLE" => build_clear_key_packet(0xFF),
+                "VER" => crate::drivers::akp05e_protocol::build_firmware_version_packet(),
+                other => { deck_log(&format!("debug unknown token {other}")); continue; }
             }
         };
-        deck_log(&format!("debug cmd {upper}: {result:?}"));
-        std::thread::sleep(std::time::Duration::from_millis(150));
+        steps.push(IoStep::command(report.to_vec(), 150));
     }
+    // Debug waits use the same bounded, responsive scheduler as normal traffic.
+    if let Err(err) = scheduler::validate_steps(&steps) {
+        deck_log(&format!("debug job rejected: {err}"));
+        return;
+    }
+    let (reply, _) = mpsc::channel();
+    let job = DeckJob {
+        steps, reply, deadline: Instant::now() + scheduler::JOB_TIMEOUT,
+        cancelled: Arc::new(AtomicBool::new(false)),
+        connection_epoch: CONNECTION_EPOCH.load(Ordering::SeqCst),
+    };
+    if enqueue_job(&deck_io().jobs, job).is_err() { deck_log("debug queue is busy"); }
 }
 
 fn validate_report_length(written: usize, expected: usize) -> Result<(), String> {
@@ -1186,6 +1212,46 @@ fn validate_report_length(written: usize, expected: usize) -> Result<(), String>
 fn write_complete_report(handle: &hidapi::HidDevice, data: &[u8]) -> Result<(), String> {
     let written = handle.write(data).map_err(|e| e.to_string())?;
     validate_report_length(written, data.len())
+}
+
+struct HidTransport<'a> {
+    handle: &'a hidapi::HidDevice,
+    reports: &'a mpsc::Sender<Vec<u8>>,
+    heartbeat_enabled: bool,
+}
+
+impl Transport for HidTransport<'_> {
+    fn now(&self) -> Instant { Instant::now() }
+    fn write(&mut self, report: &[u8]) -> Result<(), String> {
+        write_complete_report(self.handle, report)
+    }
+    fn poll_input(&mut self, timeout_ms: i32) -> Result<(), String> {
+        let mut buf = [0u8; 2048];
+        let n = self.handle.read_timeout(&mut buf, timeout_ms).map_err(|e| e.to_string())?;
+        if n > 0 {
+            self.reports.send(buf[..n].to_vec()).map_err(|e| e.to_string())?;
+        }
+        Ok(())
+    }
+    fn heartbeat(&mut self) -> Result<(), String> {
+        if self.heartbeat_enabled { write_complete_report(self.handle, &build_heartbeat_packet())?; }
+        Ok(())
+    }
+}
+
+fn enqueue_job(jobs: &mpsc::SyncSender<DeckJob>, job: DeckJob) -> Result<(), String> {
+    jobs.try_send(job).map_err(|err| match err {
+        mpsc::TrySendError::Full(_) => "Deck output queue is busy; try again".into(),
+        mpsc::TrySendError::Disconnected(_) => "Deck output worker stopped".into(),
+    })
+}
+
+fn reject_queued_jobs(jobs: &mpsc::Receiver<DeckJob>, message: &str) {
+    // Bound the drain too: new producers cannot keep the I/O loop here forever.
+    for _ in 0..scheduler::QUEUE_CAPACITY {
+        let Ok(job) = jobs.try_recv() else { break };
+        let _ = job.reply.send(Err(message.to_string()));
+    }
 }
 
 fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
@@ -1203,6 +1269,8 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
             match opened {
                 Some(pair) => {
                     errors = 0;
+                    CONNECTION_EPOCH.fetch_add(1, Ordering::SeqCst);
+                    last_full_push = None;
                     last_heartbeat = Instant::now() - std::time::Duration::from_secs(60);
                     open = Some(pair);
                     deck_log("opened deck, waiting for firmware to settle");
@@ -1221,9 +1289,7 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
                     deck_log(&format!("deck ready, generation {generation}"));
                 }
                 None => {
-                    while let Ok(job) = jobs.try_recv() {
-                        let _ = job.reply.send(Err("Deck is not open".into()));
-                    }
+                    reject_queued_jobs(&jobs, "Deck is not open");
                     std::thread::sleep(std::time::Duration::from_millis(800));
                     continue;
                 }
@@ -1256,53 +1322,33 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
             deck_log(&format!("debug brightness-0: {r:?}"));
         }
         if let Some(script) = debug_file_take("deck-cmd.txt") {
-            run_debug_script(handle, &script);
+            run_debug_script(&script);
         }
-        while let Ok(job) = jobs.try_recv() {
-            // A full push starts with DIS, which resets the panel. When it arrives while the
-            // firmware is still decoding the previous push's pictures (Apply clicked twice),
-            // about half of the keys stay blank. Give the panel time to finish first.
-            let is_full_push = job.steps.first().map(|(d, _)| d.get(6..9) == Some(b"DIS".as_slice())).unwrap_or(false);
-            if is_full_push {
-                if let Some(done) = last_full_push {
-                    let settle = std::time::Duration::from_millis(1500);
-                    if done.elapsed() < settle {
-                        std::thread::sleep(settle - done.elapsed());
+        // Service one job per outer iteration. The job itself reads input during
+        // all pauses and between packets, and checks heartbeat deadlines at safe boundaries.
+        if !lost {
+            if let Ok(job) = jobs.try_recv() {
+                let valid = job.validate(Instant::now(), CONNECTION_EPOCH.load(Ordering::SeqCst));
+                if let Err(err) = valid {
+                    let _ = job.reply.send(Err(err));
+                } else {
+                    let full = job.steps.first().is_some_and(|s| s.report.get(6..9) == Some(b"DIS".as_slice()));
+                    let settle = if full {
+                        last_full_push.map(|done| Duration::from_millis(1500).saturating_sub(done.elapsed())).unwrap_or_default()
+                    } else { Duration::ZERO };
+                    let started = Instant::now();
+                    let mut transport = HidTransport { handle, reports: &reports, heartbeat_enabled: !debug_flag("no-heartbeat") };
+                    let result = scheduler::run_job(&mut transport, &job.steps, settle,
+                        job.deadline, &job.cancelled, &mut last_heartbeat);
+                    if job.steps.len() > 1 || result.is_err() {
+                        deck_log(&format!("job packets={} took={}ms result={result:?}", job.steps.len(), started.elapsed().as_millis()));
                     }
+                    if full && result.is_ok() { last_full_push = Some(Instant::now()); }
+                    // A timeout or error may leave a partial image on the wire. Close
+                    // this session before accepting another job; reconnect restores it.
+                    lost = result.is_err();
+                    let _ = job.reply.send(result);
                 }
-            }
-            let started = Instant::now();
-            let mut result = Ok(());
-            for (data, pause_ms) in &job.steps {
-                if let Err(err) = write_complete_report(handle, data) {
-                    result = Err(format!("USB HID write failed: {err}"));
-                    lost = true;
-                    break;
-                }
-                if *pause_ms > 0 {
-                    std::thread::sleep(std::time::Duration::from_millis(*pause_ms));
-                }
-            }
-            let first = job
-                .steps
-                .first()
-                .map(|(data, _)| String::from_utf8_lossy(data.get(6..9.min(data.len())).unwrap_or_default()).to_string())
-                .unwrap_or_default();
-            // Skip frame-by-frame GIF writes. Log everything else.
-            if job.steps.len() > 1 || result.is_err() {
-                deck_log(&format!(
-                    "job first={first} packets={} took={}ms result={:?}",
-                    job.steps.len(),
-                    started.elapsed().as_millis(),
-                    result
-                ));
-            }
-            if is_full_push {
-                last_full_push = Some(Instant::now());
-            }
-            let _ = job.reply.send(result);
-            if lost {
-                break;
             }
         }
         if !lost {
@@ -1329,6 +1375,7 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
             deck_log("deck connection lost, closing");
             update_status(|s| s.state = "reconnecting");
             open = None;
+            reject_queued_jobs(&jobs, "Deck connection lost; queued output discarded");
             std::thread::sleep(std::time::Duration::from_millis(500));
         }
     }
@@ -1336,16 +1383,27 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
 
 /// Queues packets for the deck's single connection and waits for them to be sent.
 pub fn deck_write(steps: Vec<(Vec<u8>, u64)>) -> Result<(), String> {
-    if steps.is_empty() {
-        return Ok(());
-    }
+    deck_write_steps(steps.into_iter().map(|(report, pause)| IoStep::command(report, pause)).collect())
+}
+
+fn deck_write_steps(steps: Vec<IoStep>) -> Result<(), String> {
+    if steps.is_empty() { return Ok(()); }
+    scheduler::validate_steps(&steps)?;
+    let io = deck_io();
     let (reply, wait) = mpsc::channel();
-    deck_io()
-        .jobs
-        .send(DeckJob { steps, reply })
-        .map_err(|e| e.to_string())?;
-    wait.recv_timeout(std::time::Duration::from_secs(15))
-        .map_err(|_| "Deck write timed out".to_string())?
+    let deadline = Instant::now() + scheduler::JOB_TIMEOUT;
+    let cancelled = Arc::new(AtomicBool::new(false));
+    enqueue_job(&io.jobs, DeckJob {
+        steps, reply, deadline, cancelled: Arc::clone(&cancelled),
+        connection_epoch: CONNECTION_EPOCH.load(Ordering::SeqCst),
+    })?;
+    match wait.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
+        Ok(result) => result,
+        Err(_) => {
+            cancelled.store(true, Ordering::Release);
+            Err("Deck write timed out or worker stopped".into())
+        }
+    }
 }
 
 /// Next button/knob/touch report read from the deck, if one arrives in time.
@@ -1382,6 +1440,38 @@ pub fn get_cache_stats(cache: &AntiFreezeFrameCache) -> FrameCacheStats {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn queued_test_job(epoch: u64) -> (DeckJob, mpsc::Receiver<Result<(), String>>) {
+        let (reply, wait) = mpsc::channel();
+        (DeckJob { steps: vec![IoStep::command(vec![0], 0)], reply,
+            deadline: Instant::now() + scheduler::JOB_TIMEOUT,
+            cancelled: Arc::new(AtomicBool::new(false)), connection_epoch: epoch }, wait)
+    }
+
+    #[test]
+    fn output_queue_rejects_overload_and_disconnect_rejects_pending_work() {
+        let (tx, rx) = mpsc::sync_channel(scheduler::QUEUE_CAPACITY);
+        let mut replies = Vec::new();
+        for _ in 0..scheduler::QUEUE_CAPACITY {
+            let (job, reply) = queued_test_job(1);
+            enqueue_job(&tx, job).unwrap();
+            replies.push(reply);
+        }
+        assert!(enqueue_job(&tx, queued_test_job(1).0).unwrap_err().contains("busy"));
+        reject_queued_jobs(&rx, "connection lost");
+        for reply in replies { assert!(reply.try_recv().unwrap().is_err()); }
+        assert!(rx.try_recv().is_err());
+    }
+
+    #[test]
+    fn queued_jobs_cannot_cross_connection_epochs_or_outlive_cancellation() {
+        let (job, _) = queued_test_job(7);
+        assert!(job.validate(Instant::now(), 7).is_ok());
+        assert!(job.validate(Instant::now(), 8).is_err());
+        assert!(job.validate(job.deadline, 7).is_err());
+        job.cancelled.store(true, Ordering::Release);
+        assert!(job.validate(Instant::now(), 7).is_err());
+    }
     use crate::drivers::frame_cache::AntiFreezeFrameCache;
     use crate::media::MediaStore;
 

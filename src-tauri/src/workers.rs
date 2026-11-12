@@ -92,7 +92,7 @@ pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
 /// from the physical Ajazz AKP05E Pro (`VID_0300&PID_3013`, `MI_00`), emits `"hardware-input"`
 /// events to the UI, and dispatches bound Win32 actions when buttons/knobs are pressed.
 enum InputWork {
-    FullLayout,
+    FullLayout(u64),
     Press {
         action: Option<LiveAction>,
         ts: u64,
@@ -102,12 +102,17 @@ enum InputWork {
 
 fn run_input_work(app_handle: &tauri::AppHandle, shared: &SharedState, work: InputWork) {
     let (action, ts, raw_hex) = match work {
-        InputWork::FullLayout => {
-            push_connected_layout(shared);
+        InputWork::FullLayout(generation) => {
+            // Several resend/reconnect requests may arrive while an action is
+            // running. Only the newest generation should reset the panel.
+            if generation == deck_generation() { push_connected_layout(shared); }
             return;
         }
         InputWork::Press { action, ts, raw_hex } => (action, ts, raw_hex),
     };
+    // Presses suppressed during a layout transition must not queue extra wake
+    // writes behind that transfer and delay the next valid action.
+    let Some(action) = action else { return; };
     let dev = shared
         .lock_safe()
         .devices
@@ -117,9 +122,6 @@ fn run_input_work(app_handle: &tauri::AppHandle, shared: &SharedState, work: Inp
     if let Some(dev) = dev {
         let _ = wake_panel(&dev);
     }
-    let Some(action) = action else {
-        return;
-    };
     let message = dispatch_live_action(app_handle, shared, &action);
     let mut guard = shared.lock_safe();
     guard.diagnostics.push(DiagnosticEntry {
@@ -166,7 +168,7 @@ pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: 
                 held.clear();
                 last_tap_ms.clear();
                 strip_gesture = StripGesture::default();
-                let _ = work_tx.send(InputWork::FullLayout);
+                let _ = work_tx.send(InputWork::FullLayout(generation));
                 continue;
             }
             let Some(raw) = deck_next_report(60) else {
