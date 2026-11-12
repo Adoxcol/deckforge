@@ -669,13 +669,6 @@ export const deckforgeApi = {
     };
   },
 
-  async clearDeviceKey(deviceId: string, keyIndex1Based: number): Promise<string> {
-    if (isTauriRuntime()) {
-      return await invoke<string>("clear_device_key", { deviceId, keyIndex1Based });
-    }
-    return `Cleared key slot 0x${keyIndex1Based.toString(16).padStart(2, "0")} on ${deviceId}`;
-  },
-
   async onQuitRequested(callback: () => void): Promise<UnlistenFn> {
     if (isTauriRuntime()) return listen("quit-requested", callback);
     return () => {};

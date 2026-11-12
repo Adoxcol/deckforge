@@ -906,39 +906,6 @@ pub fn write_one_report(dev: &DeviceDescriptor, report: &[u8]) -> Result<(), Str
 }
 
 /// Clears a single key (`0x01..=0x20`) or all keys (`0xFF`) on the device.
-pub fn clear_hardware_key(
-    dev: &DeviceDescriptor,
-    key_idx_1based: u8,
-    frame_cache: &mut AntiFreezeFrameCache,
-    diagnostics: &mut Vec<DiagnosticEntry>,
-) -> Result<(String, Vec<u8>), String> {
-    let ts = now_ms();
-    frame_cache.invalidate_device(&dev.id);
-    let packet_slot = if key_idx_1based == 0xFF {
-        0xFF
-    } else {
-        key_image_slot(dev, key_idx_1based.saturating_sub(1))
-    };
-    let pkt = build_clear_key_packet(packet_slot);
-    let hex_preview = pkt[1..14]
-        .iter()
-        .map(|b| format!("{:02X}", b))
-        .collect::<Vec<_>>()
-        .join(" ");
-
-    diagnostics.push(DiagnosticEntry {
-        id: format!("diag-{}", ts),
-        timestamp_ms: ts,
-        level: "info".to_string(),
-        device_id: dev.id.clone(),
-        stage: "CRT_CLE_KEY".to_string(),
-        message: format!("Cleared key slot 0x{:02X} on {}", key_idx_1based, dev.model_name),
-        packet_hex: Some(hex_preview),
-    });
-
-    Ok((format!("Cleared key 0x{:02X}", key_idx_1based), pkt.to_vec()))
-}
-
 fn touch_window_count(cap: u8, zone_len: usize, has_strip: bool) -> usize {
     let cap = cap.max(1).min(4) as usize;
     if has_strip {

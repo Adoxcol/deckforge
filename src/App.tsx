@@ -756,22 +756,23 @@ export const App: React.FC = () => {
     triggerToast(`${res.outputMessage} (${res.elapsedMs}ms)`, "info");
   };
 
-  const handleClearSelectedKey = async () => {
-    if (!activeDevice || !activeKey) return;
+  const handleClearSelectedKey = () => {
+    if (!activeKey) return;
     updateSelectedKey({
       title: "Empty",
       subtitle: "",
       iconName: "Plus",
       actionId: "none",
       actionLabel: "No Action Assigned",
+      actionCategory: "System",
+      customImageDataUrl: undefined,
       actionParam: "",
       accentColor: "#394158",
       bgColor: "#151925",
       media: null,
       backgroundStyle: "Gradient",
     });
-    await deckforgeApi.clearDeviceKey(activeDevice.id, activeKey.index + 1);
-    triggerToast(`Cleared key #${activeKey.index + 1} (CRT\\0\\0CLE)`, "info");
+    triggerToast(`Cleared key #${activeKey.index + 1} in the editor. Apply to Device to update its image and action together.`, "info");
   };
 
   const handleBrightnessChange = async (percent: number) => {

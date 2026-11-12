@@ -116,37 +116,6 @@ pub fn apply_profile_to_device(
 }
 
 #[tauri::command]
-pub fn clear_device_key(
-    device_id: String,
-    key_index_1based: u8,
-    state: State<'_, SharedState>,
-) -> Result<String, String> {
-    let _display = DISPLAY_WRITE.lock_safe();
-    let (dev, packet, message) = {
-        let mut guard = state.lock_safe();
-        if key_index_1based == 0xFF {
-            guard.playback_slots.clear();
-        } else {
-            let idx = key_index_1based.saturating_sub(1);
-            guard.playback_slots.retain(|slot| !matches!(slot.target, PlaybackTarget::Key(i) if i == idx));
-        }
-        let dev = guard
-            .devices
-            .iter()
-            .find(|d| d.id == device_id)
-            .cloned()
-            .ok_or_else(|| format!("Device {} not found", device_id))?;
-        let mut diags = guard.diagnostics.clone();
-        let (message, packet) =
-            clear_hardware_key(&dev, key_index_1based, &mut guard.frame_cache, &mut diags)?;
-        guard.diagnostics = diags;
-        (dev, packet, message)
-    };
-    write_one_report(&dev, &packet)?;
-    Ok(message)
-}
-
-#[tauri::command]
 pub fn save_profiles(profiles: Vec<Profile>, state: State<'_, SharedState>) -> Result<u64, String> {
     let mut guard = state.lock_safe();
     let ts = now_ms();

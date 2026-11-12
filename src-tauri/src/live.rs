@@ -29,6 +29,7 @@ pub(crate) fn action_for_event(guard: &ManagedAppState, evt: &HardwareInputEvent
     match evt.kind {
         InputControlKind::LcdKey => {
             let key = page.keys.iter().find(|key| key.index == evt.control_index)?;
+            if key.action_id.is_empty() || key.action_id == "none" { return None; }
             Some(LiveAction {
                 action_id: key.action_id.clone(),
                 label: key.action_label.clone(),
@@ -924,6 +925,40 @@ mod live_tests {
         let dev = guard.devices[0].clone();
         let id = guard.profiles[0].id.clone();
         prepare_layout(&mut guard, dev, &id, 0, true).unwrap()
+    }
+
+    #[test]
+    fn clear_key_preserves_applied_binding_until_successful_apply_and_survives_recovery() {
+        let shared = test_state();
+        transmit_layout(&shared, prepare_first(&shared), |_, _| Ok(())).unwrap();
+        let event = press(InputControlKind::LcdKey, 0);
+        let original = shared.lock_safe().applied_layout.clone().unwrap();
+        {
+            // Saving an editor clear alone must not blank the physical image or change its binding.
+            let mut guard = shared.lock_safe();
+            let key = &mut guard.profiles[0].pages[0].keys[0];
+            key.title = "Empty".into(); key.action_id = "none".into(); key.action_param.clear(); key.media = None;
+            assert_eq!(action_for_event(&guard, &event).unwrap().action_id, original.page.keys[0].action_id);
+            assert_eq!(guard.applied_layout.as_ref().unwrap().page.keys[0].title, original.page.keys[0].title);
+        }
+        let prepared = prepare_first(&shared);
+        assert!(transmit_layout(&shared, prepared, |_, _| Err("partial clear transfer".into())).is_err());
+        assert!(action_for_event(&shared.lock_safe(), &event).is_none(), "failed transfer must suppress dispatch");
+        assert_eq!(shared.lock_safe().applied_layout.as_ref().unwrap().page.keys[0].title, original.page.keys[0].title);
+        let prepared = prepare_first(&shared);
+        assert_eq!(prepared.applied.page.keys[0].action_id, "none");
+        transmit_layout(&shared, prepared, |_, bursts| { assert!(!bursts.is_empty()); Ok(()) }).unwrap();
+        {
+            let guard = shared.lock_safe();
+            assert!(guard.layout_ready);
+            assert!(action_for_event(&guard, &event).is_none());
+            assert!(action_for_event(&guard, &press(InputControlKind::LcdKey, 1)).is_some());
+            assert_eq!(guard.applied_layout.as_ref().unwrap().page.keys[0].title, "Empty");
+        }
+        let recovery = prepare_reconnect(&mut shared.lock_safe()).unwrap();
+        assert_eq!(recovery.applied.page.keys[0].action_id, "none");
+        transmit_layout(&shared, recovery, |_, _| Ok(())).unwrap();
+        assert!(action_for_event(&shared.lock_safe(), &event).is_none());
     }
 
     #[test]

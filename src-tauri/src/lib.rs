@@ -23,10 +23,10 @@ use drivers::akp05e_protocol::{
 };
 use drivers::frame_cache::{AntiFreezeFrameCache, FrameCacheStats};
 use drivers::hal::{
-    builtin_device_catalog, clear_hardware_key, deck_generation, deck_next_report, deck_status, DeckStatus,
+    builtin_device_catalog, deck_generation, deck_next_report, deck_status, DeckStatus,
     device_uses_akp05e_face, get_cache_stats, key_image_slot, now_ms, publish_screens,
     scan_usb_devices, send_hardware_brightness,
-    touch_zone_image_slot, write_animation_frames, write_hid_bursts, write_one_report,
+    touch_zone_image_slot, write_animation_frames, write_hid_bursts,
     write_panel_brightness, wake_panel, deck_note, request_full_push, DeviceDescriptor, DiagnosticEntry,
     HidBurst, PlaybackSlot,
     PlaybackTarget, ScreenJob, StripJob, SyncKeyResult, ZoneJob, AKP05E_TOUCH_WINDOW_H,
@@ -94,7 +94,6 @@ pub fn run() {
             refresh_usb_devices,
             set_device_brightness,
             apply_profile_to_device,
-            clear_device_key,
             save_profiles,
             save_macros,
             test_key_action,

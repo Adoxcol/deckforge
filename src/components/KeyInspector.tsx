@@ -20,7 +20,7 @@ interface KeyInspectorProps {
   currentMedia: () => ScreenMediaConfig | null;
   face: DeckFaceState | null;
   fileRef: React.RefObject<HTMLInputElement | null>;
-  handleClearSelectedKey: () => Promise<void>;
+  handleClearSelectedKey: () => void;
   handleTestSelectedAction: () => Promise<void>;
   hotkeyTarget: "key" | "zone" | "push" | "cw" | "ccw" | null;
   ingestFile: (file: File, target: ScreenTarget, index: number) => Promise<void>;
@@ -537,10 +537,11 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
         </button>
         <button
           onClick={handleClearSelectedKey}
+          title="Clear this key in the editor. Apply to Device to update the physical key."
           className="w-full h-8 rounded-md bg-transparent border border-[#272D3D] hover:border-[#F16B79] text-xs text-[#A6AFC4] hover:text-[#F16B79] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
         >
           <Trash2 size={12} />
-          <span>Clear Key</span>
+          <span>Clear Key in Editor</span>
         </button>
       </div>
       )}
