@@ -394,19 +394,6 @@ pub(crate) fn push_connected_layout(shared: &SharedState) {
         deck_note("no deck in the device list, so the layout was not sent");
         return;
     }
-    {
-        let mut guard = shared.lock().unwrap_or_else(|e| e.into_inner());
-        if let Some(dev) = guard
-            .devices
-            .iter()
-            .find(|d| d.connected && d.protocol_family.starts_with("CRT"))
-        {
-            if guard.profiles.iter().any(|p| p.id == dev.assigned_profile_id) {
-                guard.active_profile_id = dev.assigned_profile_id.clone();
-            }
-            guard.active_page_index = 0;
-        }
-    }
     // First contact may find the panel blank, so this one path handshakes and
     // then restores brightness. Later page changes must not handshake.
     //
@@ -415,7 +402,7 @@ pub(crate) fn push_connected_layout(shared: &SharedState) {
     // this loop gives up as soon as the deck has been reopened.
     let generation = deck_generation();
     for attempt in 1..=3u32 {
-        match push_active_layout(shared, true) {
+        match restore_connected_layout(shared) {
             Ok(()) => return,
             Err(err) => {
                 deck_note(&format!("layout push failed (attempt {attempt}/3): {err}"));
@@ -428,9 +415,23 @@ pub(crate) fn push_connected_layout(shared: &SharedState) {
     }
 }
 
-pub(crate) fn push_active_layout(shared: &SharedState, handshake: bool) -> Result<(), String> {
+pub(crate) fn restore_connected_layout(shared: &SharedState) -> Result<(), String> {
     let _display = DISPLAY_WRITE.lock_safe();
-    push_active_layout_locked(shared, handshake)
+    let prepared = prepare_reconnect(&mut shared.lock_safe())?;
+    transmit_layout(shared, prepared, write_hid_bursts).map(|_| ())
+}
+
+fn prepare_reconnect(guard: &mut ManagedAppState) -> Result<PreparedLayout, String> {
+    let dev = guard.devices.iter()
+        .find(|d| d.connected && device_uses_akp05e_face(d))
+        .cloned().ok_or("No connected deck")?;
+    if let Some(applied) = guard.applied_layout.clone() {
+        // Resend the exact applied page, not saved edits which have not been applied.
+        return prepare_snapshot(guard, dev, applied, true);
+    }
+    let profile_id = guard.active_profile_id.clone();
+    let page_index = guard.active_page_index;
+    prepare_layout(guard, dev, &profile_id, page_index, true)
 }
 
 pub(crate) fn push_active_layout_locked(shared: &SharedState, handshake: bool) -> Result<(), String> {
@@ -475,6 +476,18 @@ pub(crate) fn prepare_layout(
         .get(page_index)
         .ok_or_else(|| format!("Page index {page_index} not found"))?
         .clone();
+    prepare_snapshot(guard, dev, AppliedLayout { profile_id: profile_id.to_string(), page_index, page }, invalidate)
+}
+
+fn prepare_snapshot(
+    guard: &mut ManagedAppState,
+    dev: DeviceDescriptor,
+    applied: AppliedLayout,
+    invalidate: bool,
+) -> Result<PreparedLayout, String> {
+    if !dev.connected || dev.is_simulator || !device_uses_akp05e_face(&dev) {
+        return Err("A connected AKP05E Pro is required to apply a layout".into());
+    }
     if invalidate || !guard.layout_ready {
         guard.frame_cache.invalidate_device(&dev.id);
     }
@@ -482,7 +495,7 @@ pub(crate) fn prepare_layout(
     // Do not resolve physical presses until the entire layout succeeds.
     guard.layout_ready = false;
     guard.playback_slots.clear();
-    let (jobs, zones, strip) = plan_screens(&dev, &page, &guard.face);
+    let (jobs, zones, strip) = plan_screens(&dev, &applied.page, &guard.face);
     let media = std::mem::take(&mut guard.media);
     let mut diags = Vec::new();
     let outcome = publish_screens(
@@ -502,7 +515,7 @@ pub(crate) fn prepare_layout(
     }
     Ok(PreparedLayout {
         dev,
-        applied: AppliedLayout { profile_id: profile_id.to_string(), page_index, page },
+        applied,
         outcome,
     })
 }
@@ -533,7 +546,18 @@ pub(crate) fn transmit_layout(
     guard.playback_slots = prepared.outcome.playback;
     guard.playback_device_id = prepared.dev.id;
     guard.applied_to_device_at_ms = Some(now_ms());
-    Ok(prepared.outcome.result)
+    let mut result = prepared.outcome.result;
+    if let Err(err) = guard.persist_applied_layout() {
+        let warning = format!("Layout sent, but could not save it for restart: {err}");
+        let device_id = guard.playback_device_id.clone();
+        guard.diagnostics.push(DiagnosticEntry {
+            id: format!("diag-layout-save-{}", now_ms()), timestamp_ms: now_ms(),
+            level: "warning".into(), device_id,
+            stage: "SAVE_APPLIED_LAYOUT".into(), message: warning.clone(), packet_hex: None,
+        });
+        result.status_message = warning;
+    }
+    Ok(result)
 }
 
 pub(crate) fn dispatch_live_action(
@@ -843,6 +867,7 @@ mod live_tests {
             active_profile_id: "profile-streaming".into(),
             active_page_index: 0,
             applied_layout: None,
+            applied_layout_path: None,
             layout_ready: false,
             auto_switch_rules: Vec::new(),
             macros: Vec::new(),
@@ -873,6 +898,131 @@ mod live_tests {
             device_id: "ajazz-akp05e-pro".into(), kind, control_index: index,
             state_code: 1, pressed: true, raw_hex: String::new(), timestamp_ms: 1, x: 0,
         }
+    }
+
+    struct TestLayoutStore(std::path::PathBuf);
+
+    impl TestLayoutStore {
+        fn new() -> Self {
+            static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let suffix = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let dir = std::env::temp_dir().join(format!("deckforge-layout-{}-{}-{suffix}", std::process::id(), now_ms()));
+            std::fs::create_dir(&dir).unwrap();
+            Self(dir.join("applied-layout.json"))
+        }
+    }
+
+    impl Drop for TestLayoutStore {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_file(&self.0);
+            let _ = std::fs::remove_file(self.0.with_extension("json.tmp"));
+            let _ = std::fs::remove_dir(self.0.parent().unwrap());
+        }
+    }
+
+    fn apply_non_default(shared: &SharedState) -> AppliedLayout {
+        let prepared = {
+            let mut guard = shared.lock_safe();
+            let mut profile = guard.profiles[0].clone();
+            profile.id = "profile-recovery-test".into();
+            let mut page = profile.pages[0].clone();
+            page.id = "page-recovery-test".into();
+            page.keys[0].title = "Recovery test".into();
+            page.keys[0].action_id = "custom.hotkey".into();
+            page.keys[0].action_param = "Ctrl+Shift+R".into();
+            profile.pages.push(page);
+            let index = profile.pages.len() - 1;
+            let id = profile.id.clone();
+            guard.profiles.push(profile);
+            let dev = guard.devices[0].clone();
+            prepare_layout(&mut guard, dev, &id, index, true).unwrap()
+        };
+        transmit_layout(shared, prepared, |_, _| Ok(())).unwrap();
+        shared.lock_safe().applied_layout.clone().unwrap()
+    }
+
+    #[test]
+    fn reconnect_and_resend_keep_non_default_page_despite_new_saved_edits() {
+        let shared = test_state();
+        let applied = apply_non_default(&shared);
+        // Neither edited nor deleted saved pages may alter a recovery transmission.
+        shared.lock_safe().profiles.clear();
+        for _ in 0..2 {
+            let prepared = prepare_reconnect(&mut shared.lock_safe()).unwrap();
+            assert_eq!(serde_json::to_string(&prepared.applied).unwrap(), serde_json::to_string(&applied).unwrap());
+            transmit_layout(&shared, prepared, |_, bursts| {
+                assert!(!bursts.is_empty(), "recovery must resend even unchanged frames");
+                Ok(())
+            }).unwrap();
+            let guard = shared.lock_safe();
+            assert_eq!(guard.active_profile_id, applied.profile_id);
+            assert_eq!(guard.active_page_index, applied.page_index);
+        }
+    }
+
+    #[test]
+    fn restart_restores_persisted_snapshot_and_failed_apply_does_not_replace_it() {
+        let store = TestLayoutStore::new();
+        let shared = test_state();
+        shared.lock_safe().applied_layout_path = Some(store.0.clone());
+        let applied = apply_non_default(&shared);
+        let loaded = load_applied_layout(&store.0).unwrap().unwrap();
+        assert_eq!(serde_json::to_string(&loaded).unwrap(), serde_json::to_string(&applied).unwrap());
+        let failed = prepare_first(&shared);
+        assert!(transmit_layout(&shared, failed, |_, _| Err("USB interrupted".into())).is_err());
+        let restarted = test_state();
+        restarted.lock_safe().applied_layout = load_applied_layout(&store.0).unwrap();
+        let prepared = prepare_reconnect(&mut restarted.lock_safe()).unwrap();
+        assert_eq!(prepared.applied.profile_id, applied.profile_id);
+        assert_eq!(prepared.applied.page.id, applied.page.id);
+        transmit_layout(&restarted, prepared, |_, _| Ok(())).unwrap();
+        let event = press(InputControlKind::LcdKey, 0);
+        assert_eq!(action_for_event(&restarted.lock_safe(), &event).unwrap().param, "Ctrl+Shift+R");
+        // A second successful apply replaces the file, including on Windows.
+        let prepared = prepare_first(&shared);
+        transmit_layout(&shared, prepared, |_, _| Ok(())).unwrap();
+        assert_ne!(load_applied_layout(&store.0).unwrap().unwrap().profile_id, applied.profile_id);
+    }
+
+    #[test]
+    fn missing_corrupt_and_future_layout_stores_are_handled_explicitly() {
+        let store = TestLayoutStore::new();
+        assert!(load_applied_layout(&store.0).unwrap().is_none());
+        std::fs::write(&store.0, "broken JSON").unwrap();
+        assert!(load_applied_layout(&store.0).is_err());
+        let shared = test_state();
+        let applied = apply_non_default(&shared);
+        std::fs::write(&store.0, serde_json::json!({"version": 99, "layout": applied}).to_string()).unwrap();
+        assert!(load_applied_layout(&store.0).is_err());
+        // With no prior snapshot, first connection still applies the initial profile.
+        assert!(prepare_reconnect(&mut test_state().lock_safe()).is_ok());
+    }
+
+    #[test]
+    fn restart_save_failure_is_reported_without_undoing_successful_hardware_apply() {
+        let store = TestLayoutStore::new();
+        std::fs::write(&store.0, "a file cannot be a parent directory").unwrap();
+        let shared = test_state();
+        shared.lock_safe().applied_layout_path = Some(store.0.join("unwritable.json"));
+        let prepared = prepare_first(&shared);
+        let result = transmit_layout(&shared, prepared, |_, _| Ok(())).unwrap();
+        assert!(result.status_message.contains("could not save it for restart"));
+        assert!(shared.lock_safe().layout_ready);
+        assert_eq!(shared.lock_safe().diagnostics.last().unwrap().level, "warning");
+    }
+
+    #[test]
+    fn startup_editor_context_finds_applied_page_by_id_after_reordering() {
+        let shared = test_state();
+        let applied = apply_non_default(&shared);
+        let mut guard = shared.lock_safe();
+        let profile = guard.profiles.iter_mut().find(|p| p.id == applied.profile_id).unwrap();
+        profile.pages.swap(0, applied.page_index);
+        let context = guard.applied_editor_context().unwrap();
+        assert_eq!(context.profile_id, applied.profile_id);
+        assert_eq!(context.page_index, 0);
+        guard.profiles.clear();
+        assert!(guard.applied_editor_context().is_none());
     }
 
     #[test]

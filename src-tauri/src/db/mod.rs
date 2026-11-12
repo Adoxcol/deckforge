@@ -1080,7 +1080,7 @@ pub fn profiles_store_path() -> PathBuf {
 /// The deck does not keep a layout. This file is the copy DeckForge sends after each connect.
 /// Writes to a temporary file first, then swaps it in, so a crash mid-save cannot leave a
 /// half-written file behind.
-fn write_atomic(path: &std::path::Path, raw: &str) -> Result<(), String> {
+pub(crate) fn write_atomic(path: &std::path::Path, raw: &str) -> Result<(), String> {
     let tmp = path.with_extension("json.tmp");
     fs::write(&tmp, raw).map_err(|e| e.to_string())?;
     fs::rename(&tmp, path).map_err(|e| e.to_string())

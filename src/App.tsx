@@ -144,6 +144,10 @@ export const App: React.FC = () => {
     deckforgeApi.getInitialState().then((data) => {
       setDevices(data.devices);
       setProfiles(data.profiles);
+      if (data.appliedContext) {
+        setSelectedProfileId(data.appliedContext.profileId);
+        setSelectedPageIdx(data.appliedContext.pageIndex);
+      }
       setAutoSwitchRules(data.autoSwitchRules);
       setMacros(data.macros);
       setDiagnostics(data.diagnostics);

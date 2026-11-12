@@ -17,6 +17,7 @@ pub struct FullBootstrapPayload {
     pub media_library: Vec<MediaPreview>,
     pub face: DeckFaceState,
     pub obs: ObsSettings,
+    pub applied_context: Option<DeckContextEvent>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -40,11 +41,39 @@ pub struct DeckContextEvent {
 }
 
 /// The exact bindings whose images were successfully sent to the device.
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct AppliedLayout {
     pub profile_id: String,
     pub page_index: usize,
     pub page: ProfilePage,
+}
+
+#[derive(Serialize, Deserialize)]
+struct SavedAppliedLayout {
+    version: u32,
+    layout: AppliedLayout,
+}
+
+pub(crate) fn load_applied_layout(path: &std::path::Path) -> Result<Option<AppliedLayout>, String> {
+    let raw = match std::fs::read_to_string(path) {
+        Ok(raw) => raw,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(err) => return Err(err.to_string()),
+    };
+    let saved: SavedAppliedLayout = serde_json::from_str(&raw).map_err(|e| e.to_string())?;
+    if saved.version != 1 || saved.layout.profile_id.is_empty() || saved.layout.page.id.is_empty() {
+        return Err("Invalid or unsupported saved deck layout".into());
+    }
+    Ok(Some(saved.layout))
+}
+
+fn save_applied_layout(path: &std::path::Path, layout: &AppliedLayout) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+    let raw = serde_json::to_string(&SavedAppliedLayout { version: 1, layout: layout.clone() })
+        .map_err(|e| e.to_string())?;
+    db::write_atomic(path, &raw)
 }
 
 // Serialize layout changes and background redraws without holding SharedState during USB I/O.
@@ -56,6 +85,7 @@ pub struct ManagedAppState {
     pub active_profile_id: String,
     pub active_page_index: usize,
     pub applied_layout: Option<AppliedLayout>,
+    pub applied_layout_path: Option<std::path::PathBuf>,
     pub layout_ready: bool,
     pub auto_switch_rules: Vec<AutoSwitchRule>,
     pub macros: Vec<MacroSequence>,
@@ -88,6 +118,18 @@ impl Default for ManagedAppState {
         scan_usb_devices(&mut devices, &mut diagnostics);
 
         let profiles = load_saved_profiles();
+        let applied_layout_path = db::profiles_store_path().with_file_name("applied-layout.json");
+        let applied_layout = load_applied_layout(&applied_layout_path).unwrap_or_else(|err| {
+            diagnostics.push(DiagnosticEntry {
+                id: "diag-layout-load".into(), timestamp_ms: now_ms(), level: "warning".into(),
+                device_id: "ajazz-akp05e-pro".into(), stage: "RESTORE_LAYOUT".into(),
+                message: format!("Could not restore the last deck layout: {err}"), packet_hex: None,
+            });
+            None
+        });
+        let active_profile_id = applied_layout.as_ref().map(|a| a.profile_id.clone())
+            .or_else(|| profiles.first().map(|p| p.id.clone())).unwrap_or_default();
+        let active_page_index = applied_layout.as_ref().map(|a| a.page_index).unwrap_or(0);
         let frame_cache = AntiFreezeFrameCache::new();
         let applied_to_device_at_ms = None;
 
@@ -111,9 +153,10 @@ impl Default for ManagedAppState {
         Self {
             devices,
             profiles,
-            active_profile_id: "profile-streaming".to_string(),
-            active_page_index: 0,
-            applied_layout: None,
+            active_profile_id,
+            active_page_index,
+            applied_layout,
+            applied_layout_path: Some(applied_layout_path),
             layout_ready: false,
             auto_switch_rules: load_auto_switch_rules(),
             macros: load_saved_macros(),
@@ -130,6 +173,26 @@ impl Default for ManagedAppState {
             sample_after_ms: 0,
             auto_switch_hold_until_ms: 0,
         }
+    }
+}
+
+impl ManagedAppState {
+    pub(crate) fn persist_applied_layout(&self) -> Result<(), String> {
+        match (&self.applied_layout_path, &self.applied_layout) {
+            (Some(path), Some(layout)) => save_applied_layout(path, layout),
+            _ => Ok(()),
+        }
+    }
+
+    pub(crate) fn applied_editor_context(&self) -> Option<DeckContextEvent> {
+        let applied = self.applied_layout.as_ref()?;
+        let profile = self.profiles.iter().find(|p| p.id == applied.profile_id)?;
+        // Editor pages may have been reordered since this snapshot was applied.
+        let page_index = profile.pages.iter().position(|p| p.id == applied.page.id)?;
+        Some(DeckContextEvent {
+            profile_id: profile.id.clone(), page_index,
+            message: "Restored last applied layout".into(),
+        })
     }
 }
 

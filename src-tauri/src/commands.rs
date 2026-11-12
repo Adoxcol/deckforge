@@ -33,6 +33,7 @@ pub fn get_initial_state(state: State<'_, SharedState>) -> Result<FullBootstrapP
     };
 
     Ok(FullBootstrapPayload {
+        applied_context: state.lock_safe().applied_editor_context(),
         devices,
         profiles,
         auto_switch_rules,
