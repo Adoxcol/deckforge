@@ -318,6 +318,9 @@ mod tests {
                     assert!(Instant::now() < deadline, "webhook did not reach loopback server");
                     std::thread::sleep(Duration::from_millis(10));
                 };
+                // On Windows an accepted socket inherits the listener's non-blocking mode, so the
+                // read below failed with WouldBlock whenever the request had not arrived yet.
+                socket.set_nonblocking(false).unwrap();
                 socket.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
                 let _ = socket.read(&mut [0; 4096]).unwrap();
                 arrived.send(()).unwrap();
