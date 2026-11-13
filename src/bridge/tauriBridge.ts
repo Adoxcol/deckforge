@@ -29,7 +29,27 @@ import type {
   RestoredBackup,
   RecoveryDraft,
   DraftSnapshot,
+  PluginView,
 } from "../types/deckforge";
+
+/** A sample plugin so the browser preview has something to show. */
+let mockPlugins: PluginView[] = [
+  {
+    uuid: "com.example.counter",
+    name: "Counter",
+    author: "Example",
+    version: "1.0.0",
+    description: "Counts key presses (browser preview sample).",
+    source: "Stream Dock",
+    dir: "",
+    runtime: "node",
+    enabled: false,
+    running: false,
+    problem: null,
+    icon: null,
+    actions: [{ uuid: "com.example.counter.add", name: "Add one", tooltip: "Adds one on each press" }],
+  },
+];
 
 export const isTauriRuntime = (): boolean => {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -1003,6 +1023,22 @@ export const deckforgeApi = {
       return await invoke<GameModeStatus>("game_mode_status");
     }
     return { ...mockGameModeStatus };
+  },
+
+  async pluginList(): Promise<PluginView[]> {
+    if (isTauriRuntime()) return await invoke<PluginView[]>("plugin_list");
+    return mockPlugins.map((p) => ({ ...p }));
+  },
+
+  async pluginRescan(): Promise<PluginView[]> {
+    if (isTauriRuntime()) return await invoke<PluginView[]>("plugin_rescan");
+    return mockPlugins.map((p) => ({ ...p }));
+  },
+
+  async pluginSetEnabled(uuid: string, enabled: boolean): Promise<PluginView[]> {
+    if (isTauriRuntime()) return await invoke<PluginView[]>("plugin_set_enabled", { uuid, enabled });
+    mockPlugins = mockPlugins.map((p) => (p.uuid === uuid ? { ...p, enabled, running: enabled } : p));
+    return mockPlugins.map((p) => ({ ...p }));
   },
 
   async gameModeArmHelper(): Promise<string> {

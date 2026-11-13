@@ -139,6 +139,7 @@ pub async fn test_key_action(
         param: action_param.clone(),
         note: "Test".to_string(),
         device_id: "action-runner".to_string(),
+        key_index: None,
     };
     let shared = state.inner().clone();
     let res = tauri::async_runtime::spawn_blocking(move || dispatch_live_action(&app, &shared, &action))
@@ -501,4 +502,20 @@ pub async fn app_icon(process_name: String) -> Option<String> {
 #[tauri::command]
 pub async fn open_apps() -> Vec<String> {
     tauri::async_runtime::spawn_blocking(crate::game_mode::open_app_exes).await.unwrap_or_default()
+}
+
+#[tauri::command]
+pub fn plugin_list() -> Vec<crate::plugins::PluginView> {
+    crate::plugins::list()
+}
+
+#[tauri::command]
+pub async fn plugin_rescan() -> Vec<crate::plugins::PluginView> {
+    crate::plugins::rescan()
+}
+
+/// Async so starting an HTML plugin's hidden window never runs on the main thread.
+#[tauri::command]
+pub async fn plugin_set_enabled(uuid: String, enabled: bool) -> Result<Vec<crate::plugins::PluginView>, String> {
+    crate::plugins::set_enabled(&uuid, enabled)
 }

@@ -60,7 +60,7 @@ import { WorkspaceSidebar } from "./components/WorkspaceSidebar";
 import { ActionDrawer, keyPatchForAction, zonePatchForAction, encoderPatchForAction, type KnobPart } from "./components/ActionDrawer";
 import { KeyInspector } from "./components/KeyInspector";
 import { DevicesScreen } from "./screens/DevicesScreen";
-import { PluginsScreen } from "./screens/PluginsScreen";
+import { PluginsScreen, pluginActionTemplates } from "./screens/PluginsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import type {
   AutoSwitchRule,
@@ -73,6 +73,7 @@ import type {
   EncoderConfig,
   KeyConfig,
   LegacyStreamDockSummary,
+  PluginView,
   MacroRunReport,
   MacroSequence,
   MediaPreview,
@@ -391,9 +392,15 @@ export const App: React.FC = () => {
   const [hotkeyTarget, setHotkeyTarget] = useState<"key" | "zone" | "cw" | "ccw" | "push" | null>(null);
   const [customActions, setCustomActions] = useState<ActionTemplate[]>([]);
 
+  const [plugins, setPlugins] = useState<PluginView[]>([]);
+  useEffect(() => {
+    deckforgeApi.pluginList().then(setPlugins).catch(() => setPlugins([]));
+  }, []);
+  const pluginActions = useMemo(() => pluginActionTemplates(plugins), [plugins]);
+
   const allActionTemplates = useMemo(
-    () => [...customActions, ...ACTION_CATALOG],
-    [customActions]
+    () => [...customActions, ...ACTION_CATALOG, ...pluginActions],
+    [customActions, pluginActions]
   );
 
   // Keyboard shortcuts (Ctrl+S, Ctrl+Z, Ctrl+Y) + Live Hotkey Recorder
@@ -1383,7 +1390,7 @@ export const App: React.FC = () => {
 
       {/* 4. SCREEN 04: PLUGINS & LEGACY .sdPlugin BRIDGE (Spec Section 7) */}
       {activeScreen === "plugins" && (
-        <PluginsScreen legacySummary={legacySummary} onImportLegacy={handleImportLegacyProfiles} />
+        <PluginsScreen legacySummary={legacySummary} onImportLegacy={handleImportLegacyProfiles} plugins={plugins} onPluginsChange={setPlugins} notify={triggerToast} />
       )}
 
       {activeScreen === "macros" && (

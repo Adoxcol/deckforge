@@ -6,6 +6,8 @@ pub(crate) struct LiveAction {
     pub(crate) param: String,
     pub(crate) note: String,
     pub(crate) device_id: String,
+    /// The deck key that was pressed, for actions that care (plugins).
+    pub(crate) key_index: Option<u8>,
 }
 
 pub(crate) fn kind_code(kind: &InputControlKind) -> u8 {
@@ -36,6 +38,7 @@ pub(crate) fn action_for_event(guard: &ManagedAppState, evt: &HardwareInputEvent
                 param: key.action_param.clone(),
                 note: format!("Key #{} ({})", evt.control_index + 1, key.title),
                 device_id: evt.device_id.clone(),
+                key_index: Some(evt.control_index),
             })
         }
         InputControlKind::RotaryKnobTurnCw => {
@@ -76,6 +79,7 @@ pub(crate) fn action_for_event(guard: &ManagedAppState, evt: &HardwareInputEvent
                 param: zone.tap_action_param.clone(),
                 note: format!("Touch zone {} ({})", evt.control_index + 1, zone.label),
                 device_id: evt.device_id.clone(),
+                key_index: None,
             })
         }
         InputControlKind::TouchStripSwipe => {
@@ -86,6 +90,7 @@ pub(crate) fn action_for_event(guard: &ManagedAppState, evt: &HardwareInputEvent
                 param: String::new(),
                 note: if next { "Swipe right" } else { "Swipe left" }.to_string(),
                 device_id: evt.device_id.clone(),
+                key_index: None,
             })
         }
         InputControlKind::TouchStripPoint | InputControlKind::Unknown => None,
@@ -153,6 +158,7 @@ pub(crate) fn binding_action(binding: &str, param: &str, label: &str, note: Stri
             param: param.to_string(),
             note,
             device_id,
+            key_index: None,
         }
     } else {
         LiveAction {
@@ -161,6 +167,7 @@ pub(crate) fn binding_action(binding: &str, param: &str, label: &str, note: Stri
             param: binding.to_string(),
             note,
             device_id,
+            key_index: None,
         }
     }
 }
@@ -210,6 +217,8 @@ pub(crate) fn key_level(action_id: &str, face: &DeckFaceState) -> Option<u8> {
 pub(crate) fn key_art<'a>(key: &KeyConfig, face: &'a DeckFaceState) -> Option<&'a [u8]> {
     if key.media.is_none() && key.action_id == "media.now_playing" && !face.media_art.is_empty() {
         Some(face.media_art.as_slice())
+    } else if key.media.is_none() && key.action_id.starts_with(crate::plugins::ACTION_PREFIX) {
+        face.plugin_keys.get(&key.index).map(|f| f.image.as_slice()).filter(|b| !b.is_empty())
     } else {
         None
     }
@@ -218,6 +227,10 @@ pub(crate) fn key_art<'a>(key: &KeyConfig, face: &'a DeckFaceState) -> Option<&'
 pub(crate) fn styled_key(key: &KeyConfig, face: &DeckFaceState) -> (String, String) {
     if key.media.is_some() {
         return (key.title.clone(), key.icon_name.clone());
+    }
+    if key.action_id.starts_with(crate::plugins::ACTION_PREFIX) {
+        let title = face.plugin_keys.get(&key.index).and_then(|f| f.title.clone());
+        return (title.unwrap_or_else(|| key.title.clone()), key.icon_name.clone());
     }
     match key.action_id.as_str() {
         "sys.cpu" => match face.cpu_percent {
@@ -600,6 +613,8 @@ pub(crate) fn dispatch_live_action(
         Some(start_macro(app, shared, &action.param, &action.label))
     } else if action.action_id == "sys.game_mode" {
         Some(start_game_mode_toggle(app, shared, &action.param))
+    } else if action.action_id.starts_with(crate::plugins::ACTION_PREFIX) {
+        Some(crate::plugins::key_press(action.key_index))
     } else {
         apply_brightness_action(shared, &action.action_id)
             .or_else(|| apply_navigation(app, shared, &action.action_id, &action.param))
@@ -783,6 +798,7 @@ pub(crate) fn sample_face(guard: &mut ManagedAppState) -> bool {
         ram_percent: stats.ram_percent,
         clock: stats.clock,
         media_art,
+        plugin_keys: crate::plugins::current_faces(),
     };
     if next == guard.face {
         false

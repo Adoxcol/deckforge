@@ -40,6 +40,18 @@ pub struct DeckFaceState {
     /// Album art of what is playing, as the image bytes Windows hands out.
     #[serde(skip)]
     pub media_art: Vec<u8>,
+    /// What plugins asked to show on the keys of the page on the deck, by key index.
+    #[serde(skip)]
+    pub plugin_keys: std::collections::BTreeMap<u8, PluginKeyFace>,
+}
+
+/// A title and image a plugin set on one key.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct PluginKeyFace {
+    /// `None` keeps the key's own title.
+    pub title: Option<String>,
+    pub image: Vec<u8>,
+    pub state: u8,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

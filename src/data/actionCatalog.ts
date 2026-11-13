@@ -4,7 +4,7 @@ export interface ActionTemplate {
   id: string;
   title: string;
   subtitle: string;
-  category: "Custom" | "OBS" | "Media" | "System" | "Navigation" | "Macro" | "Shortcuts";
+  category: "Custom" | "OBS" | "Media" | "System" | "Navigation" | "Macro" | "Shortcuts" | `Plugin: ${string}`;
   iconName: string;
   actionLabel: string;
   defaultParam: string;

@@ -340,6 +340,32 @@ export interface GameModeMode {
   startApps: GameModeStartApp[];
 }
 
+/** One action a plugin offers. */
+export interface PluginActionView {
+  uuid: string;
+  name: string;
+  tooltip: string;
+}
+
+/** An installed Stream Deck / Stream Dock style plugin. */
+export interface PluginView {
+  uuid: string;
+  name: string;
+  author: string;
+  version: string;
+  description: string;
+  /** Where it was found: "Stream Dock", "Stream Deck" or "DeckForge". */
+  source: string;
+  dir: string;
+  runtime: "node" | "html" | "exe" | "unknown";
+  enabled: boolean;
+  /** Connected to DeckForge right now. */
+  running: boolean;
+  problem: string | null;
+  icon: string | null;
+  actions: PluginActionView[];
+}
+
 /** A program Game Mode starts when it turns on. */
 export interface GameModeStartApp {
   label: string;
