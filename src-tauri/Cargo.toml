@@ -1,6 +1,6 @@
 [package]
 name = "deckforge"
-version = "0.2.0"
+version = "0.3.0"
 description = "DeckForge (OpenStreamDeck) — Universal Open-Source Stream Deck & Stream Dock Controller"
 authors = ["DeckForge Open Source Contributors"]
 license = "GPL-3.0-or-later"
