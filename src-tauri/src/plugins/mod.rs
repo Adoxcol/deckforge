@@ -5,6 +5,7 @@
 //! and the two sides trade JSON events: key presses go out, titles and images come back.
 //! Plugins are off until the user turns each one on, because they run with the user's rights.
 
+mod install;
 mod manifest;
 #[cfg(test)]
 mod tests;
@@ -32,6 +33,8 @@ static HOST: OnceLock<Mutex<Host>> = OnceLock::new();
 static APP: OnceLock<tauri::AppHandle> = OnceLock::new();
 
 pub const ACTION_PREFIX: &str = "plugin:";
+/// Base64 of the largest plugin file accepted from the app.
+pub const MAX_UPLOAD_B64: usize = install::MAX_DOWNLOAD_BYTES / 3 * 4 + 16;
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
@@ -707,6 +710,50 @@ pub fn set_enabled(uuid: &str, enabled: bool) -> Result<Vec<PluginView>, String>
     }
     h.save();
     Ok(h.view())
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Installed {
+    pub uuid: String,
+    pub name: String,
+    pub plugins: Vec<PluginView>,
+}
+
+pub use install::GithubPlugin;
+
+/// Installs a `.streamDeckPlugin` package into DeckForge's plugin folder. A plugin that was
+/// on stays on and restarts with the new version; a new one starts off.
+pub fn install_archive(bytes: &[u8]) -> Result<Installed, String> {
+    let root = install::deckforge_root();
+    let manifest = install::unpack(bytes, &root, |dir| {
+        if let Some(mut h) = host() {
+            let uuids: Vec<String> = h.manifests.iter().filter(|m| m.dir == dir).map(|m| m.uuid.clone()).collect();
+            for uuid in uuids {
+                h.stop_plugin(&uuid);
+            }
+        }
+    })?;
+    let mut h = host().ok_or("Plugins are still starting.")?;
+    let uuid = manifest.uuid.clone();
+    let name = manifest.name.clone();
+    h.stop_plugin(&uuid);
+    h.problems.remove(&uuid);
+    h.manifests.retain(|m| m.uuid != uuid);
+    h.manifests.insert(0, manifest);
+    if h.store.enabled.contains(&uuid) {
+        h.start_plugin(&uuid);
+    }
+    Ok(Installed { uuid, name, plugins: h.view() })
+}
+
+pub async fn search_github(query: &str) -> Result<Vec<GithubPlugin>, String> {
+    install::search_github(query).await
+}
+
+pub async fn install_from_github(repo: &str) -> Result<Installed, String> {
+    let bytes = install::download_latest(repo).await?;
+    install_archive(&bytes)
 }
 
 /// Sends a key press to the plugin that owns the key on the deck.

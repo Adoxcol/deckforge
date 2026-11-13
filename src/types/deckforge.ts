@@ -366,6 +366,25 @@ export interface PluginView {
   actions: PluginActionView[];
 }
 
+/** A plugin that was just installed, plus the updated list. */
+export interface PluginInstalled {
+  uuid: string;
+  name: string;
+  plugins: PluginView[];
+}
+
+/** An open-source plugin project on GitHub. */
+export interface GithubPlugin {
+  /** "owner/name". */
+  repo: string;
+  name: string;
+  description: string;
+  stars: number;
+  url: string;
+  ownerAvatar: string;
+  updatedAt: string;
+}
+
 /** A program Game Mode starts when it turns on. */
 export interface GameModeStartApp {
   label: string;

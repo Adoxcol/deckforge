@@ -147,7 +147,11 @@ pub fn run() {
             game_mode_arm_helper,
             commands::plugin_list,
             commands::plugin_rescan,
-            commands::plugin_set_enabled
+            commands::plugin_set_enabled,
+            commands::plugin_install_file,
+            commands::plugin_github_search,
+            commands::plugin_github_install,
+            commands::plugin_open_page
         ])
         .run(tauri::generate_context!())
         .expect("error while running DeckForge Tauri application");

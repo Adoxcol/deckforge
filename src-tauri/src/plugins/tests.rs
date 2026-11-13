@@ -3,7 +3,9 @@ use super::*;
 use std::sync::mpsc;
 
 fn temp_dir(name: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!("deckforge-plugins-{name}-{}-{}", std::process::id(), now_ms()));
+    static N: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
+    let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let dir = std::env::temp_dir().join(format!("deckforge-plugins-{name}-{}-{}-{n}", std::process::id(), now_ms()));
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }

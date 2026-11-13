@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Puzzle, RefreshCw, TriangleAlert } from "lucide-react";
+import { Download, ExternalLink, Puzzle, RefreshCw, Search, Star, TriangleAlert, Upload } from "lucide-react";
 import { deckforgeApi } from "../bridge/tauriBridge";
 import type { ActionTemplate } from "../data/actionCatalog";
 import { errorText } from "../lib/format";
-import type { LegacyStreamDockSummary, PluginView } from "../types/deckforge";
+import type { GithubPlugin, LegacyStreamDockSummary, PluginInstalled, PluginView } from "../types/deckforge";
 
 type Notify = (text: string, kind?: "success" | "info" | "warning") => void;
 
@@ -15,7 +15,16 @@ interface PluginsScreenProps {
   notify: Notify;
 }
 
-type PluginTab = "Installed plugins" | "Built-in actions";
+type PluginTab = "Installed plugins" | "Browse" | "Built-in actions";
+
+const MAX_FILE_BYTES = 200 * 1024 * 1024;
+
+function toBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) out += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return btoa(out);
+}
 
 /** Actions of the plugins that are turned on, for the key action picker. */
 export function pluginActionTemplates(plugins: PluginView[]): ActionTemplate[] {
@@ -62,6 +71,59 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
   const [tab, setTab] = useState<PluginTab>("Installed plugins");
   const [confirming, setConfirming] = useState<PluginView | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const fileInput = React.useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<GithubPlugin[] | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [installing, setInstalling] = useState<string | null>(null);
+
+  const installed = (result: PluginInstalled) => {
+    onPluginsChange(result.plugins);
+    notify(`Installed ${result.name}. Turn it on in Installed plugins to use it.`, "success");
+  };
+
+  const installFile = async (file: File) => {
+    if (file.size > MAX_FILE_BYTES) {
+      notify("That file is too big for a plugin.", "warning");
+      return;
+    }
+    setInstalling(file.name);
+    try {
+      installed(await deckforgeApi.pluginInstallFile(toBase64(await file.arrayBuffer())));
+      setTab("Installed plugins");
+    } catch (error) {
+      notify(errorText(error), "warning");
+    } finally {
+      setInstalling(null);
+    }
+  };
+
+  const search = async () => {
+    setSearching(true);
+    try {
+      setResults(await deckforgeApi.pluginGithubSearch(query));
+    } catch (error) {
+      notify(errorText(error), "warning");
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const installRepo = async (repo: string) => {
+    setInstalling(repo);
+    try {
+      installed(await deckforgeApi.pluginGithubInstall(repo));
+    } catch (error) {
+      notify(errorText(error), "warning");
+    } finally {
+      setInstalling(null);
+    }
+  };
+
+  React.useEffect(() => {
+    if (tab === "Browse" && results === null && !searching) void search();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
 
   // Starting a plugin takes a moment; check back so its status settles.
   React.useEffect(() => {
@@ -104,7 +166,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
           </p>
         </div>
         <div className="flex gap-1 bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] p-1 rounded-lg shrink-0">
-          {(["Installed plugins", "Built-in actions"] as const).map((t) => (
+          {(["Installed plugins", "Browse", "Built-in actions"] as const).map((t) => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -133,12 +195,32 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
                 </>
               )}
             </span>
+            <div className="flex gap-2 shrink-0">
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".streamDeckPlugin,.zip"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) void installFile(file);
+              }}
+            />
+            <button
+              disabled={installing !== null}
+              onClick={() => fileInput.current?.click()}
+              className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+            >
+              <Upload size={13} /> {installing ? "Installing…" : "Install from file"}
+            </button>
             <button
               onClick={rescan}
               className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer"
             >
               <RefreshCw size={13} /> Look again
             </button>
+            </div>
           </div>
           {plugins.length === 0 && (
             <div className="p-6 rounded-xl border border-dashed border-[var(--border-subtle)] text-sm text-[var(--text-secondary)] text-center">
@@ -206,6 +288,73 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
             Plugins that need Node.js use the one installed on this PC. Plugin settings pages are not shown yet, so plugins
             that must be set up there use their default settings.
           </p>
+        </>
+      )}
+
+      {tab === "Browse" && (
+        <>
+          <form
+            className="flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void search();
+            }}
+          >
+            <div className="flex-1 flex items-center gap-2 h-9 px-3 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)]">
+              <Search size={14} className="text-[var(--text-muted)]" />
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search open-source plugins on GitHub (obs, spotify, timer…)"
+                className="flex-1 bg-transparent outline-none text-sm"
+              />
+            </div>
+            <button type="submit" disabled={searching} className="h-9 px-4 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer disabled:opacity-50">
+              {searching ? "Searching…" : "Search"}
+            </button>
+          </form>
+          <p className="text-[11px] text-[var(--text-muted)] leading-snug">
+            These are GitHub projects tagged <code>streamdeck-plugin</code>. Install takes the plugin file from the
+            project&apos;s releases, so projects without one can&apos;t be installed here. Downloads from GitHub can take a minute.
+          </p>
+          {results && results.length === 0 && !searching && (
+            <div className="p-6 rounded-xl border border-dashed border-[var(--border-subtle)] text-sm text-[var(--text-secondary)] text-center">Nothing found.</div>
+          )}
+          <div className="grid grid-cols-2 gap-4">
+            {(results ?? []).map((r) => (
+              <div key={r.repo} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2">
+                <div className="flex items-start gap-3">
+                  {r.ownerAvatar ? (
+                    <img src={r.ownerAvatar} alt="" className="w-8 h-8 rounded-md shrink-0" />
+                  ) : (
+                    <span className="w-8 h-8 rounded-md shrink-0 grid place-items-center bg-[var(--bg-sidebar)] text-[var(--text-secondary)]"><Puzzle size={16} /></span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="font-bold text-sm truncate">{r.name}</div>
+                    <div className="text-[11px] text-[var(--text-muted)] truncate flex items-center gap-1">
+                      {r.repo} • <Star size={10} /> {r.stars}
+                    </div>
+                  </div>
+                </div>
+                {r.description && <p className="text-xs text-[var(--text-secondary)] leading-relaxed line-clamp-2">{r.description}</p>}
+                <div className="mt-auto pt-2 border-t border-[var(--border-subtle)] flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => deckforgeApi.pluginOpenPage(r.url).catch((e) => notify(errorText(e), "warning"))}
+                    className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <ExternalLink size={12} /> Open page
+                  </button>
+                  <button
+                    disabled={installing !== null}
+                    onClick={() => void installRepo(r.repo)}
+                    className="h-8 px-3 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Download size={12} /> {installing === r.repo ? "Downloading…" : "Install"}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         </>
       )}
 

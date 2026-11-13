@@ -519,3 +519,33 @@ pub async fn plugin_rescan() -> Vec<crate::plugins::PluginView> {
 pub async fn plugin_set_enabled(uuid: String, enabled: bool) -> Result<Vec<crate::plugins::PluginView>, String> {
     crate::plugins::set_enabled(&uuid, enabled)
 }
+
+/// Installs a `.streamDeckPlugin` file the user picked, sent as base64.
+#[tauri::command]
+pub async fn plugin_install_file(data: String) -> Result<crate::plugins::Installed, String> {
+    use base64::Engine as _;
+    if data.len() > crate::plugins::MAX_UPLOAD_B64 {
+        return Err("The plugin file is too large.".into());
+    }
+    let bytes = base64::engine::general_purpose::STANDARD.decode(data.trim()).map_err(|_| "Could not read that file.".to_string())?;
+    tauri::async_runtime::spawn_blocking(move || crate::plugins::install_archive(&bytes)).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn plugin_github_search(query: String) -> Result<Vec<crate::plugins::GithubPlugin>, String> {
+    crate::plugins::search_github(&query).await
+}
+
+#[tauri::command]
+pub async fn plugin_github_install(repo: String) -> Result<crate::plugins::Installed, String> {
+    crate::plugins::install_from_github(&repo).await
+}
+
+/// Opens a plugin's GitHub page in the browser.
+#[tauri::command]
+pub fn plugin_open_page(url: String) -> Result<(), String> {
+    if !url.starts_with("https://github.com/") {
+        return Err("Only GitHub pages can be opened here.".into());
+    }
+    crate::actions::launch_app_or_url(&url).map(|_| ())
+}

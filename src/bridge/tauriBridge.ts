@@ -30,6 +30,8 @@ import type {
   RecoveryDraft,
   DraftSnapshot,
   PluginView,
+  PluginInstalled,
+  GithubPlugin,
 } from "../types/deckforge";
 
 /** A sample plugin so the browser preview has something to show. */
@@ -1039,6 +1041,29 @@ export const deckforgeApi = {
     if (isTauriRuntime()) return await invoke<PluginView[]>("plugin_set_enabled", { uuid, enabled });
     mockPlugins = mockPlugins.map((p) => (p.uuid === uuid ? { ...p, enabled, running: enabled } : p));
     return mockPlugins.map((p) => ({ ...p }));
+  },
+
+  /** Installs a `.streamDeckPlugin` file, given as base64. */
+  async pluginInstallFile(data: string): Promise<PluginInstalled> {
+    if (isTauriRuntime()) return await invoke<PluginInstalled>("plugin_install_file", { data });
+    throw new Error("Installing plugins needs the desktop app.");
+  },
+
+  async pluginGithubSearch(query: string): Promise<GithubPlugin[]> {
+    if (isTauriRuntime()) return await invoke<GithubPlugin[]>("plugin_github_search", { query });
+    return [
+      { repo: "example/streamdeck-timer", name: "streamdeck-timer", description: "A countdown timer key (browser preview sample).", stars: 120, url: "https://github.com/example/streamdeck-timer", ownerAvatar: "", updatedAt: "2026-10-01T00:00:00Z" },
+    ];
+  },
+
+  async pluginGithubInstall(repo: string): Promise<PluginInstalled> {
+    if (isTauriRuntime()) return await invoke<PluginInstalled>("plugin_github_install", { repo });
+    throw new Error("Installing plugins needs the desktop app.");
+  },
+
+  async pluginOpenPage(url: string): Promise<void> {
+    if (isTauriRuntime()) return await invoke<void>("plugin_open_page", { url });
+    window.open(url, "_blank", "noopener");
   },
 
   async gameModeArmHelper(): Promise<string> {
