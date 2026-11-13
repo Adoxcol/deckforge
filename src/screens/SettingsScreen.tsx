@@ -94,7 +94,7 @@ export const SettingsScreen: React.FC<{ onNavigate: (screen: NavScreenId) => voi
           </section>
           <section className={card}><h2 className="font-semibold text-[#F4F5FA]">Local storage and recovery</h2>
             <p className="text-xs break-all font-mono text-[#E0E4EE]">%APPDATA%\DeckForge</p>
-            <p className="text-xs leading-relaxed">The first explicit save of an older profile file preserves an original copy named profiles.pre-v1-N.json. This is a migration backup, not ongoing version history. Automatic recovery of unsaved edits after a crash is not available yet.</p>
+            <p className="text-xs leading-relaxed">The first explicit save of an older profile file preserves an original copy named profiles.pre-v1-N.json. This is a migration backup, not ongoing version history. Unsaved profile edits are copied to profile-draft.json after a short pause. After an unexpected exit, choose Restore draft or Discard. The newest edits may be lost if the process stops before the recovery write finishes; recovery errors appear in the editor.</p>
           </section>
         </>}
         {section === "about" && <>

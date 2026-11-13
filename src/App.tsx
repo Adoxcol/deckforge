@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { deckforgeApi, isTauriRuntime } from "./bridge/tauriBridge";
 import { createProfilePersistence, profileSnapshot } from "./lib/profilePersistence";
+import { createDraftRecovery, type DraftStatus } from "./lib/draftRecovery";
 import { QuitDialog } from "./components/QuitDialog";
 import { createSaveQueue, savedStatus, type SaveStatus } from "./lib/saveQueue";
 import { AVAILABLE_ICON_NAMES, DeckIcon } from "./components/DeckIcon";
@@ -62,6 +63,8 @@ import { PluginsScreen } from "./screens/PluginsScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
 import type {
   AutoSwitchRule,
+  RecoveryDraft,
+  DraftSnapshot,
   DeckFaceState,
   DeviceDescriptor,
   DiagnosticEntry,
@@ -124,6 +127,12 @@ export const App: React.FC = () => {
   const [savedSnapshot, setSavedSnapshot] = useState("[]");
   const savedLocally = profileSnapshot(profiles) === savedSnapshot;
   const [profilePersistence] = useState(() => createProfilePersistence<Profile[]>(deckforgeApi.saveProfiles, setSavedSnapshot));
+  const [recoveryChecked, setRecoveryChecked] = useState(false);
+  const [recoveryDraft, setRecoveryDraft] = useState<RecoveryDraft | null>(null);
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [draftStatus, setDraftStatus] = useState<DraftStatus>({ pending: false, error: null });
+  const [draftWriter] = useState(() => createDraftRecovery<DraftSnapshot>(deckforgeApi.persistProfileDraft, setDraftStatus));
   const [quitOpen, setQuitOpen] = useState(false);
   const [quitting, setQuitting] = useState(false);
   const [quitError, setQuitError] = useState<string | null>(null);
@@ -167,8 +176,13 @@ export const App: React.FC = () => {
   useEffect(() => {
     let disposed = false;
     setBootstrapError(null);
-    deckforgeApi.getInitialState().then((data) => {
+    deckforgeApi.getInitialState().then(async (data) => {
+      let draft: RecoveryDraft | null = null;
+      let recoveryFailure: string | null = null;
+      try { draft = await deckforgeApi.getProfileDraft(); }
+      catch (error) { recoveryFailure = errorText(error); }
       if (disposed) return;
+      setRecoveryDraft(draft); setRecoveryError(recoveryFailure); setRecoveryChecked(true);
       setDevices(data.devices);
       setProfiles(data.profiles);
       setSavedSnapshot(profileSnapshot(data.profiles));
@@ -253,9 +267,36 @@ export const App: React.FC = () => {
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [savedLocally, profilePersistence, saveQueues]);
 
-  const finishQuit = async (save: boolean) => {
-    setQuitting(true); setQuitError(null);
+  useEffect(() => {
+    draftWriter.resume();
+    return () => draftWriter.pause();
+  }, [draftWriter]);
+
+  useEffect(() => {
+    if (!bootstrapReady || !recoveryChecked || recoveryDraft || recoveryError || quitting) return;
+    draftWriter.schedule(savedLocally ? null : { profiles, baseProfiles: JSON.parse(savedSnapshot) });
+  }, [profiles, savedSnapshot, savedLocally, bootstrapReady, recoveryChecked, recoveryDraft, recoveryError, quitting, draftWriter]);
+
+  const resolveRecovery = async (restore: boolean) => {
+    setRecoveryBusy(true);
     try {
+      if (restore && recoveryDraft) {
+        setUndoStack([structuredClone(latestProfiles.current)]); setRedoStack([]);
+        setProfiles(recoveryDraft.draft.profiles);
+        setSelectedProfileId(recoveryDraft.draft.profiles[0].id);
+        setSelectedPageIdx(0); setSelectedKeyIdx(0);
+      } else if (!await draftWriter.clear()) {
+        throw new Error("Could not discard the stored draft. Retry; the recovery copy is still available.");
+      }
+      setRecoveryDraft(null); setRecoveryError(null);
+    } catch (error) { setRecoveryError(errorText(error)); }
+    finally { setRecoveryBusy(false); }
+  };
+
+  const finishQuit = async (save: boolean) => {
+    setQuitting(true); setQuitError(null); draftWriter.pause();
+    try {
+      if (save && (!recoveryChecked || recoveryDraft || recoveryError)) throw new Error("Resolve draft recovery before saving and quitting.");
       if (save) {
         if (!bootstrapReady) throw new Error("Wait for your profiles to load before saving.");
         await profilePersistence.save(latestProfiles.current);
@@ -273,9 +314,10 @@ export const App: React.FC = () => {
         || Object.values(saveQueues).some(q => q.isPending()))) {
         throw new Error("Edits changed while saving. Review them and try again.");
       }
+      if (!await draftWriter.clear()) throw new Error("Could not clear the recovery draft. Retry quitting, or cancel to keep editing.");
       await deckforgeApi.quitApplication();
     } catch (error) { setQuitError(errorText(error)); }
-    finally { setQuitting(false); }
+    finally { draftWriter.resume(); setQuitting(false); }
   };
 
   const handleRescanDevices = () => {
@@ -319,6 +361,7 @@ export const App: React.FC = () => {
   // Keyboard shortcuts (Ctrl+S, Ctrl+Z, Ctrl+Y) + Live Hotkey Recorder
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      if (!recoveryChecked || recoveryDraft || recoveryError || quitOpen) return;
       if (quitOpen || showOnboarding) return;
       if (hotkeyTarget) {
         e.preventDefault();
@@ -953,7 +996,7 @@ export const App: React.FC = () => {
   }, [allActionTemplates, actionCategoryFilter, actionSearch]);
 
   const quitDialog = <QuitDialog open={quitOpen} busy={quitting} error={quitError}
-    dirty={!savedLocally || Object.values(saveStatuses).some(s => s.pending)}
+    dirty={!savedLocally || !!recoveryDraft || !!recoveryError || Object.values(saveStatuses).some(s => s.pending)}
     onCancel={() => setQuitOpen(false)} onQuit={finishQuit} />;
 
   if (bootstrapError) {
@@ -965,7 +1008,25 @@ export const App: React.FC = () => {
     </div>;
   }
 
-  if (!activeDevice || !activeProfile || !activePage || !activeKey) {
+  if (recoveryChecked && (recoveryDraft || recoveryError)) {
+    return <div className="h-screen bg-[#0B0D14] text-[#F4F5FA] flex items-center justify-center p-8">
+      {quitDialog}
+      <section aria-labelledby="recovery-title" className="max-w-lg w-full rounded-xl border border-[#394158] bg-[#151925] p-6 space-y-4">
+        <h1 id="recovery-title" className="text-xl font-bold">{recoveryDraft ? "Recover unsaved edits?" : "Could not read recovery draft"}</h1>
+        {recoveryDraft && <p className="text-sm text-[#A6AFC4]">{recoveryDraft.draft.profiles.length} profiles captured {new Date(recoveryDraft.draft.updatedAtMs).toLocaleString()}. Restore opens them as unsaved editor drafts. Saved profiles and the deck stay unchanged until you Save or Apply.</p>}
+        {recoveryDraft?.savedProfilesChanged && <p className="text-sm text-[#F4B860]">Saved profiles have changed since this draft began. Restoring replaces the editor contents with the recovered version; review it before saving. Undo returns to the loaded saved profiles.</p>}
+        {recoveryError && <p role="alert" className="text-sm text-[#F16B79] break-words">{recoveryError}</p>}
+        {!recoveryDraft && <p className="text-sm text-[#A6AFC4]">The file is preserved at %APPDATA%\DeckForge\profile-draft.json. Retry reading it, or discard this recovery copy to open saved profiles.</p>}
+        <div className="flex flex-wrap gap-3 text-sm">
+          {recoveryDraft ? <button autoFocus disabled={recoveryBusy} className="px-4 py-2 rounded-lg bg-[#8B5CF6] disabled:opacity-40" onClick={() => resolveRecovery(true)}>Restore draft</button>
+            : <button disabled={recoveryBusy} className="px-4 py-2 rounded-lg border border-[#707B94]" onClick={() => { setRecoveryChecked(false); setRecoveryError(null); setBootstrapAttempt(n => n + 1); }}>Retry recovery</button>}
+          <button disabled={recoveryBusy} className="px-4 py-2 rounded-lg border border-[#707B94] disabled:opacity-40" onClick={() => resolveRecovery(false)}>Discard draft</button>
+        </div>
+      </section>
+    </div>;
+  }
+
+  if (!recoveryChecked || !activeDevice || !activeProfile || !activePage || !activeKey) {
     return (
       <div className="h-screen w-screen bg-[#0B0D14] text-[#F4F5FA] flex items-center justify-center">
         <div className="flex items-center gap-3 text-[#A6AFC4]">
@@ -980,6 +1041,10 @@ export const App: React.FC = () => {
   return (
     <div className="h-screen w-screen bg-[#0B0D14] text-[#F4F5FA] flex flex-col overflow-hidden select-none">
       {quitDialog}
+      {(!savedLocally || draftStatus.error) && <div role={draftStatus.error ? "alert" : "status"} className="px-4 py-1.5 text-xs bg-[#151925] text-[#A6AFC4] flex items-center gap-3">
+        <span>{draftStatus.error ? `Recovery copy could not update: ${draftStatus.error}. Retry recovery or save your profiles.` : draftStatus.pending ? "Updating recovery copy…" : "Recovery copy saved · Profile edits are still unsaved"}</span>
+        {draftStatus.error && <button className="underline text-[#F4B860]" onClick={draftWriter.retry}>Retry recovery copy</button>}
+      </div>}
       {Object.entries(saveQueues).map(([name, queue]) => {
         const status = saveStatuses[name] ?? savedStatus;
         if (!status.pending) return null;

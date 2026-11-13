@@ -40,6 +40,7 @@ use tauri::{Emitter, State, Manager};
 
 mod commands;
 mod backup;
+mod draft;
 mod live;
 mod macro_run;
 mod state;
@@ -92,6 +93,9 @@ pub fn run() {
             lifecycle::get_launch_at_login,
             lifecycle::set_launch_at_login,
             get_initial_state,
+            draft::get_profile_draft,
+            draft::save_profile_draft,
+            draft::discard_profile_draft,
             refresh_usb_devices,
             set_device_brightness,
             apply_profile_to_device,

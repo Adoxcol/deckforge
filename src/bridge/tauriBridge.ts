@@ -27,6 +27,8 @@ import type {
   ProfilePage,
   WorkspaceStatus,
   RestoredBackup,
+  RecoveryDraft,
+  DraftSnapshot,
 } from "../types/deckforge";
 
 export const isTauriRuntime = (): boolean => {
@@ -638,6 +640,30 @@ let mockApplied: { deviceId: string; profileId: string; profileName: string; pag
 let mockAppliedAt: number | null = null;
 
 export const deckforgeApi = {
+  async getProfileDraft(): Promise<RecoveryDraft | null> {
+    if (isTauriRuntime()) return invoke<RecoveryDraft | null>("get_profile_draft");
+    const raw = localStorage.getItem("deckforge-preview-draft");
+    if (!raw) return null;
+    const draft = JSON.parse(raw);
+    if (!draft) return null;
+    if (draft.version !== 1 || !Array.isArray(draft.profiles) || !draft.profiles.length
+      || draft.profiles.some((p: Profile) => !p.pages?.length || p.pages.some(page => !page.keys?.length))) {
+      throw new Error("Invalid or unsupported preview recovery draft; it has been preserved.");
+    }
+    const content = (value: Profile[]) => JSON.stringify(value, (key, value) => key === "lastModifiedMs" ? undefined : value);
+    const saved = content(mockSavedProfiles ?? fallbackBootstrap().profiles);
+    if (content(draft.profiles) === saved) return null;
+    return { draft, savedProfilesChanged: content(draft.baseProfiles) !== saved };
+  },
+  async persistProfileDraft(value: DraftSnapshot | null): Promise<void> {
+    if (isTauriRuntime()) {
+      if (value) await invoke("save_profile_draft", { ...value });
+      else await invoke("discard_profile_draft");
+    } else {
+      localStorage.setItem("deckforge-preview-draft", JSON.stringify(value ? { version: 1, ...value, updatedAtMs: Date.now() } : null));
+    }
+  },
+
   async exportProfilesBackup(profiles: Profile[], macros: MacroSequence[]): Promise<string> {
     if (!isTauriRuntime()) throw new Error("Media backups require the desktop app.");
     return invoke<string>("export_profiles_backup", { profiles, macros });

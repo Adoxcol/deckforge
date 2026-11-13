@@ -479,3 +479,9 @@ export interface RestoredBackup {
   macros: MacroSequence[];
   mediaLibrary: MediaPreview[];
 }
+
+export interface RecoveryDraft {
+  draft: { version: number; profiles: Profile[]; baseProfiles: Profile[]; updatedAtMs: number };
+  savedProfilesChanged: boolean;
+}
+export interface DraftSnapshot { profiles: Profile[]; baseProfiles: Profile[] }
