@@ -37,6 +37,22 @@ export const keyPatchForAction = (act: ActionTemplate): Partial<KeyConfig> => ({
   bgColor: act.bgColor,
 });
 
+/** What a touch zone takes from an action, for click or drop. */
+export const zonePatchForAction = (act: ActionTemplate): Partial<TouchZoneConfig> => ({
+  label: act.title,
+  valueText: act.subtitle,
+  tapActionId: act.id,
+  tapActionParam: actionNeedsParam(act.id) ? act.defaultParam : "",
+  accentColor: act.accentColor,
+});
+
+/** What a knob press takes from an action, for click or drop. */
+export const encoderPatchForAction = (act: ActionTemplate): Partial<EncoderConfig> => ({
+  label: act.title,
+  pushAction: act.id,
+  pushParam: actionNeedsParam(act.id) ? act.defaultParam : "",
+});
+
 export const ActionDrawer: React.FC<ActionDrawerProps> = ({
   actionCategoryFilter,
   actionSearch,
@@ -97,29 +113,19 @@ export const ActionDrawer: React.FC<ActionDrawerProps> = ({
             <div
               key={act.id}
               draggable
-              title="Click to assign to the selected key, or drag onto any key"
+              title="Click to assign, or drag onto a key, touch zone or knob"
               onDragStart={(event) => {
                 event.dataTransfer.setData(ACTION_DRAG_TYPE, act.id);
                 event.dataTransfer.effectAllowed = "copy";
               }}
               onClick={() => {
                 if (surface === "zone" && activeZone) {
-                  updateSelectedZone(activeZone.index, {
-                    label: act.title,
-                    valueText: act.subtitle,
-                    tapActionId: act.id,
-                    tapActionParam: actionNeedsParam(act.id) ? act.defaultParam : "",
-                    accentColor: act.accentColor,
-                  });
+                  updateSelectedZone(activeZone.index, zonePatchForAction(act));
                   triggerToast(`Assigned "${act.title}" to zone #${activeZone.index + 1}`, "info");
                   return;
                 }
                 if (surface === "encoder" && activeEncoder) {
-                  updateSelectedEncoder(activeEncoder.index, {
-                    label: act.title,
-                    pushAction: act.id,
-                    pushParam: actionNeedsParam(act.id) ? act.defaultParam : "",
-                  });
+                  updateSelectedEncoder(activeEncoder.index, encoderPatchForAction(act));
                   triggerToast(`Assigned "${act.title}" to the knob press`, "info");
                   return;
                 }

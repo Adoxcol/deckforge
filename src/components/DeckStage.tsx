@@ -28,7 +28,7 @@ interface DeckStageProps {
   setTemplatesOpen: React.Dispatch<React.SetStateAction<boolean>>;
   surface: "key" | "zone" | "strip" | "encoder";
   surfaceIndex: number;
-  onDropAction: (keyIndex: number, actionId: string) => void;
+  onDropAction: (target: "key" | "zone" | "encoder", index: number, actionId: string) => void;
   onMoveKey: (from: number, to: number) => void;
   autoSwitchRules: AutoSwitchRule[];
   saveRules: (rules: AutoSwitchRule[]) => void;
@@ -61,6 +61,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
   saveRules,
 }) => {
   const [dropTarget, setDropTarget] = React.useState<number | null>(null);
+  const [dropZone, setDropZone] = React.useState<string | null>(null);
   return (
     <div className="min-h-0 flex-1 flex flex-col items-center justify-start px-6 py-3 gap-3 overflow-y-auto">
       <div
@@ -104,7 +105,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                   const actionId = event.dataTransfer.getData(ACTION_DRAG_TYPE);
                   const fromKey = event.dataTransfer.getData(KEY_DRAG_TYPE);
                   const file = event.dataTransfer.files?.[0];
-                  if (actionId) onDropAction(k.index, actionId);
+                  if (actionId) onDropAction("key", k.index, actionId);
                   else if (fromKey !== "") onMoveKey(Number(fromKey), k.index);
                   else if (file) void ingestFile(file, "key", k.index);
                   setSurface("key");
@@ -210,14 +211,25 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                       setSurface("zone");
                       setSurfaceIndex(tz.index);
                     }}
-                    onDragOver={(event) => event.preventDefault()}
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      if (dropZone !== `zone-${tz.index}`) setDropZone(`zone-${tz.index}`);
+                    }}
+                    onDragLeave={() => setDropZone(null)}
                     onDrop={(event) => {
                       event.preventDefault();
+                      setDropZone(null);
+                      const actionId = event.dataTransfer.getData(ACTION_DRAG_TYPE);
                       const file = event.dataTransfer.files?.[0];
-                      if (file) void ingestFile(file, "zone", tz.index);
+                      if (actionId) onDropAction("zone", tz.index, actionId);
+                      else if (file) void ingestFile(file, "zone", tz.index);
+                      setSurface("zone");
+                      setSurfaceIndex(tz.index);
                     }}
                     className={`relative min-h-14 overflow-hidden px-2.5 py-1.5 rounded-lg bg-[var(--bg-panel)] border cursor-pointer flex items-center justify-between ${
-                      zoneSelected ? "border-[var(--accent-primary)]" : "border-[var(--border-subtle)] hover:border-[var(--accent-primary)]/60"
+                      dropZone === `zone-${tz.index}`
+                        ? "border-[var(--accent-hover)] bg-[var(--bg-elevated)]"
+                        : zoneSelected ? "border-[var(--accent-primary)]" : "border-[var(--border-subtle)] hover:border-[var(--accent-primary)]/60"
                     }`}
                   >
                     {zoneClip ? (
@@ -273,8 +285,25 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                   setSurface("encoder");
                   setSurfaceIndex(enc.index);
                 }}
+                onDragOver={(event) => {
+                  if (!event.dataTransfer.types.includes(ACTION_DRAG_TYPE)) return;
+                  event.preventDefault();
+                  if (dropZone !== `enc-${enc.index}`) setDropZone(`enc-${enc.index}`);
+                }}
+                onDragLeave={() => setDropZone(null)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDropZone(null);
+                  const actionId = event.dataTransfer.getData(ACTION_DRAG_TYPE);
+                  if (!actionId) return;
+                  onDropAction("encoder", enc.index, actionId);
+                  setSurface("encoder");
+                  setSurfaceIndex(enc.index);
+                }}
                 className={`px-2.5 py-1.5 rounded-xl bg-[var(--bg-input)] border flex items-center gap-2.5 cursor-pointer ${
-                  surface === "encoder" && surfaceIndex === enc.index
+                  dropZone === `enc-${enc.index}`
+                    ? "border-[var(--accent-hover)] bg-[var(--bg-elevated)]"
+                    : surface === "encoder" && surfaceIndex === enc.index
                     ? "border-[var(--accent-primary)]"
                     : "border-[var(--border-subtle)] hover:border-[var(--accent-primary)]/60"
                 }`}

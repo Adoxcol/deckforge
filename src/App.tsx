@@ -56,7 +56,7 @@ import { OnboardingModal } from "./components/OnboardingModal";
 import { WorkspaceToolbar } from "./components/WorkspaceToolbar";
 import { DeckStage } from "./components/DeckStage";
 import { WorkspaceSidebar } from "./components/WorkspaceSidebar";
-import { ActionDrawer, keyPatchForAction } from "./components/ActionDrawer";
+import { ActionDrawer, keyPatchForAction, zonePatchForAction, encoderPatchForAction } from "./components/ActionDrawer";
 import { KeyInspector } from "./components/KeyInspector";
 import { DevicesScreen } from "./screens/DevicesScreen";
 import { PluginsScreen } from "./screens/PluginsScreen";
@@ -616,11 +616,19 @@ export const App: React.FC = () => {
   };
 
   /** Dropping an action card on a key binds that key, whichever key is selected. */
-  const handleDropAction = (keyIndex: number, actionId: string) => {
+  const handleDropAction = (target: "key" | "zone" | "encoder", index: number, actionId: string) => {
     const act = allActionTemplates.find((a) => a.id === actionId);
     if (!act) return;
-    patchKeys((keys) => keys.map((k) => (k.index === keyIndex ? { ...k, ...keyPatchForAction(act) } : k)));
-    triggerToast(`${act.title} is on key ${keyIndex + 1}`, "info");
+    if (target === "zone") {
+      updateSelectedZone(index, zonePatchForAction(act));
+      triggerToast(`${act.title} is on touch zone ${index + 1}`, "info");
+    } else if (target === "encoder") {
+      updateSelectedEncoder(index, encoderPatchForAction(act));
+      triggerToast(`${act.title} is on knob ${index + 1} press`, "info");
+    } else {
+      patchKeys((keys) => keys.map((k) => (k.index === index ? { ...k, ...keyPatchForAction(act) } : k)));
+      triggerToast(`${act.title} is on key ${index + 1}`, "info");
+    }
   };
 
   /** Dragging one key onto another swaps them, so an empty slot receives the key. */
