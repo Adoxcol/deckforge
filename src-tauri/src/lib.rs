@@ -205,6 +205,15 @@ mod integration_tests {
             akp.model_name, akp.vid_pid_hex, akp.connected, akp.serial_number
         );
 
+        // The deck is opened by its I/O thread. A write queued before that open is dropped as
+        // stale on purpose, so wait for the open and the firmware to settle, as the app does.
+        let opened_by = std::time::Instant::now() + Duration::from_secs(10);
+        while drivers::hal::deck_generation() == 0 {
+            assert!(std::time::Instant::now() < opened_by, "deck did not open within 10 s");
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        std::thread::sleep(Duration::from_millis(1500));
+
         // 1. Test live hardware brightness command (CRT\0\0LIG -> 90%)
         let mut diags = state.diagnostics.clone();
         let bright_res = send_hardware_brightness(&akp, 90, &mut diags);
