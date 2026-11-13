@@ -322,7 +322,7 @@ export const App: React.FC = () => {
   // Keyboard shortcuts (Ctrl+S, Ctrl+Z, Ctrl+Y) + Live Hotkey Recorder
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (quitOpen) return;
+      if (quitOpen || showOnboarding) return;
       if (hotkeyTarget) {
         e.preventDefault();
         e.stopPropagation();
@@ -1105,7 +1105,7 @@ export const App: React.FC = () => {
           </button>
           <button
             onClick={() => setShowOnboarding(true)}
-            title="Quick Start & Hardware Verification Guide"
+            title="Quick-start guide"
             className="w-8 h-8 rounded-md bg-[#151925] border border-[#272D3D] flex items-center justify-center text-[#A6AFC4] hover:text-white cursor-pointer"
           >
             <HelpCircle size={15} />
@@ -1214,12 +1214,12 @@ export const App: React.FC = () => {
 
       {/* 7. SCREEN 07: SETTINGS (Spec Section 10) */}
       {activeScreen === "settings" && (
-        <SettingsScreen />
+        <SettingsScreen onNavigate={setActiveScreen} onOpenGuide={() => setShowOnboarding(true)} />
       )}
 
       {/* First-Run Onboarding / Hardware Guide Modal (Spec Section 11.1) */}
       {showOnboarding && (
-        <OnboardingModal onClose={() => setShowOnboarding(false)} />
+        <OnboardingModal devices={devices} onClose={() => setShowOnboarding(false)} onOpenDevices={() => { setShowOnboarding(false); setActiveScreen("devices"); }} />
       )}
 
       {/* 8. GLOBAL BOTTOM STATUS BAR (28px — Spec Section 3 & Reference Screenshot) */}
