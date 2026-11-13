@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { deckforgeApi, isTauriRuntime } from "./bridge/tauriBridge";
 import { createProfilePersistence, profileSnapshot } from "./lib/profilePersistence";
+import { buildStarterProfile, type StarterProfile } from "./data/starterProfiles";
 import { createDraftRecovery, type DraftStatus } from "./lib/draftRecovery";
 import { QuitDialog } from "./components/QuitDialog";
 import { createSaveQueue, savedStatus, type SaveStatus } from "./lib/saveQueue";
@@ -940,21 +941,18 @@ export const App: React.FC = () => {
     triggerToast(msg, "info");
   };
 
-  const handleAddProfile = () => {
-    if (!profiles[0]) return;
-    const id = `profile-custom-${Date.now()}`;
-    const newProf: Profile = {
-      ...JSON.parse(JSON.stringify(profiles[0])),
-      id,
-      name: `Custom Profile ${profiles.length + 1}`,
-      icon: "Sparkles",
-      colorStrip: "#8B5CF6",
-      lastModifiedMs: Date.now(),
-    };
+  const handleAddProfile = (starter: StarterProfile) => {
+    const built = buildStarterProfile(starter, profiles, autoSwitchRules);
+    const newProf: Profile = { ...built.profile, targetDeviceId: profiles[0]?.targetDeviceId ?? "" };
+    pushUndoSnapshot();
     setProfiles((prev) => [...prev, newProf]);
-    setSelectedProfileId(id);
-
-    triggerToast(`Created ${newProf.name}`, "success");
+    if (built.rules.length > 0) saveRules([...autoSwitchRules, ...built.rules]);
+    setSelectedProfileId(newProf.id);
+    setSelectedPageIdx(0);
+    setSelectedKeyIdx(0);
+    const apps = built.rules.length > 0 ? ` It opens with ${built.rules.length} app${built.rules.length === 1 ? "" : "s"}.` : "";
+    const skipped = built.skippedApps.length > 0 ? ` ${built.skippedApps.join(", ")} already open another page, so they were left alone.` : "";
+    triggerToast(`Created ${newProf.name}.${apps}${skipped}`, "success");
   };
 
   const handleBackup = () => deckforgeApi.exportProfilesBackup(latestProfiles.current, latestMacros.current);
