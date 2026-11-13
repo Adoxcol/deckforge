@@ -1087,6 +1087,131 @@ pub fn resume_deck_control() -> Result<String, String> {
     Ok("DeckForge will reconnect and restore your last applied layout.".into())
 }
 
+/// Waits until the I/O thread has closed the deck after a pause, so Windows can restart it.
+pub fn wait_deck_released(timeout: Duration) -> bool {
+    let until = Instant::now() + timeout;
+    while CONTROL_OPEN.load(Ordering::SeqCst) {
+        if Instant::now() >= until { return false; }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+    true
+}
+
+/// Windows device instance id of the deck's USB device, from its serial number.
+/// Only letters and digits are accepted: the id is passed to an elevated command.
+pub fn deck_usb_instance_id(serial: &str) -> Result<String, String> {
+    let serial = serial.trim();
+    if serial.is_empty() || serial.len() > 64 || !serial.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return Err("The deck's serial number is not known, so Windows cannot find it. Plug the deck in and try again.".into());
+    }
+    Ok(format!("USB\\VID_0300&PID_3013\\{serial}"))
+}
+
+/// Exit codes of the elevated `--cycle-deck-port` helper.
+pub const CYCLE_OK: u32 = 0;
+
+/// Resets the USB port the deck is plugged into: Windows drops it and enumerates it again,
+/// the closest software gets to a replug. Needs administrator rights, so DeckForge starts a
+/// second copy of itself elevated (Windows asks the user) that does only this and exits.
+#[cfg(target_os = "windows")]
+pub fn restart_usb_device(serial: &str) -> Result<(), String> {
+    use windows::{
+        core::{w, PCWSTR},
+        Win32::{
+            Foundation::{CloseHandle, WAIT_OBJECT_0},
+            System::Threading::{GetExitCodeProcess, WaitForSingleObject},
+            UI::{Shell::{ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW}, WindowsAndMessaging::SW_HIDE},
+        },
+    };
+    deck_usb_instance_id(serial)?; // Only a plain serial reaches the elevated copy.
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    let file: Vec<u16> = exe.as_os_str().to_string_lossy().encode_utf16().chain(Some(0)).collect();
+    let params: Vec<u16> = format!("--cycle-deck-port {serial}").encode_utf16().chain(Some(0)).collect();
+    let mut info = SHELLEXECUTEINFOW {
+        cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
+        fMask: SEE_MASK_NOCLOSEPROCESS,
+        lpVerb: w!("runas"),
+        lpFile: PCWSTR(file.as_ptr()),
+        lpParameters: PCWSTR(params.as_ptr()),
+        nShow: SW_HIDE.0,
+        ..Default::default()
+    };
+    if unsafe { ShellExecuteExW(&mut info) }.is_err() {
+        return Err("Windows did not allow the restart. It needs you to approve the permission prompt.".into());
+    }
+    let process = info.hProcess;
+    if process.is_invalid() { return Err("Windows did not start the restart.".into()); }
+    let waited = unsafe { WaitForSingleObject(process, 30_000) };
+    let mut code = 1u32;
+    let _ = unsafe { GetExitCodeProcess(process, &mut code) };
+    let _ = unsafe { CloseHandle(process) };
+    if waited != WAIT_OBJECT_0 { return Err("Windows took too long to restart the deck.".into()); }
+    match code {
+        CYCLE_OK => Ok(()),
+        2 => Err("Windows could not find the deck. Is it plugged in?".into()),
+        3 => Err("Windows could not find the USB port the deck is on.".into()),
+        _ => Err(format!("Windows could not reset the deck's USB port (code {code}).")),
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn restart_usb_device(_serial: &str) -> Result<(), String> {
+    Err("Restarting the deck is only available on Windows.".into())
+}
+
+/// Runs in the elevated helper copy: finds the deck's hub and port and asks the hub to
+/// cycle that port. Returns the process exit code.
+#[cfg(target_os = "windows")]
+pub fn cycle_deck_port(serial: &str) -> u32 {
+    use windows::{
+        core::{GUID, PCWSTR},
+        Win32::{
+            Devices::DeviceAndDriverInstallation::*,
+            Foundation::{CloseHandle, GENERIC_WRITE},
+            Storage::FileSystem::{CreateFileW, FILE_FLAGS_AND_ATTRIBUTES, FILE_SHARE_READ, FILE_SHARE_WRITE, OPEN_EXISTING},
+            System::IO::DeviceIoControl,
+        },
+    };
+    const IOCTL_USB_HUB_CYCLE_PORT: u32 = 0x0022_0444;
+    const GUID_DEVINTERFACE_USB_HUB: GUID = GUID::from_u128(0xf18a0e88_c30c_11d0_8815_00a0c906bed8);
+    let Ok(id) = deck_usb_instance_id(serial) else { return 2 };
+    let id: Vec<u16> = id.encode_utf16().chain(Some(0)).collect();
+    unsafe {
+        let mut dev = 0u32;
+        if CM_Locate_DevNodeW(&mut dev, PCWSTR(id.as_ptr()), CM_LOCATE_DEVNODE_NORMAL) != CR_SUCCESS { return 2; }
+        let mut hub = 0u32;
+        if CM_Get_Parent(&mut hub, dev, 0) != CR_SUCCESS { return 3; }
+        let mut port = 0u32;
+        let mut len = 4u32;
+        if CM_Get_DevNode_Registry_PropertyW(dev, CM_DRP_ADDRESS, None, Some((&mut port as *mut u32).cast()), &mut len, 0) != CR_SUCCESS {
+            return 3;
+        }
+        let mut hub_id = vec![0u16; 512];
+        if CM_Get_Device_IDW(hub, &mut hub_id, 0) != CR_SUCCESS { return 3; }
+        let mut size = 0u32;
+        if CM_Get_Device_Interface_List_SizeW(&mut size, &GUID_DEVINTERFACE_USB_HUB, PCWSTR(hub_id.as_ptr()), CM_GET_DEVICE_INTERFACE_LIST_PRESENT) != CR_SUCCESS || size < 2 {
+            return 3;
+        }
+        let mut list = vec![0u16; size as usize];
+        if CM_Get_Device_Interface_ListW(&GUID_DEVINTERFACE_USB_HUB, PCWSTR(hub_id.as_ptr()), &mut list, CM_GET_DEVICE_INTERFACE_LIST_PRESENT) != CR_SUCCESS {
+            return 3;
+        }
+        let Ok(handle) = CreateFileW(PCWSTR(list.as_ptr()), GENERIC_WRITE.0, FILE_SHARE_READ | FILE_SHARE_WRITE, None, OPEN_EXISTING, FILE_FLAGS_AND_ATTRIBUTES(0), None) else {
+            return 4;
+        };
+        // USB_CYCLE_PORT_PARAMS { ConnectionIndex, StatusReturned }
+        let mut params = [port, 0u32];
+        let mut returned = 0u32;
+        let ok = DeviceIoControl(
+            handle, IOCTL_USB_HUB_CYCLE_PORT,
+            Some(params.as_ptr().cast()), 8, Some(params.as_mut_ptr().cast()), 8,
+            Some(&mut returned), None,
+        ).is_ok();
+        let _ = CloseHandle(handle);
+        if ok { CYCLE_OK } else { 5 }
+    }
+}
+
 /// What the deck connection is doing, for the status line in the app.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -1627,5 +1752,18 @@ mod tests {
                 .map(|report| &report[6..9] != b"DRA")
                 .unwrap_or(true)
         }));
+    }
+}
+
+#[cfg(test)]
+mod restart_tests {
+    use super::deck_usb_instance_id;
+
+    #[test]
+    fn instance_id_only_from_a_plain_serial() {
+        assert_eq!(deck_usb_instance_id("4251E8782A0B").unwrap(), r"USB\VID_0300&PID_3013\4251E8782A0B");
+        assert!(deck_usb_instance_id("").is_err());
+        assert!(deck_usb_instance_id("Not detected").is_err());
+        assert!(deck_usb_instance_id("AB\" & calc").is_err());
     }
 }

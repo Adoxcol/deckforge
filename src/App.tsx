@@ -941,6 +941,15 @@ export const App: React.FC = () => {
     triggerToast(msg, "info");
   };
 
+  const handleRestartDeck = async () => {
+    triggerToast("Restarting the deck. Approve the Windows permission prompt if it appears.", "info");
+    try {
+      triggerToast(await deckforgeApi.restartDeck(), "success");
+    } catch (err) {
+      triggerToast(`Could not restart the deck: ${errorText(err)} Unplugging and replugging it does the same.`, "warning");
+    }
+  };
+
   const handleAddProfile = (starter: StarterProfile) => {
     const built = buildStarterProfile(starter, profiles, autoSwitchRules);
     const newProf: Profile = { ...built.profile, targetDeviceId: profiles[0]?.targetDeviceId ?? "" };
@@ -1348,7 +1357,7 @@ export const App: React.FC = () => {
 
       {/* 3. SCREEN 02: DEVICE MANAGER & DIAGNOSTICS (Spec Section 5) */}
       {activeScreen === "devices" && (
-        <DevicesScreen connectedDevices={connectedDevices} activeDevice={activeDevice} frameStats={frameStats} diagnostics={diagnostics} onRescan={handleRescanDevices} onSelectDevice={handleSelectDevice} onBrightness={handleBrightnessChange} onOpenWorkspace={() => setActiveScreen("workspace")} />
+        <DevicesScreen connectedDevices={connectedDevices} activeDevice={activeDevice} frameStats={frameStats} diagnostics={diagnostics} onRescan={handleRescanDevices} onSelectDevice={handleSelectDevice} onBrightness={handleBrightnessChange} onOpenWorkspace={() => setActiveScreen("workspace")} onRestartDeck={handleRestartDeck} />
       )}
 
       {/* 4. SCREEN 04: PLUGINS & LEGACY .sdPlugin BRIDGE (Spec Section 7) */}

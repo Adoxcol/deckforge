@@ -56,6 +56,15 @@ use workers::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // The elevated helper started by Restart deck: reset the deck's USB port and exit,
+    // before taking the single-instance lock the running app holds.
+    let args: Vec<String> = std::env::args().collect();
+    if let Some(pos) = args.iter().position(|arg| arg == "--cycle-deck-port") {
+        #[cfg(target_os = "windows")]
+        std::process::exit(drivers::hal::cycle_deck_port(args.get(pos + 1).map(String::as_str).unwrap_or("")) as i32);
+        #[cfg(not(target_os = "windows"))]
+        { let _ = pos; std::process::exit(1); }
+    }
     let _instance = match instance::acquire() {
         Ok(Some(guard)) => guard,
         Ok(None) => { instance::focus_existing(); return; }
@@ -112,6 +121,7 @@ pub fn run() {
             stop_macro_execution,
             take_over_from_official_app,
             pause_deck_control,
+            restart_deck,
             get_deck_status,
             get_workspace_status,
             resend_layout,

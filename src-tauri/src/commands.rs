@@ -304,6 +304,32 @@ pub fn take_over_from_official_app(state: State<'_, SharedState>) -> Result<Stri
     Ok(msg)
 }
 
+/// Restarts the deck like a replug: lets go of it, has Windows reset the USB port it is on
+/// (after the user approves the permission prompt), then reconnects and redraws.
+#[tauri::command]
+pub async fn restart_deck(state: State<'_, SharedState>) -> Result<String, String> {
+    let serial = {
+        let guard = state.lock_safe();
+        guard.devices.iter().find(|d| d.id == "ajazz-akp05e-pro").map(|d| d.serial_number.clone()).unwrap_or_default()
+    };
+    drivers::hal::deck_usb_instance_id(&serial)?;
+    let result = tauri::async_runtime::spawn_blocking(move || {
+        drivers::hal::pause_deck_control();
+        if !drivers::hal::wait_deck_released(std::time::Duration::from_secs(5)) {
+            return Err("DeckForge could not let go of the deck in time. Try again.".to_string());
+        }
+        drivers::hal::restart_usb_device(&serial)
+    })
+    .await
+    .map_err(|e| e.to_string())?;
+    // Take the deck back whatever happened, so a cancelled prompt does not leave it paused.
+    let resumed = drivers::hal::resume_deck_control();
+    state.lock_safe().layout_ready = false;
+    result?;
+    resumed?;
+    Ok("Deck restarted. DeckForge is reconnecting and redrawing it.".into())
+}
+
 #[tauri::command]
 pub fn pause_deck_control() -> String {
     drivers::hal::pause_deck_control()

@@ -792,6 +792,12 @@ export const deckforgeApi = {
     return "DeckForge will reconnect and restore your last applied layout.";
   },
 
+  /** Restarts the deck like a replug. Windows asks the user for permission first. */
+  async restartDeck(): Promise<string> {
+    if (isTauriRuntime()) return await invoke<string>("restart_deck");
+    throw new Error("Restarting the deck is available in the desktop app");
+  },
+
   async pauseDeckControl(): Promise<string> {
     if (isTauriRuntime()) return await invoke<string>("pause_deck_control");
     mockDeckPaused = true;

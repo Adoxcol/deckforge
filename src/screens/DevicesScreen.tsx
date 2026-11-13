@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, RotateCcw } from "lucide-react";
 import type { DeviceDescriptor, DiagnosticEntry, FrameCacheStats } from "../types/deckforge";
 
 interface DevicesScreenProps {
@@ -11,6 +11,8 @@ interface DevicesScreenProps {
   onSelectDevice: (deviceId: string) => void;
   onBrightness: (percent: number) => void;
   onOpenWorkspace: () => void;
+  /** Restarts the deck like a replug. Resolves when it is done or has failed. */
+  onRestartDeck: () => Promise<void>;
 }
 
 type DetailTab = "Overview" | "Controls" | "Display" | "Diagnostics" | "Advanced";
@@ -25,8 +27,10 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
   onSelectDevice,
   onBrightness,
   onOpenWorkspace,
+  onRestartDeck,
 }) => {
   const [deviceDetailTab, setDeviceDetailTab] = useState<DetailTab>("Overview");
+  const [restarting, setRestarting] = useState(false);
 
   return (    <div className="flex-1 grid grid-cols-[310px_1fr] overflow-hidden">
       <aside className="bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
@@ -94,6 +98,22 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
               className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-xs font-medium cursor-pointer"
             >
               Identify deck
+            </button>
+            <button
+              onClick={async () => {
+                setRestarting(true);
+                try {
+                  await onRestartDeck();
+                } finally {
+                  setRestarting(false);
+                }
+              }}
+              disabled={restarting}
+              title="Screen stuck black or not responding? This resets the USB port the deck is on, so it disconnects and reconnects. Windows asks for permission first. If the screen is still black afterwards, unplug the deck and plug it back in."
+              className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-xs font-medium cursor-pointer disabled:opacity-60 disabled:cursor-wait flex items-center gap-1.5"
+            >
+              <RotateCcw size={13} className={restarting ? "animate-spin" : ""} />
+              {restarting ? "Restarting…" : "Restart deck"}
             </button>
             <button
               onClick={() => onOpenWorkspace()}
