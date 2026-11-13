@@ -42,6 +42,12 @@ pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
                 if now.saturating_sub(stable_since) < 800 {
                     continue;
                 }
+                // Only ask about games when some rule cares; detection reads window geometry.
+                let wants_game = {
+                    let guard = shared.lock().unwrap_or_else(|e| e.into_inner());
+                    guard.auto_switch_rules.iter().any(|r| r.enabled && r.process_name.trim().eq_ignore_ascii_case(crate::live::ANY_GAME))
+                };
+                let is_game = wants_game && crate::game_mode::foreground_is_game();
                 let switch_to = {
                     let guard = shared.lock().unwrap_or_else(|e| e.into_inner());
                     if now < guard.auto_switch_hold_until_ms {
@@ -54,6 +60,7 @@ pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
                             guard.active_page_index,
                             &stable_exe,
                             &stable_title,
+                            is_game,
                         )
                     }
                 };

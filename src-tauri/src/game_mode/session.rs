@@ -132,8 +132,11 @@ pub fn enable(
     let mut closed: Vec<ClosedApp> = Vec::new();
     let mut keepers: HashMap<&'static str, HashSet<u32>> = HashMap::new();
     let mut wsl = false;
+    // Apps this mode starts are never closed by it, even when a close target would match them.
+    let keep = start_app_stems(&mode.start_apps);
     for def in &selected {
-        let matched = matched_procs(def, &before, &protect);
+        let mut matched = matched_procs(def, &before, &protect);
+        matched.retain(|p| !keep.contains(&p.name));
         if matched.is_empty() {
             continue;
         }
@@ -176,6 +179,9 @@ pub fn enable(
         notes.push("Shut down the WSL VM.".to_string());
     }
 
+    // Start apps after closing, so the freed memory goes to them and the game.
+    let started_apps = start_apps(&mode.start_apps, &mut notes);
+
     let mut stopped: Vec<String> = Vec::new();
     let mut failed: Vec<String> = Vec::new();
     let helper_used = stop_command.is_some();
@@ -212,6 +218,7 @@ pub fn enable(
             game: game.as_ref().map(|(_, name)| name.clone()),
             game_pid: game.as_ref().map(|(pid, _)| *pid).unwrap_or(0),
             closed,
+            started: started_apps,
             stopped_services: stopped,
             failed_services: failed,
             helper_used,
@@ -298,6 +305,8 @@ pub fn disable(app: &tauri::AppHandle, auto: bool) -> String {
             Err(message) => notes.push(format!("Could not talk to the admin helper: {message}")),
         }
     }
+
+    stop_started_apps(&current.started, &mut notes);
 
     let mut reopened = 0usize;
     if cfg.restore == "all" {

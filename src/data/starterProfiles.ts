@@ -72,7 +72,7 @@ export const STARTER_PROFILES: StarterProfile[] = [
     icon: "Gamepad2",
     color: "#8B5CF6",
     pages: [
-      { template: "tpl-game", name: "Game", apps: ["steam.exe"] },
+      { template: "tpl-game", name: "Game", apps: ["@game", "steam.exe"] },
       { template: "tpl-music", name: "Music", apps: ["spotify.exe"] },
     ],
   },

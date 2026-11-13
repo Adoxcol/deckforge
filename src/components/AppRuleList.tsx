@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Gamepad2, Plus, Trash2 } from "lucide-react";
 import { deckforgeApi } from "../bridge/tauriBridge";
 import type { AutoSwitchRule, Profile } from "../types/deckforge";
 
@@ -25,7 +25,12 @@ const KNOWN_APPS: Record<string, string> = {
   "zoom.exe": "Zoom",
 };
 
+/** Rule that matches any full-screen game rather than one program. */
+export const ANY_GAME = "@game";
+const isAnyGame = (exe: string) => exe.trim().toLowerCase() === ANY_GAME;
+
 const appName = (exe: string) => {
+  if (isAnyGame(exe)) return "Any game";
   const known = KNOWN_APPS[exe.trim().toLowerCase()];
   if (known) return known;
   const base = exe.replace(/\.exe$/i, "").trim();
@@ -52,6 +57,21 @@ const useOpenApps = (active: boolean) => {
 };
 
 const AppIcon: React.FC<{ exe: string; size?: number }> = ({ exe, size = 32 }) => {
+  if (isAnyGame(exe)) {
+    return (
+      <div
+        className="shrink-0 rounded-[var(--radius-sm)] flex items-center justify-center bg-[var(--accent-soft)] text-[var(--accent-primary)]"
+        style={{ width: size, height: size }}
+        aria-hidden
+      >
+        <Gamepad2 size={Math.round(size * 0.66)} />
+      </div>
+    );
+  }
+  return <ProgramIcon exe={exe} size={size} />;
+};
+
+const ProgramIcon: React.FC<{ exe: string; size?: number }> = ({ exe, size = 32 }) => {
   const key = exe.trim().toLowerCase();
   const [src, setSrc] = React.useState<string | null>(iconCache.get(key) ?? null);
   React.useEffect(() => {
@@ -147,7 +167,7 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
     setAddingAt(null);
     setDraft("");
     if (!exe) return;
-    const processName = /\.exe$/i.test(exe) ? exe : `${exe}.exe`;
+    const processName = isAnyGame(exe) || /\.exe$/i.test(exe) ? exe : `${exe}.exe`;
     saveRules([
       ...rules,
       {
@@ -179,6 +199,7 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
       </div>
 
       <datalist id="deckforge-known-apps">
+        <option value={ANY_GAME}>Any game</option>
         {Object.entries(KNOWN_APPS).map(([exe, name]) => (
           <option key={exe} value={exe}>
             {name}
@@ -277,12 +298,14 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
                             label={`Switch pages for ${appName(selected.processName)}`}
                           />
                         </div>
-                        <input
+                        {isAnyGame(selected.processName) ? (
+                          <p className="text-[11px] text-[var(--text-muted)] leading-snug">Opens for any full-screen game. A game added on its own page still wins.</p>
+                        ) : <input
                           value={selected.windowTitleContains}
                           placeholder="Only when window title contains…"
                           onChange={(e) => patch(selected.id, { windowTitleContains: e.target.value })}
                           className={field}
-                        />
+                        />}
                         <button
                           type="button"
                           onClick={() => {
@@ -372,7 +395,7 @@ export const PageApps: React.FC<{
     setDraft("");
     setOpen(null);
     if (!exe) return;
-    const processName = /\.exe$/i.test(exe) ? exe : `${exe}.exe`;
+    const processName = isAnyGame(exe) || /\.exe$/i.test(exe) ? exe : `${exe}.exe`;
     saveRules([
       ...rules,
       {
@@ -423,6 +446,20 @@ export const PageApps: React.FC<{
           {open === "add" ? (
             <>
               <div className="text-[12px] font-medium text-[var(--text-primary)]">Open {page.name} when this app is in front</div>
+              {!taken.has(ANY_GAME) && (
+                <button
+                  type="button"
+                  onClick={() => add(ANY_GAME)}
+                  title="Any full-screen game, or a program in a Steam, Epic, Xbox or other game folder. An app added on its own still wins."
+                  className="flex items-center gap-2 px-1 py-1 -mx-1 rounded-[var(--radius-sm)] hover:bg-[var(--bg-panel)] text-left cursor-pointer"
+                >
+                  <AppIcon exe={ANY_GAME} size={20} />
+                  <span className="flex flex-col min-w-0">
+                    <span className="text-[12px] text-[var(--text-primary)]">Any game</span>
+                    <span className="text-[10.5px] text-[var(--text-muted)] truncate">Any full-screen game you play</span>
+                  </span>
+                </button>
+              )}
               {choices.length > 0 && (
                 <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto -mx-1">
                   <div className="text-[11px] text-[var(--text-muted)] px-1">Open now</div>
@@ -477,12 +514,14 @@ export const PageApps: React.FC<{
                   label={`Open ${page.name} for ${appName(selected.processName)}`}
                 />
               </div>
-              <input
+              {isAnyGame(selected.processName) ? (
+                <p className="text-[11px] text-[var(--text-muted)] leading-snug">Opens for any full-screen game. A game added on its own page still wins.</p>
+              ) : <input
                 value={selected.windowTitleContains}
                 placeholder="Only when window title contains…"
                 onChange={(e) => patch(selected.id, { windowTitleContains: e.target.value })}
                 className={field}
-              />
+              />}
               <button
                 type="button"
                 onClick={() => {

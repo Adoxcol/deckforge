@@ -336,6 +336,17 @@ export interface GameModeMode {
   tweaks: string[];
   /** GUID of an installed power plan to use while the mode runs. Empty leaves the plan alone. */
   powerPlan: string;
+  /** Programs Game Mode starts when it turns on, such as Outplayed or ExitLag. */
+  startApps: GameModeStartApp[];
+}
+
+/** A program Game Mode starts when it turns on. */
+export interface GameModeStartApp {
+  label: string;
+  path: string;
+  args: string;
+  /** Close it again when Game Mode ends. */
+  closeOnEnd: boolean;
 }
 
 /** A program or service the user added from what is running. */
@@ -379,6 +390,8 @@ export interface GameModeStatus {
   game: string | null;
   gamePid: number;
   closed: GameModeClosedApp[];
+  /** Programs Game Mode started this time. */
+  started?: { label: string; pid: number; closeOnEnd: boolean }[];
   stoppedServices: string[];
   failedServices: string[];
   helperUsed: boolean;

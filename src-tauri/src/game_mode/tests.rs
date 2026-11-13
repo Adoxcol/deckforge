@@ -81,6 +81,12 @@ fn sanitize_drops_unknown_ids_and_bad_values() {
             targets: vec!["discord".into(), "discord".into(), "format_disk".into()],
             tweaks: vec!["priority".into(), "nope".into()],
             power_plan: "{29020666-3A1B-4B66-9D4C-B33D99302449}".into(),
+            start_apps: vec![
+                StartApp { label: "".into(), path: r#" "C:\Program Files\ExitLag\ExitLag.exe" "#.into(), args: "".into(), close_on_end: true },
+                StartApp { label: "Dup".into(), path: r"c:\program files\exitlag\exitlag.exe".into(), args: "".into(), close_on_end: false },
+                StartApp { label: "Not a program".into(), path: r"C:\Users\me\notes.txt".into(), args: "".into(), close_on_end: false },
+                StartApp { label: "Explorer".into(), path: r"C:\Windows\explorer.exe".into(), args: "".into(), close_on_end: true },
+            ],
         }],
         active_mode: "missing".into(),
         settle_seconds: 9999,
@@ -93,6 +99,10 @@ fn sanitize_drops_unknown_ids_and_bad_values() {
     assert_eq!(cfg.modes[0].targets, vec!["discord".to_string()]);
     assert_eq!(cfg.modes[0].tweaks, vec!["priority".to_string()]);
     assert_eq!(cfg.modes[0].power_plan, "29020666-3a1b-4b66-9d4c-b33d99302449");
+    // Quotes are trimmed, duplicates, non-programs and protected programs are dropped.
+    assert_eq!(cfg.modes[0].start_apps.len(), 1);
+    assert_eq!(cfg.modes[0].start_apps[0].path, r"C:\Program Files\ExitLag\ExitLag.exe");
+    assert_eq!(cfg.modes[0].start_apps[0].label, "exitlag");
     assert_eq!(cfg.active_mode, "comp");
     assert_eq!(cfg.settle_seconds, 120);
     assert_eq!(cfg.restore, "all");

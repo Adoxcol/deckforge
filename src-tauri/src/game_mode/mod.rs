@@ -52,6 +52,7 @@ const MB: u64 = 1024 * 1024;
 
 mod catalog;
 mod config;
+mod launch;
 mod power;
 mod processes;
 mod scan;
@@ -63,6 +64,8 @@ mod watcher;
 
 pub use catalog::*;
 pub use config::*;
+pub use launch::{StartApp, StartedApp};
+use launch::*;
 use power::*;
 use processes::*;
 pub use scan::*;

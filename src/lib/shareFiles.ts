@@ -481,7 +481,7 @@ export function placeImportedMode(
   const powerPlan = wantsPlan && installedPlanIds.includes(parsed.powerPlan) ? parsed.powerPlan : "";
 
   return {
-    mode: { id: `mode-${n}`, name, targets: [...new Set(targets)], tweaks: [...new Set(tweaks)], powerPlan },
+    mode: { id: `mode-${n}`, name, targets: [...new Set(targets)], tweaks: [...new Set(tweaks)], powerPlan, startApps: [] },
     customTargets,
     dropped,
     powerPlanDropped: wantsPlan && powerPlan === "",

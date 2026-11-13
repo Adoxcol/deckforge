@@ -621,7 +621,7 @@ const mockEmptyStatus = (): GameModeStatus => ({
 });
 
 let mockGameModeConfig: GameModeConfig = {
-  modes: [{ id: "default", name: "Default", targets: [], tweaks: ["priority"], powerPlan: "" }],
+  modes: [{ id: "default", name: "Default", targets: [], tweaks: ["priority"], powerPlan: "", startApps: [] }],
   activeMode: "default",
   customTargets: [],
   autoDetect: true,

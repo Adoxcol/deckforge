@@ -935,10 +935,12 @@ pub(crate) fn auto_switch_target(
     active_page_index: usize,
     exe: &str,
     title: &str,
+    is_game: bool,
 ) -> Option<(String, usize)> {
     let mut rules: Vec<&AutoSwitchRule> = rules.iter().collect();
-    rules.sort_by_key(|rule| rule.priority);
-    let rule = rules.into_iter().find(|rule| rule_matches(rule, exe, title))?;
+    // A rule for one particular app beats the catch-all game rule.
+    rules.sort_by_key(|rule| (is_any_game(rule), rule.priority));
+    let rule = rules.into_iter().find(|rule| rule_matches(rule, exe, title, is_game))?;
     let profile = profiles.iter().find(|profile| profile.id == rule.target_profile_id)?;
     let page = (!rule.target_page_id.is_empty())
         .then(|| profile.pages.iter().position(|page| page.id == rule.target_page_id))
@@ -952,9 +954,19 @@ pub(crate) fn auto_switch_target(
     }
 }
 
-pub(crate) fn rule_matches(rule: &AutoSwitchRule, exe: &str, title: &str) -> bool {
+/// Process name of the rule that matches any full-screen game instead of one program.
+pub(crate) const ANY_GAME: &str = "@game";
+
+fn is_any_game(rule: &AutoSwitchRule) -> bool {
+    rule.process_name.trim().eq_ignore_ascii_case(ANY_GAME)
+}
+
+pub(crate) fn rule_matches(rule: &AutoSwitchRule, exe: &str, title: &str, is_game: bool) -> bool {
     if !rule.enabled {
         return false;
+    }
+    if is_any_game(rule) {
+        return is_game;
     }
     let want = rule.process_name.trim().to_lowercase();
     if want.is_empty() {
@@ -1454,42 +1466,42 @@ mod auto_switch_tests {
     #[test]
     fn page_rule_switches_inside_the_profile_already_showing() {
         let rules = [rule("obs64.exe", "stream", "scenes", 1)];
-        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 0, "obs64.exe", ""), Some(("stream".into(), 1)));
+        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 0, "obs64.exe", "", false), Some(("stream".into(), 1)));
     }
 
     #[test]
     fn page_rule_stays_put_when_that_page_is_showing() {
         let rules = [rule("obs64.exe", "stream", "scenes", 1)];
-        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 1, "obs64.exe", ""), None);
+        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 1, "obs64.exe", "", false), None);
     }
 
     #[test]
     fn profile_rule_does_not_pull_back_to_page_one() {
         let rules = [rule("obs64.exe", "stream", "", 1)];
-        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 1, "obs64.exe", ""), None);
-        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "obs64.exe", ""), Some(("stream".into(), 0)));
+        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 1, "obs64.exe", "", false), None);
+        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "obs64.exe", "", false), Some(("stream".into(), 0)));
     }
 
     #[test]
     fn deleted_page_falls_back_to_page_one() {
         let rules = [rule("resolve.exe", "edit", "gone", 1)];
-        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 1, "resolve.exe", ""), Some(("edit".into(), 0)));
+        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 1, "resolve.exe", "", false), Some(("edit".into(), 0)));
     }
 
     #[test]
     fn missing_profile_disabled_rule_and_other_apps_do_nothing() {
         let mut off = rule("obs64.exe", "stream", "scenes", 1);
         off.enabled = false;
-        assert_eq!(auto_switch_target(&[off], &profiles(), "edit", 0, "obs64.exe", ""), None);
+        assert_eq!(auto_switch_target(&[off], &profiles(), "edit", 0, "obs64.exe", "", false), None);
         let rules = [rule("obs64.exe", "nope", "", 1)];
-        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "obs64.exe", ""), None);
-        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "code.exe", ""), None);
+        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "obs64.exe", "", false), None);
+        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "code.exe", "", false), None);
     }
 
     #[test]
     fn lowest_priority_number_wins() {
         let rules = [rule("obs64.exe", "edit", "", 2), rule("obs64", "stream", "scenes", 1)];
-        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "OBS64.EXE", ""), Some(("stream".into(), 1)));
+        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "OBS64.EXE", "", false), Some(("stream".into(), 1)));
     }
 }
 
@@ -1509,5 +1521,36 @@ mod back_tests {
         // Back again toggles forward, like a folder key and its back key.
         switch_active_page(&mut guard, "profile.back", "").unwrap();
         assert_eq!(guard.active_page_index, 1);
+    }
+}
+
+#[cfg(test)]
+mod any_game_tests {
+    use super::{auto_switch_target, ANY_GAME};
+    use crate::db::{AutoSwitchRule, Profile, ProfilePage};
+
+    fn profile(id: &str) -> Profile {
+        Profile {
+            id: id.into(), name: id.into(), icon: String::new(), color_strip: String::new(),
+            target_device_id: String::new(), last_modified_ms: 0,
+            pages: vec![ProfilePage { id: format!("{id}-p"), name: id.into(), keys: vec![], touch_zones: vec![], encoders: vec![], strip_media: None }],
+        }
+    }
+
+    fn rule(exe: &str, profile: &str, priority: u8) -> AutoSwitchRule {
+        AutoSwitchRule {
+            id: exe.into(), process_name: exe.into(), window_title_contains: String::new(),
+            target_profile_id: profile.into(), target_page_id: String::new(), priority, enabled: true,
+        }
+    }
+
+    #[test]
+    fn any_game_rule_opens_for_games_only_and_loses_to_an_app_rule() {
+        let profiles = [profile("work"), profile("gaming"), profile("valorant")];
+        let rules = [rule(ANY_GAME, "gaming", 1), rule("valorant.exe", "valorant", 9)];
+        assert_eq!(auto_switch_target(&rules, &profiles, "work", 0, "eldenring.exe", "", true), Some(("gaming".into(), 0)));
+        assert_eq!(auto_switch_target(&rules, &profiles, "work", 0, "chrome.exe", "", false), None);
+        // The game's own rule wins even though its priority number is higher.
+        assert_eq!(auto_switch_target(&rules, &profiles, "work", 0, "VALORANT.exe", "", true), Some(("valorant".into(), 0)));
     }
 }

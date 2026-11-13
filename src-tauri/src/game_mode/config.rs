@@ -16,6 +16,9 @@ pub struct ModeConfig {
     /// GUID of an installed power plan to switch to while the mode runs. Empty leaves the
     /// plan the PC is already using alone.
     pub power_plan: String,
+    /// Programs to start when the mode turns on, such as a clip recorder or a network booster.
+    #[serde(default)]
+    pub start_apps: Vec<StartApp>,
 }
 
 impl Default for ModeConfig {
@@ -27,6 +30,7 @@ impl Default for ModeConfig {
             targets: Vec::new(),
             tweaks: vec!["priority".to_string()],
             power_plan: String::new(),
+            start_apps: Vec::new(),
         }
     }
 }
@@ -236,6 +240,7 @@ pub(super) fn sanitize(mut cfg: GameModeConfig) -> GameModeConfig {
         mode.targets.retain(|id| known.contains(id) && seen.insert(id.clone()));
         let mut seen = HashSet::new();
         mode.tweaks.retain(|id| known_tweaks.contains(id.as_str()) && seen.insert(id.clone()));
+        mode.start_apps = clean_start_apps(std::mem::take(&mut mode.start_apps));
         modes.push(mode);
     }
     if modes.is_empty() {
@@ -337,6 +342,9 @@ pub struct GameModeStatus {
     pub game: Option<String>,
     pub game_pid: u32,
     pub closed: Vec<ClosedApp>,
+    /// Programs this run started, closed again at the end when the mode says so.
+    #[serde(default)]
+    pub started: Vec<StartedApp>,
     pub stopped_services: Vec<String>,
     pub failed_services: Vec<String>,
     pub helper_used: bool,

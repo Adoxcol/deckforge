@@ -78,6 +78,11 @@ pub(super) fn detect_game() -> Option<(u32, String)> {
     }
 }
 
+/// True when a game is in front, for the "Any game" page switching rule.
+pub fn foreground_is_game() -> bool {
+    detect_game().is_some()
+}
+
 /// True when the mode that is running has this tweak on.
 pub(super) fn running_mode_has(cfg: &GameModeConfig, mode_name: &str, tweak: &str) -> bool {
     cfg.modes

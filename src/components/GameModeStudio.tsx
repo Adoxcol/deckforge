@@ -7,6 +7,7 @@ import {
   Plus,
   Power,
   RefreshCw,
+  Rocket,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -34,6 +35,7 @@ import type {
   GameModeRunningApp,
   GameModeScan,
   GameModeServicePick,
+  GameModeStartApp,
   GameModeStatus,
 } from "../types/deckforge";
 
@@ -300,7 +302,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
     if (!config || !mode) return;
     let n = config.modes.length + 1;
     while (config.modes.some((m) => m.id === `mode-${n}`)) n += 1;
-    const created: GameModeMode = { id: `mode-${n}`, name: `Mode ${n}`, targets: [...mode.targets], tweaks: [...mode.tweaks], powerPlan: mode.powerPlan };
+    const created: GameModeMode = { id: `mode-${n}`, name: `Mode ${n}`, targets: [...mode.targets], tweaks: [...mode.tweaks], powerPlan: mode.powerPlan, startApps: (mode.startApps ?? []).map((a) => ({ ...a })) };
     setEditingId(created.id);
     setConfirmDelete(false);
     void save({ ...config, modes: [...config.modes, created] });
@@ -905,6 +907,12 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
           </p>
         </section>
 
+        <StartAppsSection
+          apps={mode.startApps ?? []}
+          running={scan.processes}
+          onChange={(startApps) => updateMode({ startApps })}
+        />
+
         {/* Tweaks */}
         <section aria-label="Tweaks" className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
@@ -1097,5 +1105,129 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
         </div>
       </aside>
     </div>
+  );
+};
+
+const exeName = (path: string) => path.split(/[\\/]/).pop() ?? path;
+const stemOf = (path: string) => exeName(path).replace(/\.exe$/i, "");
+
+/** Programs Game Mode starts when it turns on, such as Outplayed or ExitLag. */
+const StartAppsSection: React.FC<{
+  apps: GameModeStartApp[];
+  running: GameModeRunningApp[];
+  onChange: (apps: GameModeStartApp[]) => void;
+}> = ({ apps, running, onChange }) => {
+  const [typed, setTyped] = React.useState("");
+  const [picking, setPicking] = React.useState(false);
+  const has = (path: string) => apps.some((a) => a.path.toLowerCase() === path.toLowerCase());
+  const add = (path: string) => {
+    const clean = path.trim().replace(/^"|"$/g, "");
+    if (!/\.exe$/i.test(clean) || has(clean) || apps.length >= 10) return false;
+    onChange([...apps, { label: stemOf(clean), path: clean, args: "", closeOnEnd: false }]);
+    return true;
+  };
+  const patch = (i: number, change: Partial<GameModeStartApp>) => onChange(apps.map((a, j) => (j === i ? { ...a, ...change } : a)));
+  const choices = running.filter((p) => p.path && /\.exe$/i.test(p.path) && !has(p.path));
+  const typedOk = /\.exe"?$/i.test(typed.trim());
+
+  return (
+    <section aria-label="Start when Game Mode turns on" className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <Rocket size={14} />
+        <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Start when Game Mode turns on</h2>
+        <span className="text-[11px] text-[var(--text-muted)]">Apps you want running while you play, like Outplayed or ExitLag.</span>
+      </div>
+      {apps.length === 0 && (
+        <div className="px-3.5 py-3 rounded-lg border border-dashed border-[var(--border-subtle)] text-[11.5px] text-[var(--text-muted)]">
+          Nothing starts yet. Add an app that is running now, or paste the path to its .exe.
+        </div>
+      )}
+      {apps.map((app, i) => (
+        <div key={app.path} className="flex flex-col gap-2 px-3.5 py-2.5 rounded-lg border bg-[var(--bg-sidebar)] border-[var(--border-subtle)]">
+          <div className="flex items-center gap-2">
+            <input
+              value={app.label}
+              onChange={(e) => patch(i, { label: e.target.value.slice(0, 40) })}
+              aria-label="Name"
+              className="w-40 h-7 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-[12.5px] font-semibold text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)]"
+            />
+            <span className="flex-1 min-w-0 truncate text-[11px] text-[var(--text-muted)]" title={app.path}>{app.path}</span>
+            <button
+              onClick={() => onChange(apps.filter((_, j) => j !== i))}
+              aria-label={`Remove ${app.label}`}
+              className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--status-error)] cursor-pointer"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <input
+              value={app.args}
+              onChange={(e) => patch(i, { args: e.target.value.slice(0, 300) })}
+              placeholder="Arguments (optional), e.g. -launchapp <id>"
+              aria-label="Arguments"
+              className="flex-1 h-7 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-[11.5px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] placeholder:text-[var(--text-muted)]"
+            />
+            <label className="flex items-center gap-1.5 text-[11.5px] text-[var(--text-secondary)] cursor-pointer select-none shrink-0">
+              <input type="checkbox" checked={app.closeOnEnd} onChange={(e) => patch(i, { closeOnEnd: e.target.checked })} />
+              Close when Game Mode ends
+            </label>
+          </div>
+        </div>
+      ))}
+      {apps.length < 10 && (
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <button
+              onClick={() => setPicking((v) => !v)}
+              className="h-8 px-3 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:border-[var(--border-strong)] text-[12px] text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus size={13} /> Add a running app
+            </button>
+            {picking && (
+              <>
+                <div className="fixed inset-0 z-[90]" onMouseDown={() => setPicking(false)} />
+                <div className="absolute z-[91] left-0 top-9 w-72 max-h-64 overflow-y-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] shadow-2xl py-1">
+                  {choices.length === 0 && <div className="px-3 py-4 text-center text-[11.5px] text-[var(--text-muted)]">Open the app first, then pick it here.</div>}
+                  {choices.map((p) => (
+                    <button
+                      key={p.path}
+                      onClick={() => {
+                        add(p.path);
+                        setPicking(false);
+                      }}
+                      title={p.path}
+                      className="w-full text-left px-3 py-1.5 text-[12px] text-[var(--text-primary)] hover:bg-[var(--accent-soft)] cursor-pointer truncate"
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+          <input
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && add(typed)) setTyped("");
+            }}
+            placeholder="Or paste a path, like C:\Program Files\ExitLag\ExitLag.exe"
+            className="flex-1 h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-[11.5px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] placeholder:text-[var(--text-muted)]"
+          />
+          <button
+            disabled={!typedOk}
+            onClick={() => add(typed) && setTyped("")}
+            className="h-8 px-3 rounded-md border border-[var(--border-subtle)] text-[12px] text-[var(--text-primary)] enabled:hover:border-[var(--border-strong)] disabled:opacity-40 cursor-pointer disabled:cursor-default"
+          >
+            Add
+          </button>
+        </div>
+      )}
+      <p className="text-[11px] text-[var(--text-muted)] leading-snug">
+        Apps already running are left alone. An app that needs admin rights, like ExitLag, shows one Windows prompt, and is skipped if a game is already full screen.
+        Outplayed runs inside Overwolf: add Overwolf&apos;s launcher and use the arguments from its desktop shortcut.
+      </p>
+    </section>
   );
 };
