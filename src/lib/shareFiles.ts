@@ -45,15 +45,17 @@ export function slugify(text: string, max = 40): string {
 }
 
 /** Opens the file chooser and reads the picked JSON file. Resolves null if the user cancels. */
-export function pickJsonFile(): Promise<{ name: string; text: string } | null> {
-  return new Promise((resolve) => {
+export function pickJsonFile(maxBytes = 96 * 1024 * 1024): Promise<{ name: string; text: string } | null> {
+  return new Promise((resolve, reject) => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = ".json,application/json";
     input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return resolve(null);
-      resolve({ name: file.name, text: await file.text() });
+      if (file.size > maxBytes) return reject(new Error(`File exceeds the ${Math.floor(maxBytes / 1024 / 1024)} MB limit.`));
+      try { resolve({ name: file.name, text: await file.text() }); }
+      catch (error) { reject(error); }
     };
     input.addEventListener("cancel", () => resolve(null));
     input.click();
@@ -450,4 +452,35 @@ export function placeImportedMode(
     dropped,
     powerPlanDropped: wantsPlan && powerPlan === "",
   };
+}
+/** Import a whole backup as copies while preserving cross-profile and macro references. */
+export function placeBackup(profiles: Profile[], macros: MacroSequence[], existingProfiles: Profile[], existingMacros: MacroSequence[]) {
+  const allocate = (prefix: string, used: Set<string>) => {
+    let n = 1;
+    while (used.has(`${prefix}-${n}`)) n++;
+    const id = `${prefix}-${n}`; used.add(id); return id;
+  };
+  const profileIds = new Set(existingProfiles.map(p => p.id));
+  const macroIds = new Set(existingMacros.map(m => m.id));
+  const profileMap = new Map(profiles.map(p => [p.id, allocate("restored-profile", profileIds)]));
+  const macroMap = new Map(macros.map(m => [m.id, allocate("restored-macro", macroIds)]));
+  const lookup = (value: string, items: { id: string; name: string }[], ids: Map<string, string>) => {
+    const item = items.find(i => i.id === value) ?? items.find(i => i.name.toLowerCase() === value.toLowerCase());
+    return item ? ids.get(item.id)! : value;
+  };
+  const takenNames = new Set(existingProfiles.map(p => p.name.toLowerCase()));
+  const placed = profiles.map(profile => {
+    let name = profile.name;
+    for (let n = 1; takenNames.has(name.toLowerCase()); n++) name = `${profile.name} (restored ${n})`;
+    takenNames.add(name.toLowerCase());
+    return rewriteActions({ ...profile, id: profileMap.get(profile.id)!, name }, (actionId, param) => ({
+      actionId,
+      param: actionId === "profile.switch" ? lookup(param, profiles, profileMap)
+        : actionId === "macro.run" ? lookup(param, macros, macroMap) : param,
+    }));
+  });
+  const placedMacros = macros.map(macro => ({ ...macro, id: macroMap.get(macro.id)!, steps: macro.steps.map(step => ({
+    ...step, parameter: step.stepType === "SwitchProfile" ? lookup(step.parameter, profiles, profileMap) : step.parameter,
+  })) }));
+  return { profiles: placed, macros: placedMacros };
 }

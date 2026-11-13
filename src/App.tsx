@@ -84,7 +84,7 @@ import type {
 
 import { ACTION_CATALOG, type ActionTemplate } from "./data/actionCatalog";
 import { bytesToBase64, buildPulseFrames, errorText } from "./lib/format";
-import { buildProfileFile, parseProfileFile, pickJsonFile, placeImportedProfile, slugify } from "./lib/shareFiles";
+import { buildProfileFile, placeBackup, parseProfileFile, pickJsonFile, placeImportedProfile, slugify } from "./lib/shareFiles";
 import { LevelMeter, liveKeyLook, liveZoneValue } from "./components/LiveFace";
 
 export const App: React.FC = () => {
@@ -127,6 +127,8 @@ export const App: React.FC = () => {
   const [quitOpen, setQuitOpen] = useState(false);
   const [quitting, setQuitting] = useState(false);
   const [quitError, setQuitError] = useState<string | null>(null);
+  const latestMacros = useRef(macros);
+  latestMacros.current = macros;
   const latestProfiles = useRef(profiles);
   latestProfiles.current = profiles;
   const [saveStatuses, setSaveStatuses] = useState<Record<string, SaveStatus>>({});
@@ -793,6 +795,21 @@ export const App: React.FC = () => {
     triggerToast(`Created ${newProf.name}`, "success");
   };
 
+  const handleBackup = () => deckforgeApi.exportProfilesBackup(latestProfiles.current, latestMacros.current);
+  const handleRestoreBackup = async (contents: string) => {
+    const restored = await deckforgeApi.restoreProfilesBackup(contents);
+    const current = latestProfiles.current;
+    const placed = placeBackup(restored.profiles, restored.macros, current, latestMacros.current);
+    setUndoStack(prev => [...prev.slice(-19), structuredClone(current)]);
+    setRedoStack([]);
+    setMediaLibrary(prev => ({ ...prev, ...Object.fromEntries(restored.mediaLibrary.map(media => [media.id, media])) }));
+    setProfiles([...current, ...placed.profiles]);
+    if (placed.macros.length) persistMacros([...latestMacros.current, ...placed.macros]);
+    setSelectedProfileId(placed.profiles[0].id);
+    setSelectedPageIdx(0); setSelectedKeyIdx(0);
+    return placed.profiles.length;
+  };
+
   const handleExportProfile = async () => {
     if (!activeProfile) return;
     try {
@@ -809,9 +826,10 @@ export const App: React.FC = () => {
   };
 
   const handleImportProfile = async () => {
-    const picked = await pickJsonFile();
-    if (!picked) return;
+    let picked: { name: string; text: string } | null = null;
     try {
+      picked = await pickJsonFile();
+      if (!picked) return;
       const placed = placeImportedProfile(parseProfileFile(picked.text), profiles, macros);
       const next = [...profiles, placed.profile];
       pushUndoSnapshot();
@@ -833,7 +851,7 @@ export const App: React.FC = () => {
         "success"
       );
     } catch (err) {
-      triggerToast(`Could not import ${picked.name}: ${errorText(err)}`, "warning");
+      triggerToast(`Could not import ${picked?.name ?? "file"}: ${errorText(err)}`, "warning");
     }
   };
 
@@ -1206,7 +1224,7 @@ export const App: React.FC = () => {
 
       {/* 7. SCREEN 07: SETTINGS (Spec Section 10) */}
       {activeScreen === "settings" && (
-        <SettingsScreen onNavigate={setActiveScreen} onOpenGuide={() => setShowOnboarding(true)} />
+        <SettingsScreen onBackup={handleBackup} onRestore={handleRestoreBackup} onNavigate={setActiveScreen} onOpenGuide={() => setShowOnboarding(true)} />
       )}
 
       {/* First-Run Onboarding / Hardware Guide Modal (Spec Section 11.1) */}

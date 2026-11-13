@@ -473,3 +473,9 @@ export interface WorkspaceStatus {
     layoutReady: boolean;
   } | null;
 }
+
+export interface RestoredBackup {
+  profiles: Profile[];
+  macros: MacroSequence[];
+  mediaLibrary: MediaPreview[];
+}

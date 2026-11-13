@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ArrowUpRight, BookOpen, Database, Info, Monitor, Power, Usb } from "lucide-react";
 import { deckforgeApi, isTauriRuntime } from "../bridge/tauriBridge";
 import type { NavScreenId } from "../types/deckforge";
+import { BackupPanel } from "../components/BackupPanel";
 import packageInfo from "../../package.json";
 
 const sections = [
@@ -14,7 +15,7 @@ type Section = typeof sections[number]["id"];
 const card = "rounded-xl border border-[#272D3D] bg-[#151925] p-5 space-y-3";
 const action = "inline-flex items-center gap-2 rounded-lg border border-[#394158] px-3 py-2 text-xs font-medium text-[#E0E4EE] hover:border-[#8B5CF6] hover:bg-[#30244F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#8B5CF6]";
 
-export const SettingsScreen: React.FC<{ onNavigate: (screen: NavScreenId) => void; onOpenGuide: () => void }> = ({ onNavigate, onOpenGuide }) => {
+export const SettingsScreen: React.FC<{ onNavigate: (screen: NavScreenId) => void; onOpenGuide: () => void; onBackup: () => Promise<string>; onRestore: (contents: string) => Promise<number> }> = ({ onNavigate, onOpenGuide, onBackup, onRestore }) => {
   const [section, setSection] = useState<Section>("general");
   const [launchAtLogin, setLaunchAtLogin] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -81,6 +82,7 @@ export const SettingsScreen: React.FC<{ onNavigate: (screen: NavScreenId) => voi
           </section>
         </>}
         {section === "data" && <>
+          <BackupPanel onBackup={onBackup} onRestore={onRestore} />
           <section className={card}><h2 className="font-semibold text-[#F4F5FA]">Save locally, then apply</h2>
             <p><strong className="text-[#E0E4EE]">Save</strong> stores profile edits on this PC. <strong className="text-[#E0E4EE]">Apply to Device</strong> saves and sends the selected page to the deck. Browsing or editing a different page does not change the applied bindings.</p>
             <p className="text-xs">Macros, auto-switch rules, and OBS settings save as you edit. Pending or failed saves appear above the workspace with a retry control.</p>

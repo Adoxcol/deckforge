@@ -78,12 +78,24 @@ struct DiskMeta {
     delay_ms: u32,
 }
 
+/// Original encoded media, including generated DFF1 sequences; never preview thumbnails.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MediaBackup {
+    pub id: String,
+    pub file_name: String,
+    pub kind: String,
+    pub delay_ms: u32,
+    pub data_base64: String,
+    pub sha256: String,
+}
+
 impl MediaStore {
     pub fn load() -> Self {
         Self::load_from(media_dir())
     }
 
-    fn load_from(dir: PathBuf) -> Self {
+    pub(crate) fn load_from(dir: PathBuf) -> Self {
         let mut store = Self { clips: HashMap::new(), directory: dir.clone() };
         let Ok(entries) = fs::read_dir(&dir) else {
             return store;
@@ -110,6 +122,79 @@ impl MediaStore {
             }
         }
         store
+    }
+
+    pub(crate) fn merge_restored(&mut self, other: Self) {
+        self.clips.extend(other.clips);
+    }
+
+    pub fn backup(&self, ids: &std::collections::BTreeSet<String>) -> Result<Vec<MediaBackup>, String> {
+        if ids.len() > 256 { return Err("Backup has too many media assets (maximum 256)".into()); }
+        let mut total = 0;
+        let mut decoded_total = 0;
+        ids.iter().map(|id| {
+            if sanitize_id(id)? != *id { return Err("Invalid media ID".into()); }
+            let meta: DiskMeta = serde_json::from_str(&fs::read_to_string(self.directory.join(format!("{id}.json"))).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+            let name = match meta.data_file {
+                Some(name) if valid_blob_name(&name) => name,
+                None => format!("{id}.bin"),
+                _ => return Err("Invalid media storage reference".into()),
+            };
+            let hashed_name = valid_blob_name(&name);
+            let bytes = fs::read(self.directory.join(&name)).map_err(|e| format!("Could not read media {id}: {e}"))?;
+            if hashed_name && name != format!("{}.bin", crate::drivers::frame_cache::AntiFreezeFrameCache::compute_sha256_hex(&bytes)) {
+                return Err(format!("Media {id} is corrupt; backup was not created"));
+            }
+            total += bytes.len();
+            if total > 64 * 1024 * 1024 { return Err("Backup media exceeds the 64 MB limit".into()); }
+            let clip = decode_into_clip(id, &meta.file_name, &bytes, &meta.kind, meta.delay_ms)?;
+            decoded_total += clip.frames.iter().map(|f| f.as_raw().len()).sum::<usize>();
+            if decoded_total > 256 * 1024 * 1024 { return Err("Decoded backup media exceeds the 256 MB limit".into()); }
+            Ok(MediaBackup { id: id.clone(), file_name: meta.file_name, kind: meta.kind, delay_ms: meta.delay_ms,
+                sha256: crate::drivers::frame_cache::AntiFreezeFrameCache::compute_sha256_hex(&bytes), data_base64: STANDARD.encode(bytes) })
+        }).collect()
+    }
+
+    pub fn restore_backup(&mut self, assets: &[MediaBackup]) -> Result<(HashMap<String, String>, Vec<MediaPreview>), String> {
+        if assets.len() > 256 { return Err("Backup has too many media assets (maximum 256)".into()); }
+        let mut prepared = Vec::new();
+        let mut remap = HashMap::new();
+        let mut encoded_bytes = 0usize;
+        let mut decoded_bytes = 0usize;
+        // Decode and verify the whole bundle before writing any metadata or changing memory.
+        for asset in assets {
+            if sanitize_id(&asset.id)? != asset.id { return Err("Invalid media ID in backup".into()); }
+            if remap.contains_key(&asset.id) { return Err("Duplicate media ID in backup".into()); }
+            if asset.kind != "file" && asset.kind != "sequence" { return Err("Unsupported media encoding".into()); }
+            let bytes = decode_b64(&asset.data_base64)?;
+            encoded_bytes += bytes.len();
+            if encoded_bytes > 64 * 1024 * 1024 { return Err("Backup media exceeds the 64 MB limit".into()); }
+            if crate::drivers::frame_cache::AntiFreezeFrameCache::compute_sha256_hex(&bytes) != asset.sha256 {
+                return Err(format!("Media checksum failed: {}", asset.file_name));
+            }
+            static NEXT_RESTORE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+            let id = loop {
+                let n = NEXT_RESTORE.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let candidate = format!("restored-{}-{n}", crate::drivers::hal::now_ms());
+                if !self.clips.contains_key(&candidate) && !self.directory.join(format!("{candidate}.json")).exists()
+                    && !remap.values().any(|value| value == &candidate) { break candidate; }
+            };
+            let clip = decode_into_clip(&id, &asset.file_name, &bytes, &asset.kind, asset.delay_ms)?;
+            decoded_bytes += clip.frames.iter().map(|f| f.as_raw().len()).sum::<usize>();
+            if decoded_bytes > 256 * 1024 * 1024 { return Err("Decoded backup media exceeds the 256 MB limit".into()); }
+            remap.insert(asset.id.clone(), id.clone());
+            prepared.push((id, clip, asset, bytes));
+        }
+        for (id, _, asset, bytes) in &prepared {
+            persist_clip(&self.directory, id, &asset.file_name, &asset.kind, asset.delay_ms, bytes)
+                .map_err(|e| format!("Could not restore media; existing profiles are unchanged: {e}"))?;
+        }
+        let mut previews = Vec::new();
+        for (id, clip, _, _) in prepared {
+            previews.push(clip.preview.clone());
+            self.clips.insert(id, clip);
+        }
+        Ok((remap, previews))
     }
 
     pub fn previews(&self) -> Vec<MediaPreview> {
@@ -844,6 +929,49 @@ mod tests {
         fs::remove_dir(dir.0.join("clip.json.tmp")).unwrap();
         store.stage_bytes("clip", "replacement.jpg", &replacement).unwrap();
         assert_eq!(dir.store().previews()[0].file_name, "replacement.jpg");
+    }
+
+    #[test]
+    fn media_backup_round_trip_preserves_gif_and_generated_sequence_without_replacing_existing_media() {
+        let source = TestMediaDir::new();
+        let mut store = source.store();
+        store.stage_bytes("photo", "original.gif", &tiny_gif()).unwrap();
+        let frame = STANDARD.encode(encode_jpeg(&RgbImage::new(4, 4), 90));
+        store.stage_sequence("motion", "generated", &[frame.clone(), frame], 140).unwrap();
+        let assets = store.backup(&["photo".into(), "motion".into()].into()).unwrap();
+        let target = TestMediaDir::new();
+        let mut restored = target.store();
+        restored.stage_bytes("photo", "existing.gif", &tiny_gif()).unwrap();
+        let (ids, previews) = restored.restore_backup(&assets).unwrap();
+        assert_eq!(previews.len(), 2);
+        assert_ne!(ids["photo"], "photo");
+        assert_eq!(restored.clips["photo"].file_name, "existing.gif");
+        let reloaded = target.store();
+        let exported = reloaded.backup(&ids.values().cloned().collect()).unwrap();
+        for original in &assets {
+            let copy = exported.iter().find(|asset| asset.id == ids[&original.id]).unwrap();
+            assert_eq!(copy.data_base64, original.data_base64);
+            assert_eq!(copy.kind, original.kind);
+            assert_eq!(copy.delay_ms, original.delay_ms);
+            assert_eq!(copy.sha256, original.sha256);
+            assert_eq!(reloaded.clips[&copy.id].delays_ms, store.clips[&original.id].delays_ms);
+        }
+    }
+
+    #[test]
+    fn invalid_bundle_is_rejected_before_any_media_is_written() {
+        let source = TestMediaDir::new();
+        let mut store = source.store();
+        store.stage_bytes("photo", "photo.gif", &tiny_gif()).unwrap();
+        let mut assets = store.backup(&["photo".into()].into()).unwrap();
+        let mut bad = assets[0].clone(); bad.id = "bad".into(); bad.sha256 = "wrong".into();
+        assets.push(bad);
+        let target = TestMediaDir::new();
+        assert!(target.store().restore_backup(&assets).is_err());
+        assert_eq!(fs::read_dir(&target.0).unwrap().count(), 0);
+        assets.pop(); assets[0].id = "../escape".into();
+        assert!(target.store().restore_backup(&assets).is_err());
+        assert_eq!(fs::read_dir(&target.0).unwrap().count(), 0);
     }
 
     #[test]

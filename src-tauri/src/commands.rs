@@ -236,14 +236,23 @@ fn write_export(dir: &std::path::Path, file_name: &str, contents: &str) -> Resul
     std::fs::create_dir_all(dir).map_err(|e| format!("Could not create {}: {e}", dir.display()))?;
     let wanted = safe_export_name(file_name);
     let stem = wanted.trim_end_matches(".json").to_string();
-    let mut path = dir.join(&wanted);
-    let mut n = 2;
-    while path.exists() {
-        path = dir.join(format!("{stem} ({n}).json"));
-        n += 1;
+    use std::io::Write;
+    for n in 1..10000 {
+        let path = dir.join(if n == 1 { wanted.clone() } else { format!("{stem} ({n}).json") });
+        let mut file = match std::fs::OpenOptions::new().write(true).create_new(true).open(&path) {
+            Ok(file) => file,
+            Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => continue,
+            Err(err) => return Err(format!("Could not create export: {err}")),
+        };
+        let result = file.write_all(contents.as_bytes()).and_then(|_| file.sync_all());
+        drop(file);
+        if let Err(err) = result {
+            let _ = std::fs::remove_file(&path); // Only the file created by this invocation.
+            return Err(format!("Could not finish export: {err}"));
+        }
+        return Ok(path);
     }
-    std::fs::write(&path, contents).map_err(|e| format!("Could not write {}: {e}", path.display()))?;
-    Ok(path)
+    Err("No unused export filename available".into())
 }
 
 /// Writes a share file (profile or Game Mode) into the exports folder and shows it in Explorer.

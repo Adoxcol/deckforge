@@ -39,6 +39,7 @@ use std::time::Duration;
 use tauri::{Emitter, State, Manager};
 
 mod commands;
+mod backup;
 mod live;
 mod macro_run;
 mod state;
@@ -105,6 +106,8 @@ pub fn run() {
             get_workspace_status,
             resend_layout,
             save_export_file,
+            backup::export_profiles_backup,
+            backup::restore_profiles_backup,
             import_legacy_sdprofiles,
             get_telemetry,
             hold_auto_switch,

@@ -26,6 +26,7 @@ import type {
   DeckStatus,
   ProfilePage,
   WorkspaceStatus,
+  RestoredBackup,
 } from "../types/deckforge";
 
 export const isTauriRuntime = (): boolean => {
@@ -637,6 +638,15 @@ let mockApplied: { deviceId: string; profileId: string; profileName: string; pag
 let mockAppliedAt: number | null = null;
 
 export const deckforgeApi = {
+  async exportProfilesBackup(profiles: Profile[], macros: MacroSequence[]): Promise<string> {
+    if (!isTauriRuntime()) throw new Error("Media backups require the desktop app.");
+    return invoke<string>("export_profiles_backup", { profiles, macros });
+  },
+  async restoreProfilesBackup(contents: string): Promise<RestoredBackup> {
+    if (!isTauriRuntime()) throw new Error("Media backups require the desktop app.");
+    return invoke<RestoredBackup>("restore_profiles_backup", { contents });
+  },
+
   async getInitialState(): Promise<FullBootstrapPayload> {
     if (isTauriRuntime()) {
       return await invoke<FullBootstrapPayload>("get_initial_state");

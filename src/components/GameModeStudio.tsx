@@ -321,9 +321,10 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
 
   const startImport = async () => {
     if (!config || !scan) return;
-    const picked = await pickJsonFile();
-    if (!picked) return;
+    let picked: { name: string; text: string } | null = null;
     try {
+      picked = await pickJsonFile();
+      if (!picked) return;
       const parsed = parseModeFile(picked.text);
       setPendingImport(
         placeImportedMode(
@@ -336,7 +337,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
         )
       );
     } catch (error) {
-      notify(`Could not import ${picked.name}: ${errorText(error)}`, "warning");
+      notify(`Could not import ${picked?.name ?? "file"}: ${errorText(error)}`, "warning");
     }
   };
 
