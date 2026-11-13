@@ -93,7 +93,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
               onClick={() => onBrightness(activeDevice.brightness)}
               className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-xs font-medium cursor-pointer"
             >
-              Identify Device (CRT..LIG)
+              Identify deck
             </button>
             <button
               onClick={() => onOpenWorkspace()}
@@ -114,7 +114,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                 className={`px-3.5 py-1.5 rounded-md text-xs font-medium cursor-pointer ${
                   deviceDetailTab === tab
                     ? "bg-[var(--accent-soft)] text-white font-semibold"
-                    : "text-[var(--text-secondary)] hover:text-white"
+                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 {tab}
@@ -125,29 +125,29 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
 
         {deviceDetailTab === "Overview" && (
           <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
-              <div className="text-xs text-[var(--text-secondary)]">Hardware Verification</div>
-              <div className="text-base font-bold mt-1 text-[var(--status-success)]">
+            <div className="p-4 rounded-[var(--radius-md)] bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
+              <div className="text-[12px] text-[var(--text-secondary)]">Driver</div>
+              <div className={`text-[15px] font-semibold mt-1 ${activeDevice.verifiedDriver ? "text-[var(--status-success)]" : "text-[var(--text-primary)]"}`}>
+                {activeDevice.verifiedDriver ? "Tested with this deck" : "Preview only"}
+              </div>
+              <p className="text-[12px] text-[var(--text-muted)] mt-1">
                 {activeDevice.verifiedDriver
-                  ? "✓ Verified Physical Driver"
-                  : "Simulator / Protocol Profile"}
-              </div>
-              <p className="text-xs text-[var(--text-muted)] mt-1">
-                Disassembled from SDLibrary1.dll (65-byte Windows HID reports on MI_00).
+                  ? "DeckForge talks to this model directly over USB."
+                  : "No hardware is attached; changes show in the editor only."}
               </p>
             </div>
-            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
-              <div className="text-xs text-[var(--text-secondary)]">Anti-Freeze SHA-256 Deduplication</div>
-              <div className="text-base font-bold mt-1 text-[var(--accent-primary)]">
-                {frameStats.framesDeduplicatedSkipped} Redundant Writes Blocked
+            <div className="p-4 rounded-[var(--radius-md)] bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
+              <div className="text-[12px] text-[var(--text-secondary)]">Screen updates</div>
+              <div className="text-[15px] font-semibold mt-1 text-[var(--text-primary)]">
+                {frameStats.lastTransferLatencyMs} ms last update
               </div>
-              <p className="text-xs text-[var(--text-muted)] mt-1">
-                Last sync latency: {frameStats.lastTransferLatencyMs}ms • Saved{" "}
-                {(frameStats.bytesSaved / 1024).toFixed(1)} KB on USB bus.
+              <p className="text-[12px] text-[var(--text-muted)] mt-1">
+                {frameStats.framesDeduplicatedSkipped} unchanged images skipped, saving{" "}
+                {(frameStats.bytesSaved / 1024).toFixed(1)} KB of USB traffic.
               </p>
             </div>
-            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
-              <div className="text-xs text-[var(--text-secondary)]">Hardware Backlight Brightness</div>
+            <div className="p-4 rounded-[var(--radius-md)] bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
+              <div className="text-[12px] text-[var(--text-secondary)]">Brightness</div>
               <div className="flex items-center gap-3 mt-2">
                 <input
                   type="range"
@@ -161,9 +161,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                   {activeDevice.brightness}%
                 </span>
               </div>
-              <p className="text-xs text-[var(--text-muted)] mt-1">
-                Dispatches <code>CRT\0\0LIG</code> (RVA 0x1800225d0)
-              </p>
+              <p className="text-[12px] text-[var(--text-muted)] mt-1">Applies to the deck right away.</p>
             </div>
           </div>
         )}
@@ -197,7 +195,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
         {(deviceDetailTab === "Controls" ||
           deviceDetailTab === "Display" ||
           deviceDetailTab === "Advanced") && (
-          <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2">
+          <div className="p-4 rounded-[var(--radius-md)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2">
             <div className="text-sm font-bold">
               {deviceDetailTab} Configuration ({activeDevice.vidPidHex})
             </div>

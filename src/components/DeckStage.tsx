@@ -338,13 +338,13 @@ export const DeckStage: React.FC<DeckStageProps> = ({
 
       {/* Page Switcher Bar below the Deck Bezel */}
       <div className="flex items-center gap-1.5">
-        <div className="flex items-center bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-md h-7 px-1">
+        <div className="flex items-center bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] h-8 px-1">
           <button
             onClick={() => {
               deckforgeApi.holdAutoSwitch().catch(() => {});
               setSelectedPageIdx((p) => Math.max(0, p - 1));
             }}
-            className="px-1.5 text-[var(--text-secondary)] hover:text-white cursor-pointer"
+            className="px-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
           >
             <ChevronLeft size={13} />
           </button>
@@ -367,7 +367,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
               deckforgeApi.holdAutoSwitch().catch(() => {});
               setSelectedPageIdx((p) => Math.min(activeProfile.pages.length - 1, p + 1));
             }}
-            className="px-1.5 text-[var(--text-secondary)] hover:text-white cursor-pointer"
+            className="px-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
           >
             <ChevronRight size={13} />
           </button>
@@ -376,7 +376,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
         <button
           onClick={handleAddPage}
           title="Add New Page"
-          className="w-7 h-7 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-[var(--text-secondary)] hover:text-white flex items-center justify-center cursor-pointer"
+          className="w-7 h-8 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer"
         >
           <Plus size={13} />
         </button>
@@ -384,7 +384,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
           onClick={() => setTemplatesOpen(true)}
           title="Page templates"
           aria-label="Page templates"
-          className="h-7 px-2 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-[var(--text-secondary)] hover:text-white flex items-center justify-center gap-1.5 text-[11px] font-medium cursor-pointer"
+          className="h-8 px-2.5 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1.5 text-[11px] font-medium cursor-pointer"
         >
           <LayoutTemplate size={13} /> Templates
         </button>

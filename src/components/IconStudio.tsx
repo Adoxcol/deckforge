@@ -140,7 +140,7 @@ export const IconStudio: React.FC<{
                 aria-label={item.title || `Key ${item.index + 1}`}
                 onClick={() => onSelectKey(item.index)}
                 className={`relative flex h-11 w-11 items-center justify-center rounded-lg border cursor-pointer ${
-                  selected ? "border-[var(--accent-primary)] shadow-[0_0_0_1px_#8B5CF6]" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
+                  selected ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
                 }`}
                 style={{
                   background: item.media

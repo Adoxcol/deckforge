@@ -83,7 +83,7 @@ export const ActionDrawer: React.FC<ActionDrawerProps> = ({
                 className={`text-left px-2.5 py-1.5 rounded-md text-[11.5px] cursor-pointer transition-colors ${
                   isAct
                     ? "bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-white"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 {cat === "All" ? "All Actions" : cat === "Custom" ? "★ Custom Actions" : cat}

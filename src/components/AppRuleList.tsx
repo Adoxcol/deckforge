@@ -328,7 +328,7 @@ export const PageApps: React.FC<{
   };
 
   return (
-    <div ref={boxRef} className="relative flex items-center gap-1 h-7 pl-2 pr-1 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
+    <div ref={boxRef} className="relative flex items-center gap-1 h-8 pl-2.5 pr-1 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
       <span className="text-[11px] text-[var(--text-muted)] mr-0.5">{apps.length ? "Opens with" : "No app"}</span>
       {apps.map((r) => (
         <button

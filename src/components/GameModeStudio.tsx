@@ -469,7 +469,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                 ? "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
                 : active
                   ? "bg-[var(--status-error)]/15 text-[var(--status-error)] border border-[var(--status-error)]/50 hover:bg-[var(--status-error)]/25"
-                  : "bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)] shadow-[0_0_18px_rgba(139,92,246,0.35)]"
+                  : "bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)]"
             }`}
           >
             {busy ? <RefreshCw size={16} className="animate-spin" /> : active ? <RotateCcw size={16} /> : <Power size={16} />}
@@ -568,14 +568,14 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             <button
               onClick={addMode}
               aria-label="New mode"
-              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[var(--border-strong)] text-[var(--accent-text)] hover:border-[var(--accent-primary)] hover:text-white cursor-pointer"
+              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[var(--border-strong)] text-[var(--accent-text)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer"
             >
               <Plus size={13} /> New mode
             </button>
             <button
               onClick={() => void startImport()}
               aria-label="Import mode from a file"
-              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-white cursor-pointer"
+              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer"
             >
               <Download size={13} /> Import
             </button>
@@ -625,7 +625,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                 </button>
                 <button
                   onClick={() => setPendingImport(null)}
-                  className="h-8 px-3 rounded-md border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white text-[12.5px] cursor-pointer"
+                  className="h-8 px-3 rounded-md border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-[12.5px] cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -654,7 +654,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               className={`h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border cursor-pointer disabled:cursor-default ${
                 config.activeMode === mode.id
                   ? "border-[var(--status-warning)]/40 text-[var(--status-warning)] bg-[var(--status-warning)]/8"
-                  : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-white"
+                  : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)]"
               }`}
             >
               <Star size={12} className={config.activeMode === mode.id ? "fill-current" : ""} />
@@ -666,7 +666,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             <button
               onClick={() => void exportMode()}
               aria-label="Export this mode to a file"
-              className="ml-auto h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-white cursor-pointer"
+              className="ml-auto h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer"
             >
               <Upload size={12} /> Export
             </button>
@@ -691,7 +691,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             <button
               onClick={() => void refresh()}
               aria-label="Refresh the list"
-              className="ml-auto h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-white cursor-pointer"
+              className="ml-auto h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer"
             >
               <RefreshCw size={12} className={scanning ? "animate-spin" : ""} /> Refresh
             </button>
@@ -773,7 +773,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                     onClick={() => toggleTarget(t.id)}
                     aria-label={`Add ${t.label} to this mode`}
                     title={t.note}
-                    className="h-7 px-2.5 rounded-full text-[12px] border border-dashed border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-white cursor-pointer flex items-center gap-1.5"
+                    className="h-7 px-2.5 rounded-full text-[12px] border border-dashed border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1.5"
                   >
                     <Plus size={11} /> {t.label}
                     {t.running && <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-success)]" aria-label="running" />}
@@ -793,7 +793,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               {selectedTargets.length === 0 ? "Nothing yet" : `${selectedTargets.length} to close or stop`}
             </span>
             {selectedTargets.length > 0 && (
-              <button onClick={clearTargets} className="ml-auto text-[11px] text-[var(--text-secondary)] hover:text-white cursor-pointer">
+              <button onClick={clearTargets} className="ml-auto text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
                 Clear all
               </button>
             )}
@@ -836,14 +836,14 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                         <button
                           onClick={() => updateCustom(custom.id, { graceful: !custom.graceful })}
                           aria-pressed={custom.graceful}
-                          className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] hover:text-white cursor-pointer"
+                          className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                         >
                           <Checkbox checked={custom.graceful} /> Ask it to close first
                         </button>
                         <button
                           onClick={() => updateCustom(custom.id, { reopen: !custom.reopen })}
                           aria-pressed={custom.reopen}
-                          className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] hover:text-white cursor-pointer"
+                          className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                         >
                           <Checkbox checked={custom.reopen} /> Reopen afterwards
                         </button>

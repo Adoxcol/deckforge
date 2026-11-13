@@ -103,7 +103,7 @@ export const DeckStatusBadge: React.FC<Props> = ({ onNotify, status, onRefresh }
         onClick={resend}
         disabled={sending || status?.state !== "connected"}
         title="Send every picture to the deck again, with the full connect sequence"
-        className="h-8 px-3 shrink-0 whitespace-nowrap rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[11px] text-[var(--text-secondary)] hover:text-white hover:border-[var(--accent-primary)] disabled:opacity-40 disabled:hover:border-[var(--border-subtle)] disabled:hover:text-[var(--text-secondary)] flex items-center gap-1 cursor-pointer disabled:cursor-default"
+        className="h-8 px-3 shrink-0 whitespace-nowrap rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)] disabled:opacity-40 disabled:hover:border-[var(--border-subtle)] disabled:hover:text-[var(--text-secondary)] flex items-center gap-1 cursor-pointer disabled:cursor-default"
       >
         <RefreshCw size={12} className={sending ? "animate-spin" : ""} />
         <span>Resend layout</span>

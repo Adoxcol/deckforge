@@ -115,7 +115,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   ? `radial-gradient(circle at 50% 30%, ${activeKey.accentColor}55, ${activeKey.bgColor})`
                   : activeKey.bgColor,
             }}
-            className="relative w-16 h-16 overflow-hidden border border-[var(--accent-primary)] flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(139,92,246,0.25)]"
+            className="relative w-16 h-16 overflow-hidden border border-[var(--accent-primary)] flex items-center justify-center shrink-0"
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault();
@@ -332,7 +332,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
               className={`h-7 rounded text-[11.5px] font-medium cursor-pointer transition-colors ${
                 inspectorTab === tab
                   ? "bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold"
-                  : "text-[var(--text-secondary)] hover:text-white"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               {tab === "Action" ? "General" : tab === "Appearance" ? "Icon" : "Style"}
@@ -449,7 +449,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   className={`h-9 rounded flex items-center justify-center cursor-pointer ${
                     activeKey.iconName === ico
                       ? "bg-[var(--accent-soft)] border border-[var(--accent-primary)] text-white"
-                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-white"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   <DeckIcon name={ico} size={16} />

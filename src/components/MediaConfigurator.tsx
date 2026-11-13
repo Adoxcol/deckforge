@@ -48,7 +48,7 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
         </button>
         <button
           onClick={onSample}
-          className="h-8 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] hover:text-white cursor-pointer"
+          className="h-8 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
         >
           Sample
         </button>
@@ -70,7 +70,7 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
                 className={`h-7 rounded text-[11px] capitalize cursor-pointer ${
                   config.fit === fit
                     ? "bg-[var(--accent-soft)] text-white font-semibold"
-                    : "bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-white"
+                    : "bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 {fit}

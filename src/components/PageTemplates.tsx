@@ -143,7 +143,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
           <button
             onClick={onClose}
             aria-label="Close templates"
-            className="w-8 h-8 rounded-md text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-panel)] flex items-center justify-center cursor-pointer"
+            className="w-8 h-8 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] flex items-center justify-center cursor-pointer"
           >
             <X size={16} />
           </button>
@@ -162,7 +162,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                   className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-md text-[12px] cursor-pointer transition-colors ${
                     active
                       ? "bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold"
-                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-white"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   <span>{cat === "Mine" ? "My templates" : cat}</span>

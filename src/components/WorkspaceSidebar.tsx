@@ -48,7 +48,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
               triggerToast("Rescanned USB HID bus", "info");
             }}
             title="Rescan USB Devices"
-            className="w-6 h-6 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white flex items-center justify-center cursor-pointer"
+            className="w-6 h-6 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer"
           >
             <Plus size={13} />
           </button>
@@ -63,7 +63,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
             connectedDevices.map((dev) => (
               <div
                 key={dev.id}
-                className="p-2 rounded-lg border flex items-center gap-2.5 bg-[var(--accent-soft)] border-[var(--accent-primary)]/60 shadow-[0_0_16px_rgba(139,92,246,0.2)]"
+                className="p-2 rounded-lg border flex items-center gap-2.5 bg-[var(--accent-soft)] border-[var(--accent-primary)]/60"
               >
                 <div className="w-8 h-6 rounded bg-[var(--bg-input)] border border-[var(--accent-primary)] p-1 grid grid-cols-5 gap-0.5 shrink-0">
                   {Array.from({ length: 10 }).map((_, idx) => (
@@ -94,7 +94,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
               onClick={onImportProfile}
               title="Import a profile from a file"
               aria-label="Import profile"
-              className="w-6 h-6 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white flex items-center justify-center cursor-pointer"
+              className="w-6 h-6 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer"
             >
               <Download size={13} />
             </button>
@@ -102,7 +102,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
               onClick={onExportProfile}
               title="Export this profile to a file"
               aria-label="Export profile"
-              className="w-6 h-6 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white flex items-center justify-center cursor-pointer"
+              className="w-6 h-6 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer"
             >
               <Upload size={13} />
             </button>
@@ -110,7 +110,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
               onClick={handleAddProfile}
               title="Create New Profile"
               aria-label="Create profile"
-              className="w-6 h-6 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white flex items-center justify-center cursor-pointer"
+              className="w-6 h-6 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer"
             >
               <Plus size={13} />
             </button>
@@ -139,7 +139,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                   <DeckIcon
                     name={prof.icon}
                     size={15}
-                    color={isSel ? "#8B5CF6" : "#A6AFC4"}
+                    color={isSel ? "var(--accent-text)" : "var(--text-secondary)"}
                   />
                   <span className="text-[12.5px] truncate">{prof.name}</span>
                 </div>

@@ -18,7 +18,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
   return (    <div className="flex-1 p-6 overflow-y-auto max-w-6xl mx-auto w-full flex flex-col gap-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold">Actions & Plugin Inventory</h1>
+          <h1 className="text-xl font-bold">Plugins</h1>
           <p className="text-xs text-[var(--text-secondary)] mt-0.5">
             Built-in actions are available in DeckForge. Vendor plugins are listed for reference only;
             DeckForge cannot run their actions. Importing profiles does not install a plugin runtime.
@@ -33,7 +33,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer ${
                 pluginFilterTab === t
                   ? "bg-[var(--accent-soft)] text-white font-semibold"
-                  : "text-[var(--text-secondary)] hover:text-white"
+                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               {t}

@@ -263,7 +263,7 @@ export const MacroStudio: React.FC<{
                       type="button"
                       onClick={() => onSelectStep(index)}
                       className={`w-full text-left rounded-2xl border p-3 mb-3 cursor-pointer ${
-                        selected ? "bg-[var(--bg-elevated)] border-[var(--accent-primary)] shadow-[0_0_0_1px_#8B5CF6]" : "bg-[var(--bg-panel)] border-[var(--border-subtle)]"
+                        selected ? "bg-[var(--bg-elevated)] border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]" : "bg-[var(--bg-panel)] border-[var(--border-subtle)]"
                       }`}
                     >
                       <span
