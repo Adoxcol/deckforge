@@ -30,6 +30,16 @@ pub struct DeckFaceState {
     pub volume_percent: Option<u8>,
     pub game_mode: Option<bool>,
     pub game_mode_busy: bool,
+    #[serde(default)]
+    pub cpu_percent: Option<u8>,
+    #[serde(default)]
+    pub ram_percent: Option<u8>,
+    /// Local time as HH:MM.
+    #[serde(default)]
+    pub clock: String,
+    /// Album art of what is playing, as the image bytes Windows hands out.
+    #[serde(skip)]
+    pub media_art: Vec<u8>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -78,6 +78,8 @@ pub fn run() {
     let shared_for_setup = Arc::clone(&shared);
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(shared)
         .setup(move |app| {
             let handle = app.handle().clone();

@@ -90,6 +90,7 @@ import { ACTION_CATALOG, type ActionTemplate } from "./data/actionCatalog";
 import { bytesToBase64, buildPulseFrames, errorText } from "./lib/format";
 import { buildProfileFile, placeBackup, parseProfileFile, pickJsonFile, placeImportedProfile, slugify } from "./lib/shareFiles";
 import { LevelMeter, liveKeyLook, liveZoneValue } from "./components/LiveFace";
+import { checkForUpdate } from "./lib/updates";
 
 type ToastAction = { label: string; run: () => void };
 
@@ -265,6 +266,26 @@ export const App: React.FC = () => {
       if (contextUnlisten) contextUnlisten();
     };
   }, [bootstrapAttempt]);
+
+  useEffect(() => {
+    // Quietly look for a newer release a few seconds after start; offline is not worth a warning.
+    const timer = window.setTimeout(() => {
+      checkForUpdate()
+        .then((update) => {
+          if (!update) return;
+          triggerToast(`DeckForge ${update.version} is available.`, "info", {
+            label: "Install",
+            run: () => {
+              triggerToast("Downloading the update. DeckForge restarts when it's done.", "info");
+              update.install().catch((err) => triggerToast(`Could not install the update: ${errorText(err)}`, "warning"));
+            },
+          });
+        })
+        .catch(() => {});
+    }, 5000);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let disposed = false;

@@ -3,6 +3,7 @@ import { ArrowUpRight, BookOpen, Database, Info, Monitor, Power, Usb } from "luc
 import { deckforgeApi, isTauriRuntime } from "../bridge/tauriBridge";
 import type { NavScreenId } from "../types/deckforge";
 import { BackupPanel } from "../components/BackupPanel";
+import { UpdatesPanel } from "../components/UpdatesPanel";
 import packageInfo from "../../package.json";
 
 const sections = [
@@ -101,6 +102,7 @@ export const SettingsScreen: React.FC<{ onNavigate: (screen: NavScreenId) => voi
           <section className={card}><div className="flex items-center gap-3"><div className="p-3 rounded-xl bg-[var(--accent-soft)] text-[var(--accent-hover)]"><Monitor size={24} /></div><div><h2 className="text-lg font-bold text-[var(--text-primary)]">DeckForge</h2><p className="text-xs">Version {packageInfo.version} · Windows desktop controller</p></div></div>
             <p>Build and manage layouts for your deck with local profiles, macros, and media.</p>
           </section>
+          <UpdatesPanel card={card} />
           <section className={card}><h2 className="font-semibold text-[var(--text-primary)]">Support and troubleshooting</h2>
             <p className="text-xs leading-relaxed">Frame deduplication reduces repeated image writes. Input polling and heartbeats still run; this does not guarantee freeze-free operation. Physical device, tray, sign-in, and installer validation are still in progress.</p>
             <div className="flex flex-wrap gap-2">{link("Device diagnostics", "devices")}<button type="button" className={action} onClick={onOpenGuide}>Quick-start guide<BookOpen size={14} /></button></div>

@@ -28,10 +28,24 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": [
+      "nsis"
+    ],
     "icon": [
       "icons/icon.ico",
       "icons/icon.png"
-    ]
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZFQTBCM0FDRTkzNjI5M0MKUldROEtUYnByTE9nL3BjTVZ0M1g2bWJmUk45U1pkMGFpeUZDQ2pScmptUjRjVENvakhhSk5XMEYK",
+      "endpoints": [
+        "https://github.com/Adoxcol/deckforge/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
   }
 }

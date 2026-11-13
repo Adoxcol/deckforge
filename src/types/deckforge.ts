@@ -245,6 +245,9 @@ export interface DeckFaceState {
   volumePercent: number | null;
   gameMode?: boolean | null;
   gameModeBusy?: boolean;
+  cpuPercent?: number | null;
+  ramPercent?: number | null;
+  clock?: string;
 }
 
 export type GameModeGroup = "apps" | "background";

@@ -138,6 +138,10 @@ pub(crate) fn known_action(binding: &str) -> bool {
             | "profile.back"
             | "macro.run"
             | "sys.game_mode"
+            | "sys.cpu"
+            | "sys.ram"
+            | "sys.clock"
+            | "media.now_playing"
     )
 }
 
@@ -165,6 +169,7 @@ pub(crate) fn face_changes(action_id: &str) -> bool {
     matches!(
         action_id,
         "media.play_pause"
+            | "media.now_playing"
             | "media.next"
             | "media.prev"
             | "media.stop"
@@ -193,8 +198,18 @@ pub(crate) fn lcd_title(raw: &str) -> String {
 }
 
 pub(crate) fn key_level(action_id: &str, face: &DeckFaceState) -> Option<u8> {
-    if matches!(action_id, "audio.volume_up" | "audio.volume_down" | "audio.volume_mute") {
-        face.volume_percent
+    match action_id {
+        "audio.volume_up" | "audio.volume_down" | "audio.volume_mute" => face.volume_percent,
+        "sys.cpu" => face.cpu_percent,
+        "sys.ram" => face.ram_percent,
+        _ => None,
+    }
+}
+
+/// Album art for a now-playing key, when the player offers some.
+pub(crate) fn key_art<'a>(key: &KeyConfig, face: &'a DeckFaceState) -> Option<&'a [u8]> {
+    if key.media.is_none() && key.action_id == "media.now_playing" && !face.media_art.is_empty() {
+        Some(face.media_art.as_slice())
     } else {
         None
     }
@@ -205,7 +220,16 @@ pub(crate) fn styled_key(key: &KeyConfig, face: &DeckFaceState) -> (String, Stri
         return (key.title.clone(), key.icon_name.clone());
     }
     match key.action_id.as_str() {
-        "media.play_pause" => {
+        "sys.cpu" => match face.cpu_percent {
+            Some(p) => (format!("CPU {p}%"), key.icon_name.clone()),
+            None => (key.title.clone(), key.icon_name.clone()),
+        },
+        "sys.ram" => match face.ram_percent {
+            Some(p) => (format!("RAM {p}%"), key.icon_name.clone()),
+            None => (key.title.clone(), key.icon_name.clone()),
+        },
+        "sys.clock" if !face.clock.is_empty() => (face.clock.clone(), key.icon_name.clone()),
+        "media.play_pause" | "media.now_playing" => {
             if face.media_playing.is_none() && face.media_title.trim().is_empty() {
                 return (key.title.clone(), key.icon_name.clone());
             }
@@ -302,6 +326,7 @@ pub(crate) fn plan_screens(dev: &DeviceDescriptor, page: &ProfilePage, face: &De
                 speed: key.media.as_ref().map(|m| m.speed).unwrap_or(1.0),
                 loop_playback: key.media.as_ref().map(|m| m.loop_playback).unwrap_or(true),
                 level: if key.media.is_some() { None } else { key_level(&key.action_id, face) },
+                art: key_art(key, face).map(|bytes| bytes.to_vec()),
             }
         })
         .collect();
@@ -738,6 +763,14 @@ pub(crate) fn resolve_page_index(guard: &ManagedAppState, param: &str) -> Option
 pub(crate) fn sample_face(guard: &mut ManagedAppState) -> bool {
     let (playing, title) = read_media_face();
     let audio = read_audio_face();
+    let stats = crate::actions::read_quick_stats();
+    let media_art = if guard.face.media_title == title && !guard.face.media_art.is_empty() {
+        guard.face.media_art.clone()
+    } else if playing.is_some() {
+        crate::actions::read_media_art()
+    } else {
+        Vec::new()
+    };
     let next = DeckFaceState {
         media_playing: playing,
         media_title: title,
@@ -746,6 +779,10 @@ pub(crate) fn sample_face(guard: &mut ManagedAppState) -> bool {
         volume_percent: audio.volume_percent,
         game_mode: Some(game_mode::is_active()),
         game_mode_busy: game_mode::is_busy(),
+        cpu_percent: stats.cpu_percent,
+        ram_percent: stats.ram_percent,
+        clock: stats.clock,
+        media_art,
     };
     if next == guard.face {
         false
@@ -819,10 +856,20 @@ pub(crate) fn face_delta_bursts(guard: &mut ManagedAppState, face: &DeckFaceStat
         }
         let level = key_level(&key.action_id, face);
         let (title, icon) = styled_key(key, face);
-        if title == key.title && icon == key.icon_name && level.is_none() {
+        let art = key_art(key, face);
+        if title == key.title && icon == key.icon_name && level.is_none() && art.is_none() {
             continue;
         }
-        let jpeg = encode_procedural_key_jpeg(
+        let art_jpeg = art.and_then(|bytes| {
+            crate::media::render_art_key(
+                bytes,
+                dev.keys.pixel_width,
+                dev.keys.pixel_height,
+                dev.keys.rotation,
+                if key.show_title { Some(title.as_str()) } else { None },
+            )
+        });
+        let jpeg = if let Some(jpeg) = art_jpeg { jpeg } else { encode_procedural_key_jpeg(
             dev.keys.pixel_width,
             dev.keys.pixel_height,
             &key.accent_color,
@@ -832,7 +879,7 @@ pub(crate) fn face_delta_bursts(guard: &mut ManagedAppState, face: &DeckFaceStat
             key.index,
             dev.keys.rotation,
             level,
-        );
+        ) };
         let mut hash = jpeg.clone();
         hash.extend_from_slice(title.as_bytes());
         hash.extend_from_slice(icon.as_bytes());
@@ -1301,6 +1348,31 @@ mod live_tests {
         dev.connected = false;
         assert!(prepare_layout(&mut guard, dev, &id, 0, true).is_err());
         assert!(guard.layout_ready);
+    }
+
+    #[test]
+    fn stats_clock_and_album_art_keys_follow_the_live_face() {
+        let key = |action: &str| KeyConfig {
+            index: 0, title: "Key".into(), subtitle: String::new(), icon_name: "Cpu".into(),
+            action_id: action.into(), action_label: String::new(), action_category: String::new(),
+            action_param: String::new(), accent_color: "#fff".into(), bg_color: "#000".into(),
+            show_title: true, title_size: "Medium".into(), background_style: "Gradient".into(),
+            corner_radius: 8, media: None,
+        };
+        let face = DeckFaceState {
+            cpu_percent: Some(42), ram_percent: Some(61), clock: "09:05".into(),
+            media_art: vec![1, 2, 3], ..Default::default()
+        };
+        assert_eq!(styled_key(&key("sys.cpu"), &face).0, "CPU 42%");
+        assert_eq!(key_level("sys.cpu", &face), Some(42));
+        assert_eq!(styled_key(&key("sys.ram"), &face).0, "RAM 61%");
+        assert_eq!(key_level("sys.ram", &face), Some(61));
+        assert_eq!(styled_key(&key("sys.clock"), &face).0, "09:05");
+        assert_eq!(key_art(&key("media.now_playing"), &face), Some(&[1u8, 2, 3][..]));
+        assert_eq!(key_art(&key("media.play_pause"), &face), None);
+        // Before the first sample the key keeps its own title.
+        assert_eq!(styled_key(&key("sys.cpu"), &DeckFaceState::default()).0, "Key");
+        assert!(known_action("sys.clock") && known_action("media.now_playing"));
     }
 
     #[test]

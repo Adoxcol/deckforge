@@ -57,6 +57,10 @@ const OBS_AND_MEDIA: ActionTemplate[] = [
   plain("obs.studio_transition", "OBS", "Transition", "CUT", "Zap", "OBS: Studio mode transition", "", "sky", "Send the preview scene live when OBS is in Studio Mode"),
   plain("obs.set_scene", "OBS", "Go to Scene", "SCENE", "Clapperboard", "OBS: Switch to a named scene", "Main Scene", "sky", "Jump straight to one OBS scene by name"),
   plain("obs.toggle_mute", "OBS", "Mute Source", "MUTE", "MicOff", "OBS: Mute or unmute a source", "Mic/Aux", "rose", "Toggle mute on one OBS audio source by name"),
+  plain("media.now_playing", "Media", "Now Playing", "ART", "Music", "Media: Now playing (album art)", "", "mint", "Shows the album art and song of what is playing. Press to play or pause"),
+  plain("sys.cpu", "System", "CPU", "LIVE", "Cpu", "System: CPU use (live)", "", "sky", "Shows how busy the processor is, updated every two seconds. Press to open Task Manager"),
+  plain("sys.ram", "System", "RAM", "LIVE", "MemoryStick", "System: Memory use (live)", "", "violet", "Shows how much memory is in use, updated every two seconds. Press to open Task Manager"),
+  plain("sys.clock", "System", "Clock", "TIME", "Clock", "System: Clock", "", "gold", "Shows the time. Press to open the Clock app"),
   plain("media.stop", "Media", "Stop", "STOP", "Pause", "Media: Stop", "", "mint", "Stop playback in the current media app"),
 ];
 

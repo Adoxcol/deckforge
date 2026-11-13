@@ -277,6 +277,79 @@ fn control_media_session(kind: MediaTransport) -> Result<String, String> {
 }
 
 /// Reads the current media session without changing it.
+pub struct QuickStats {
+    pub cpu_percent: Option<u8>,
+    pub ram_percent: Option<u8>,
+    pub clock: String,
+}
+
+/// CPU and memory use plus the local time, cheap enough to read every two seconds.
+pub fn read_quick_stats() -> QuickStats {
+    static SYS: std::sync::OnceLock<std::sync::Mutex<System>> = std::sync::OnceLock::new();
+    let slot = SYS.get_or_init(|| {
+        std::sync::Mutex::new(System::new_with_specifics(
+            RefreshKind::nothing()
+                .with_memory(sysinfo::MemoryRefreshKind::everything())
+                .with_cpu(sysinfo::CpuRefreshKind::nothing().with_cpu_usage()),
+        ))
+    });
+    let mut sys = slot.lock().unwrap_or_else(|e| e.into_inner());
+    sys.refresh_memory();
+    sys.refresh_cpu_usage();
+    let cpu = sys.global_cpu_usage();
+    let total = sys.total_memory();
+    QuickStats {
+        cpu_percent: Some(cpu.round().clamp(0.0, 100.0) as u8),
+        ram_percent: (total > 0).then(|| ((sys.used_memory() as f64 / total as f64) * 100.0).round().clamp(0.0, 100.0) as u8),
+        clock: local_clock(),
+    }
+}
+
+fn local_clock() -> String {
+    #[cfg(target_os = "windows")]
+    {
+        let t = unsafe { windows::Win32::System::SystemInformation::GetLocalTime() };
+        format!("{:02}:{:02}", t.wHour, t.wMinute)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        String::new()
+    }
+}
+
+/// Album art of the current media session, or empty when there is none.
+pub fn read_media_art() -> Vec<u8> {
+    #[cfg(target_os = "windows")]
+    {
+        read_media_art_windows().unwrap_or_default()
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Vec::new()
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn read_media_art_windows() -> Option<Vec<u8>> {
+    use windows::Media::Control::GlobalSystemMediaTransportControlsSessionManager;
+    use windows::Storage::Streams::{DataReader, InputStreamOptions};
+    const MAX_ART: u32 = 4 * 1024 * 1024;
+    let manager = GlobalSystemMediaTransportControlsSessionManager::RequestAsync().ok()?.get().ok()?;
+    let (session, _) = pick_media_session(&manager).ok()?;
+    let props = session.TryGetMediaPropertiesAsync().ok()?.get().ok()?;
+    let stream = props.Thumbnail().ok()?.OpenReadAsync().ok()?.get().ok()?;
+    let size = stream.Size().ok()?.min(MAX_ART as u64) as u32;
+    if size == 0 {
+        return None;
+    }
+    let reader = DataReader::CreateDataReader(&stream).ok()?;
+    reader.SetInputStreamOptions(InputStreamOptions::ReadAhead).ok()?;
+    let loaded = reader.LoadAsync(size).ok()?.get().ok()?;
+    let mut bytes = vec![0u8; loaded as usize];
+    reader.ReadBytes(&mut bytes).ok()?;
+    Some(bytes)
+}
+
 pub fn read_media_face() -> (Option<bool>, String) {
     #[cfg(target_os = "windows")]
     {
@@ -618,7 +691,9 @@ pub fn execute_key_action_live(
 
     let outcome = if execute_os_effects {
         match action_id {
-            "media.play_pause" => Ok(run_media_transport(MediaTransport::Toggle)),
+            "media.play_pause" | "media.now_playing" => Ok(run_media_transport(MediaTransport::Toggle)),
+            "sys.cpu" | "sys.ram" => send_hotkey_chord("Ctrl+Shift+Esc"),
+            "sys.clock" => launch_app_or_url("ms-clock:"),
             "media.next" => Ok(run_media_transport(MediaTransport::Next)),
             "media.prev" => Ok(run_media_transport(MediaTransport::Previous)),
             "media.stop" => Ok(run_media_transport(MediaTransport::Stop)),

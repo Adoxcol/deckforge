@@ -401,7 +401,7 @@ pub fn sync_keys_to_hardware(
     let keys: Vec<_> = key_colors_and_titles.iter().map(|(index, title, icon, accent, bg)| ScreenJob {
         index: *index, title: title.clone(), show_title: true, icon_name: icon.clone(),
         accent: accent.clone(), bg: bg.clone(), media_id: None, fit: "cover".into(),
-        speed: 1.0, loop_playback: false, level: None,
+        speed: 1.0, loop_playback: false, level: None, art: None,
     }).collect();
     let zones: Vec<_> = touch_zones.iter().map(|(label, value, accent)| ZoneJob {
         label: label.clone(), value_text: value.clone(), accent: accent.clone(),
@@ -435,6 +435,8 @@ pub struct ScreenJob {
     pub speed: f32,
     pub loop_playback: bool,
     pub level: Option<u8>,
+    /// Album art to draw instead of the icon.
+    pub art: Option<Vec<u8>>,
 }
 
 #[derive(Debug, Clone)]
@@ -577,6 +579,11 @@ pub fn publish_screens(
                 if job.speed <= 0.0 { 1.0 } else { job.speed },
                 job.loop_playback,
             )
+        });
+        let rendered = rendered.or_else(|| {
+            let art = job.art.as_ref()?;
+            let jpeg = crate::media::render_art_key(art, dev.keys.pixel_width, dev.keys.pixel_height, dev.keys.rotation, title)?;
+            Some(RenderedFrames { jpegs: vec![jpeg], delays_ms: vec![pace_delay(100, 1.0)], loop_playback: false })
         });
         let rendered = if let Some(rendered) = rendered {
             rendered
@@ -1695,6 +1702,7 @@ mod tests {
             speed: 1.0,
             loop_playback: false,
             level: None,
+            art: None,
         }
     }
 

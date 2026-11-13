@@ -717,6 +717,21 @@ fn preview_data_url(frame: &RgbaImage) -> String {
     format!("data:image/jpeg;base64,{}", STANDARD.encode(jpeg))
 }
 
+/// A key image from album art bytes, with an optional title bar. None when the bytes are not an image.
+pub fn render_art_key(bytes: &[u8], width: u32, height: u32, rotation: u16, title: Option<&str>) -> Option<Vec<u8>> {
+    if bytes.is_empty() || width == 0 || height == 0 {
+        return None;
+    }
+    let img = image::load_from_memory(bytes).ok()?.to_rgba8();
+    let mut canvas = fit_onto(&img, width, height, "cover", [21, 25, 37]);
+    if let Some(text) = title {
+        if !text.trim().is_empty() {
+            paint_title(&mut canvas, text);
+        }
+    }
+    Some(encode_jpeg(&orient_for_panel(canvas, rotation), 90))
+}
+
 fn encode_jpeg(img: &RgbImage, quality: u8) -> Vec<u8> {
     let mut out = Cursor::new(Vec::with_capacity(4096));
     let mut encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut out, quality);

@@ -1,10 +1,15 @@
 import React from "react";
 import type { ObsSettings } from "../types/deckforge";
+import { ActionPicker } from "./ActionPicker";
 
 export interface ActionChoice {
   id: string;
   actionLabel: string;
   defaultParam: string;
+  title?: string;
+  category?: string;
+  description?: string;
+  iconName?: string;
 }
 
 const PRESETS = ["Ctrl+Shift+M", "Win+Shift+S", "Win+D", "Alt+F4", "VK_MEDIA_PLAY_PAUSE"];
@@ -65,24 +70,14 @@ export const ActionBinding: React.FC<{
   return (
     <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2">
       <label className="text-[11px] font-semibold text-[var(--text-primary)]">{label}</label>
-      <select
+      <ActionPicker
         value={choices.some((choice) => choice.id === actionId) ? actionId : actionId || "custom.hotkey"}
-        onChange={(event) => {
-          const next = event.target.value;
+        choices={choices}
+        onChange={(next) => {
           const choice = choices.find((item) => item.id === next);
           onChange(next, actionNeedsParam(next) ? choice?.defaultParam ?? "" : "");
         }}
-        className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
-      >
-        {!choices.some((choice) => choice.id === actionId) && actionId && (
-          <option value={actionId}>{actionId}</option>
-        )}
-        {choices.map((choice) => (
-          <option key={choice.id} value={choice.id}>
-            {choice.actionLabel}
-          </option>
-        ))}
-      </select>
+      />
       {showParam && paramOptions && paramOptions.length > 0 ? (
         <select
           value={actionParam}

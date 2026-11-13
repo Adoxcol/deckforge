@@ -7,7 +7,16 @@ export type LiveLook = { title: string; icon: string; level: number | null; mute
 export function liveKeyLook(actionId: string, title: string, icon: string, face: DeckFaceState | null): LiveLook {
   const still = { title, icon, level: null, muted: false };
   if (!face) return still;
-  if (actionId === "media.play_pause" && (face.mediaPlaying != null || face.mediaTitle.trim())) {
+  if (actionId === "sys.cpu" && face.cpuPercent != null) {
+    return { title: `CPU ${face.cpuPercent}%`, icon, level: face.cpuPercent, muted: false };
+  }
+  if (actionId === "sys.ram" && face.ramPercent != null) {
+    return { title: `RAM ${face.ramPercent}%`, icon, level: face.ramPercent, muted: false };
+  }
+  if (actionId === "sys.clock" && face.clock) {
+    return { title: face.clock, icon, level: null, muted: false };
+  }
+  if ((actionId === "media.play_pause" || actionId === "media.now_playing") && (face.mediaPlaying != null || face.mediaTitle.trim())) {
     const track = face.mediaTitle.trim() || (face.mediaPlaying ? "Playing" : "Paused");
     return { title: track, icon: face.mediaPlaying ? "Pause" : "Play", level: null, muted: false };
   }
