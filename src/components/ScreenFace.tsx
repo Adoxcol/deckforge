@@ -52,7 +52,7 @@ export const ScreenFace: React.FC<ScreenFaceProps> = ({
       <div className={`flex h-full w-full flex-col items-center justify-center gap-1 ${className || "relative"}`}>
         <DeckIcon name={iconName} size={iconSize} color={accent} />
         {showTitle && title ? (
-          <span className="max-w-full truncate px-1 text-center text-[11px] font-semibold text-[#F4F5FA]">{title}</span>
+          <span className="max-w-full truncate px-1 text-center text-[11px] font-semibold text-[var(--text-primary)]">{title}</span>
         ) : null}
       </div>
     );

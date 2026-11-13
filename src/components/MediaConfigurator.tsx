@@ -24,14 +24,14 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
   onClear,
 }) => {
   return (
-    <div className="rounded-lg border border-[#272D3D] bg-[#151925] p-2.5 flex flex-col gap-2">
+    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-2.5 flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <div className="text-[11.5px] font-semibold text-[#F4F5FA]">{title}</div>
-          <div className="text-[10.5px] font-mono text-[#707B94]">{pixelLabel}</div>
+          <div className="text-[11.5px] font-semibold text-[var(--text-primary)]">{title}</div>
+          <div className="text-[10.5px] font-mono text-[var(--text-muted)]">{pixelLabel}</div>
         </div>
         {clip && clip.frameCount > 1 ? (
-          <span className="inline-flex items-center gap-1 rounded bg-[#30244F] px-1.5 py-0.5 text-[10px] font-semibold text-[#C4B5FD]">
+          <span className="inline-flex items-center gap-1 rounded bg-[var(--accent-soft)] px-1.5 py-0.5 text-[10px] font-semibold text-[var(--accent-text)]">
             <Film size={11} />
             GIF
           </span>
@@ -41,14 +41,14 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
       <div className="flex gap-1.5">
         <button
           onClick={onUpload}
-          className="flex-1 h-8 rounded-md bg-[#30244F] border border-[#8B5CF6]/50 text-[11.5px] font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer"
+          className="flex-1 h-8 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/50 text-[11.5px] font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <ImagePlus size={13} />
           Upload image or GIF
         </button>
         <button
           onClick={onSample}
-          className="h-8 px-2 rounded-md bg-[#111522] border border-[#272D3D] text-[11px] text-[#A6AFC4] hover:text-white cursor-pointer"
+          className="h-8 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] hover:text-white cursor-pointer"
         >
           Sample
         </button>
@@ -56,7 +56,7 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
 
       {config && clip ? (
         <>
-          <div className="text-[10.5px] text-[#A6AFC4] truncate">
+          <div className="text-[10.5px] text-[var(--text-secondary)] truncate">
             {clip.fileName}
             {clip.width > 0 ? ` · source ${clip.width}×${clip.height}` : ""}
             {` · ${clip.frameCount} frame${clip.frameCount === 1 ? "" : "s"}`}
@@ -69,8 +69,8 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
                 onClick={() => onChange({ fit })}
                 className={`h-7 rounded text-[11px] capitalize cursor-pointer ${
                   config.fit === fit
-                    ? "bg-[#30244F] text-white font-semibold"
-                    : "bg-[#111522] text-[#A6AFC4] hover:text-white"
+                    ? "bg-[var(--accent-soft)] text-white font-semibold"
+                    : "bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-white"
                 }`}
               >
                 {fit}
@@ -78,9 +78,9 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
             ))}
           </div>
           <div>
-            <div className="flex items-center justify-between text-[11px] text-[#A6AFC4] mb-1">
+            <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)] mb-1">
               <span>Playback speed</span>
-              <span className="font-mono text-[#F4F5FA]">{config.speed.toFixed(2)}×</span>
+              <span className="font-mono text-[var(--text-primary)]">{config.speed.toFixed(2)}×</span>
             </div>
             <input
               type="range"
@@ -89,18 +89,18 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
               step={0.25}
               value={config.speed}
               onChange={(e) => onChange({ speed: Number(e.target.value) })}
-              className="w-full accent-[#8B5CF6] cursor-pointer"
+              className="w-full accent-[var(--accent-primary)] cursor-pointer"
             />
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[11.5px] text-[#A6AFC4]">Loop animation</span>
+            <span className="text-[11.5px] text-[var(--text-secondary)]">Loop animation</span>
             <button
               type="button"
               aria-label="Loop animation"
               aria-pressed={config.loopPlayback}
               onClick={() => onChange({ loopPlayback: !config.loopPlayback })}
               className={`w-10 h-5 rounded-full p-0.5 cursor-pointer ${
-                config.loopPlayback ? "bg-[#8B5CF6]" : "bg-[#272D3D]"
+                config.loopPlayback ? "bg-[var(--accent-primary)]" : "bg-[var(--border-subtle)]"
               }`}
             >
               <div
@@ -110,24 +110,24 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
               />
             </button>
           </div>
-          <p className="text-[10.5px] leading-relaxed text-[#707B94]">
+          <p className="text-[10.5px] leading-relaxed text-[var(--text-muted)]">
             The deck plays each frame at this speed, with at least 80ms between frames so the LCD bus stays stable. Press Apply to Device to push every screen.
           </p>
           <button
             onClick={onClear}
-            className="h-7 rounded-md border border-[#272D3D] text-[11px] text-[#A6AFC4] hover:text-[#F16B79] hover:border-[#F16B79] flex items-center justify-center gap-1 cursor-pointer"
+            className="h-7 rounded-md border border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--status-error)] hover:border-[var(--status-error)] flex items-center justify-center gap-1 cursor-pointer"
           >
             <Trash2 size={12} />
             Remove image
           </button>
         </>
       ) : (
-        <p className="text-[10.5px] leading-relaxed text-[#707B94]">
+        <p className="text-[10.5px] leading-relaxed text-[var(--text-muted)]">
           PNG, JPEG, WebP, or GIF. It is fitted to this screen’s pixel size. GIFs animate in the editor and on the hardware after Apply.
         </p>
       )}
       {config && !clip ? (
-        <p className="text-[10.5px] text-[#F4B860]">This screen’s file is missing. Upload it again.</p>
+        <p className="text-[10.5px] text-[var(--status-warning)]">This screen’s file is missing. Upload it again.</p>
       ) : null}
     </div>
   );

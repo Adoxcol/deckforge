@@ -86,7 +86,7 @@ const Checkbox: React.FC<{ checked: boolean }> = ({ checked }) => (
   <span
     aria-hidden="true"
     className={`w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 ${
-      checked ? "bg-[#8B5CF6] border-[#8B5CF6] text-white" : "bg-[#0E111A] border-[#3A4157] text-transparent"
+      checked ? "bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white" : "bg-[var(--bg-sidebar)] border-[var(--border-strong)] text-transparent"
     }`}
   >
     <Check size={11} strokeWidth={3} />
@@ -94,12 +94,12 @@ const Checkbox: React.FC<{ checked: boolean }> = ({ checked }) => (
 );
 
 const Stat: React.FC<{ label: string; value: string; hint?: string; tone?: "good" | "warn" }> = ({ label, value, hint, tone }) => (
-  <div className="bg-[#10131D] border border-[#272D3D] rounded-lg px-3.5 py-3 min-w-0">
-    <div className="text-[10.5px] uppercase tracking-wider text-[#707B94]">{label}</div>
-    <div className={`mt-1 text-[15px] font-semibold truncate ${tone === "good" ? "text-[#35C98B]" : tone === "warn" ? "text-[#F4B860]" : "text-[#F4F5FA]"}`}>
+  <div className="bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] rounded-lg px-3.5 py-3 min-w-0">
+    <div className="text-[10.5px] uppercase tracking-wider text-[var(--text-muted)]">{label}</div>
+    <div className={`mt-1 text-[15px] font-semibold truncate ${tone === "good" ? "text-[var(--status-success)]" : tone === "warn" ? "text-[var(--status-warning)]" : "text-[var(--text-primary)]"}`}>
       {value}
     </div>
-    {hint && <div className="text-[11px] text-[#707B94] mt-0.5 truncate">{hint}</div>}
+    {hint && <div className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">{hint}</div>}
   </div>
 );
 
@@ -108,15 +108,15 @@ const Toggle: React.FC<{ on: boolean; onClick: () => void; title: string; hint: 
     onClick={onClick}
     aria-label={`${label}${on ? ", on" : ", off"}`}
     className={`text-left flex items-start gap-3 px-3.5 py-2.5 rounded-lg border cursor-pointer transition-colors ${
-      on ? "bg-[#151126] border-[#8B5CF6]/45" : "bg-[#10131D] border-[#272D3D] hover:border-[#3A4157]"
+      on ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/45" : "bg-[var(--bg-sidebar)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
     }`}
   >
     <span className="mt-0.5">
       <Checkbox checked={on} />
     </span>
     <span className="min-w-0">
-      <span className="block text-[12.5px] font-semibold text-[#F4F5FA]">{title}</span>
-      <span className="block text-[11.5px] text-[#A6AFC4] mt-0.5 leading-snug">{hint}</span>
+      <span className="block text-[12.5px] font-semibold text-[var(--text-primary)]">{title}</span>
+      <span className="block text-[11.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">{hint}</span>
     </span>
   </button>
 );
@@ -124,9 +124,9 @@ const Toggle: React.FC<{ on: boolean; onClick: () => void; title: string; hint: 
 const Radio: React.FC<{ checked: boolean }> = ({ checked }) => (
   <span
     aria-hidden="true"
-    className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${checked ? "border-[#8B5CF6]" : "border-[#3A4157]"}`}
+    className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${checked ? "border-[var(--accent-primary)]" : "border-[var(--border-strong)]"}`}
   >
-    <span className={`w-2 h-2 rounded-full ${checked ? "bg-[#8B5CF6]" : "bg-transparent"}`} />
+    <span className={`w-2 h-2 rounded-full ${checked ? "bg-[var(--accent-primary)]" : "bg-transparent"}`} />
   </span>
 );
 
@@ -143,15 +143,15 @@ const PickRow: React.FC<{ on: boolean; title: string; sub: string; label: string
     aria-pressed={on}
     aria-label={label}
     className={`text-left flex items-center gap-2.5 px-2.5 py-1.5 rounded-md border cursor-pointer transition-colors ${
-      on ? "bg-[#151126] border-[#8B5CF6]/45" : "bg-[#0E111A] border-[#272D3D] hover:border-[#3A4157]"
+      on ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/45" : "bg-[var(--bg-sidebar)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
     }`}
   >
     <Checkbox checked={on} />
     <span className="min-w-0 flex-1">
-      <span className="block text-[12px] text-[#F4F5FA] truncate">{title}</span>
-      <span className="block text-[10.5px] text-[#707B94] truncate">{sub}</span>
+      <span className="block text-[12px] text-[var(--text-primary)] truncate">{title}</span>
+      <span className="block text-[10.5px] text-[var(--text-muted)] truncate">{sub}</span>
     </span>
-    {badge && <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#30244F] text-[#B79CFF] border border-[#8B5CF6]/40 shrink-0">{badge}</span>}
+    {badge && <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[var(--accent-soft)] text-[var(--accent-text)] border border-[var(--accent-primary)]/40 shrink-0">{badge}</span>}
   </button>
 );
 
@@ -416,7 +416,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
 
   if (!scan || !config || !mode) {
     return (
-      <div className="flex-1 flex items-center justify-center text-sm text-[#A6AFC4]">Analysing your PC...</div>
+      <div className="flex-1 flex items-center justify-center text-sm text-[var(--text-secondary)]">Analysing your PC...</div>
     );
   }
 
@@ -450,12 +450,12 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
         {/* Header and master switch */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${active ? "bg-[#35C98B]/15 text-[#35C98B]" : "bg-[#30244F] text-[#B79CFF]"}`}>
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${active ? "bg-[var(--status-success)]/15 text-[var(--status-success)]" : "bg-[var(--accent-soft)] text-[var(--accent-text)]"}`}>
               <Gamepad2 size={22} />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-[#F4F5FA]">Game Mode</h1>
-              <p className="text-xs text-[#A6AFC4] mt-0.5 max-w-xl leading-relaxed">
+              <h1 className="text-xl font-bold text-[var(--text-primary)]">Game Mode</h1>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5 max-w-xl leading-relaxed">
                 Build your own modes: pick what to close and which services to stop. Press the Game Mode key on the deck, or let DeckForge start
                 one when a game goes full-screen. Everything is put back when you are done.
               </p>
@@ -466,10 +466,10 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             disabled={Boolean(busy)}
             className={`h-11 px-5 rounded-lg text-sm font-semibold flex items-center gap-2 shrink-0 transition-colors cursor-pointer disabled:cursor-wait ${
               busy
-                ? "bg-[#1C2130] text-[#A6AFC4] border border-[#272D3D]"
+                ? "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
                 : active
-                  ? "bg-[#F16B79]/15 text-[#F16B79] border border-[#F16B79]/50 hover:bg-[#F16B79]/25"
-                  : "bg-[#8B5CF6] text-white hover:bg-[#9B72F8] shadow-[0_0_18px_rgba(139,92,246,0.35)]"
+                  ? "bg-[var(--status-error)]/15 text-[var(--status-error)] border border-[var(--status-error)]/50 hover:bg-[var(--status-error)]/25"
+                  : "bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)] shadow-[0_0_18px_rgba(139,92,246,0.35)]"
             }`}
           >
             {busy ? <RefreshCw size={16} className="animate-spin" /> : active ? <RotateCcw size={16} /> : <Power size={16} />}
@@ -501,22 +501,22 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
 
         {/* Admin helper */}
         {config.elevate === "skip" ? (
-          <div className="flex items-start gap-3 px-3.5 py-3 rounded-lg border border-[#272D3D] bg-[#10131D]">
-            <Lock size={15} className="mt-0.5 text-[#707B94]" />
-            <div className="text-[12px] text-[#A6AFC4] leading-snug">
-              <span className="font-semibold text-[#F4F5FA]">Services are never stopped.</span> Game Mode only closes apps and applies tweaks. Change this under
+          <div className="flex items-start gap-3 px-3.5 py-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-sidebar)]">
+            <Lock size={15} className="mt-0.5 text-[var(--text-muted)]" />
+            <div className="text-[12px] text-[var(--text-secondary)] leading-snug">
+              <span className="font-semibold text-[var(--text-primary)]">Services are never stopped.</span> Game Mode only closes apps and applies tweaks. Change this under
               "Admin rights for services" below.
             </div>
           </div>
         ) : (
           <div
             className={`flex items-start gap-3 px-3.5 py-3 rounded-lg border ${
-              helper.armed && helper.covers ? "border-[#35C98B]/30 bg-[#35C98B]/5" : "border-[#F4B860]/30 bg-[#F4B860]/5"
+              helper.armed && helper.covers ? "border-[var(--status-success)]/30 bg-[var(--status-success)]/5" : "border-[var(--status-warning)]/30 bg-[var(--status-warning)]/5"
             }`}
           >
-            <Lock size={15} className={`mt-0.5 ${helper.armed && helper.covers ? "text-[#35C98B]" : "text-[#F4B860]"}`} />
-            <div className="flex-1 min-w-0 text-[12px] text-[#A6AFC4] leading-snug">
-              <div className="text-[12.5px] font-semibold text-[#F4F5FA]">
+            <Lock size={15} className={`mt-0.5 ${helper.armed && helper.covers ? "text-[var(--status-success)]" : "text-[var(--status-warning)]"}`} />
+            <div className="flex-1 min-w-0 text-[12px] text-[var(--text-secondary)] leading-snug">
+              <div className="text-[12.5px] font-semibold text-[var(--text-primary)]">
                 {helper.armed && helper.covers ? "Admin helper is running" : helper.armed ? "Admin helper needs an update" : "Admin helper is off"}
               </div>
               {helper.armed && helper.covers ? (
@@ -535,7 +535,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                 onClick={() => void armHelper()}
                 disabled={arming}
                 aria-label={helper.armed ? "Restart the admin helper" : "Start the admin helper"}
-                className="h-8 px-3 rounded-md text-[12px] font-semibold bg-[#8B5CF6] text-white hover:bg-[#9B72F8] disabled:opacity-60 disabled:cursor-wait cursor-pointer shrink-0 flex items-center gap-1.5"
+                className="h-8 px-3 rounded-md text-[12px] font-semibold bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)] disabled:opacity-60 disabled:cursor-wait cursor-pointer shrink-0 flex items-center gap-1.5"
               >
                 {arming && <RefreshCw size={12} className="animate-spin" />}
                 {arming ? "Waiting for approval" : helper.armed ? "Restart helper" : "Start helper"}
@@ -557,37 +557,37 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                 aria-pressed={m.id === mode.id}
                 className={`h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border cursor-pointer transition-colors ${
                   m.id === mode.id
-                    ? "bg-[#30244F] border-[#8B5CF6]/70 text-[#F4F5FA]"
-                    : "bg-[#10131D] border-[#272D3D] text-[#A6AFC4] hover:border-[#3A4157] hover:text-[#F4F5FA]"
+                    ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/70 text-[var(--text-primary)]"
+                    : "bg-[var(--bg-sidebar)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 {m.name}
-                {m.id === config.activeMode && <Star size={11} className="fill-current text-[#F4B860]" aria-label="Default mode" />}
+                {m.id === config.activeMode && <Star size={11} className="fill-current text-[var(--status-warning)]" aria-label="Default mode" />}
               </button>
             ))}
             <button
               onClick={addMode}
               aria-label="New mode"
-              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[#3A4157] text-[#B79CFF] hover:border-[#8B5CF6] hover:text-white cursor-pointer"
+              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[var(--border-strong)] text-[var(--accent-text)] hover:border-[var(--accent-primary)] hover:text-white cursor-pointer"
             >
               <Plus size={13} /> New mode
             </button>
             <button
               onClick={() => void startImport()}
               aria-label="Import mode from a file"
-              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[#3A4157] text-[#A6AFC4] hover:border-[#8B5CF6] hover:text-white cursor-pointer"
+              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-white cursor-pointer"
             >
               <Download size={13} /> Import
             </button>
           </div>
           {pendingImport && (
-            <div role="dialog" aria-label="Import a mode" className="bg-[#151126] border border-[#8B5CF6]/45 rounded-lg px-4 py-3 flex flex-col gap-2">
-              <div className="text-[13px] font-semibold text-[#F4F5FA]">Import "{pendingImport.mode.name}"?</div>
-              <p className="text-[11.5px] text-[#A6AFC4] leading-snug">
+            <div role="dialog" aria-label="Import a mode" className="bg-[var(--accent-soft)] border border-[var(--accent-primary)]/45 rounded-lg px-4 py-3 flex flex-col gap-2">
+              <div className="text-[13px] font-semibold text-[var(--text-primary)]">Import "{pendingImport.mode.name}"?</div>
+              <p className="text-[11.5px] text-[var(--text-secondary)] leading-snug">
                 A mode file decides what Game Mode closes and stops on this PC. Read this list first. System programs and your dev tools stay protected no matter what a file says.
               </p>
               <ul className="flex flex-col gap-1 max-h-40 overflow-y-auto">
-                {pendingImport.mode.targets.length === 0 && <li className="text-[11.5px] text-[#707B94]">It closes nothing.</li>}
+                {pendingImport.mode.targets.length === 0 && <li className="text-[11.5px] text-[var(--text-muted)]">It closes nothing.</li>}
                 {pendingImport.mode.targets.map((id) => {
                   const custom = pendingImport.customTargets.find((c) => c.id === id);
                   const known = scan.targets.find((t) => t.id === id);
@@ -595,8 +595,8 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                   const programs = custom?.processes ?? known?.processes ?? [];
                   const services = custom?.services ?? known?.services.map((s) => s.name) ?? [];
                   return (
-                    <li key={id} className="text-[11.5px] text-[#A6AFC4]">
-                      <span className="text-[#F4F5FA] font-medium">{label}</span>
+                    <li key={id} className="text-[11.5px] text-[var(--text-secondary)]">
+                      <span className="text-[var(--text-primary)] font-medium">{label}</span>
                       {programs.length > 0 && <span> · closes {programs.join(", ")}</span>}
                       {services.length > 0 && <span> · stops service {services.join(", ")}</span>}
                     </li>
@@ -604,36 +604,36 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                 })}
               </ul>
               {pendingImport.mode.powerPlan && (
-                <div className="text-[11.5px] text-[#A6AFC4]">
+                <div className="text-[11.5px] text-[var(--text-secondary)]">
                   Switches the power plan to {scan.powerPlans.find((p) => p.guid === pendingImport.mode.powerPlan)?.name ?? "an installed plan"} while it runs.
                 </div>
               )}
               {pendingImport.powerPlanDropped && (
-                <div className="text-[11.5px] text-[#F4B860]">The power plan in the file is not installed on this PC, so it was left out.</div>
+                <div className="text-[11.5px] text-[var(--status-warning)]">The power plan in the file is not installed on this PC, so it was left out.</div>
               )}
               {pendingImport.dropped > 0 && (
-                <div className="text-[11.5px] text-[#F4B860]">
+                <div className="text-[11.5px] text-[var(--status-warning)]">
                   {pendingImport.dropped} item{pendingImport.dropped === 1 ? "" : "s"} in the file this version does not know, so they were left out.
                 </div>
               )}
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => void confirmImport()}
-                  className="h-8 px-3 rounded-md bg-[#8B5CF6] hover:bg-[#9B72F8] text-white text-[12.5px] font-semibold cursor-pointer"
+                  className="h-8 px-3 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-[12.5px] font-semibold cursor-pointer"
                 >
                   Import mode
                 </button>
                 <button
                   onClick={() => setPendingImport(null)}
-                  className="h-8 px-3 rounded-md border border-[#272D3D] text-[#A6AFC4] hover:text-white text-[12.5px] cursor-pointer"
+                  className="h-8 px-3 rounded-md border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-white text-[12.5px] cursor-pointer"
                 >
                   Cancel
                 </button>
               </div>
             </div>
           )}
-          <div className="flex items-center gap-2 flex-wrap bg-[#10131D] border border-[#272D3D] rounded-lg px-3 py-2">
-            <label className="text-[11px] uppercase tracking-wider text-[#707B94]" htmlFor="game-mode-name">
+          <div className="flex items-center gap-2 flex-wrap bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] rounded-lg px-3 py-2">
+            <label className="text-[11px] uppercase tracking-wider text-[var(--text-muted)]" htmlFor="game-mode-name">
               Mode name
             </label>
             <input
@@ -645,7 +645,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               onKeyDown={(event) => {
                 if (event.key === "Enter") event.currentTarget.blur();
               }}
-              className="h-7 w-44 px-2 rounded-md bg-[#0E111A] border border-[#272D3D] text-[12.5px] text-[#F4F5FA] outline-none focus:border-[#8B5CF6]"
+              className="h-7 w-44 px-2 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] text-[12.5px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)]"
             />
             <button
               onClick={() => void save({ ...config, activeMode: mode.id })}
@@ -653,20 +653,20 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               aria-label="Use this mode for auto start and the deck key"
               className={`h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border cursor-pointer disabled:cursor-default ${
                 config.activeMode === mode.id
-                  ? "border-[#F4B860]/40 text-[#F4B860] bg-[#F4B860]/8"
-                  : "border-[#272D3D] text-[#A6AFC4] hover:border-[#8B5CF6] hover:text-white"
+                  ? "border-[var(--status-warning)]/40 text-[var(--status-warning)] bg-[var(--status-warning)]/8"
+                  : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-white"
               }`}
             >
               <Star size={12} className={config.activeMode === mode.id ? "fill-current" : ""} />
               {config.activeMode === mode.id ? "Used for auto start and the deck key" : "Use for auto start and the deck key"}
             </button>
-            <span className="text-[11px] text-[#707B94]">
-              Deck key parameter: <span className="text-[#A6AFC4] font-mono">{mode.id}</span>
+            <span className="text-[11px] text-[var(--text-muted)]">
+              Deck key parameter: <span className="text-[var(--text-secondary)] font-mono">{mode.id}</span>
             </span>
             <button
               onClick={() => void exportMode()}
               aria-label="Export this mode to a file"
-              className="ml-auto h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border border-[#272D3D] text-[#A6AFC4] hover:border-[#8B5CF6] hover:text-white cursor-pointer"
+              className="ml-auto h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-white cursor-pointer"
             >
               <Upload size={12} /> Export
             </button>
@@ -675,7 +675,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               disabled={config.modes.length < 2}
               aria-label={confirmDelete ? "Confirm delete mode" : "Delete mode"}
               className={`h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
-                confirmDelete ? "border-[#F16B79]/60 text-[#F16B79] bg-[#F16B79]/10" : "border-[#272D3D] text-[#A6AFC4] hover:border-[#F16B79]/50 hover:text-[#F16B79]"
+                confirmDelete ? "border-[var(--status-error)]/60 text-[var(--status-error)] bg-[var(--status-error)]/10" : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--status-error)]/50 hover:text-[var(--status-error)]"
               }`}
             >
               <Trash2 size={12} /> {confirmDelete ? "Click again to delete" : "Delete"}
@@ -686,17 +686,17 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
         {/* What is running right now */}
         <section aria-label="Pick what to close" className="flex flex-col gap-2.5">
           <div className="flex items-center gap-2">
-            <h2 className="text-[13px] font-semibold text-[#F4F5FA]">Pick what {mode.name} closes</h2>
-            <span className="text-[11px] text-[#707B94]">This is what is running on your PC right now. Tick anything you want out of the way.</span>
+            <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Pick what {mode.name} closes</h2>
+            <span className="text-[11px] text-[var(--text-muted)]">This is what is running on your PC right now. Tick anything you want out of the way.</span>
             <button
               onClick={() => void refresh()}
               aria-label="Refresh the list"
-              className="ml-auto h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border border-[#272D3D] text-[#A6AFC4] hover:border-[#8B5CF6] hover:text-white cursor-pointer"
+              className="ml-auto h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-white cursor-pointer"
             >
               <RefreshCw size={12} className={scanning ? "animate-spin" : ""} /> Refresh
             </button>
           </div>
-          <div className="bg-[#10131D] border border-[#272D3D] rounded-lg p-3 flex flex-col gap-3">
+          <div className="bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] rounded-lg p-3 flex flex-col gap-3">
             <div className="flex items-center gap-2 flex-wrap">
               {PICK_TABS.map((t) => (
                 <button
@@ -704,25 +704,25 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                   onClick={() => setPickTab(t.id)}
                   aria-pressed={pickTab === t.id}
                   className={`h-7 px-3 rounded-md text-[12px] border cursor-pointer flex items-center gap-1.5 ${
-                    pickTab === t.id ? "bg-[#30244F] border-[#8B5CF6]/60 text-[#F4F5FA]" : "bg-[#0E111A] border-[#272D3D] text-[#A6AFC4] hover:border-[#3A4157]"
+                    pickTab === t.id ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/60 text-[var(--text-primary)]" : "bg-[var(--bg-sidebar)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]"
                   }`}
                 >
                   {t.title} ({tabCount[t.id]})
-                  {tabPicked[t.id] > 0 && <span className="text-[#B79CFF]">{tabPicked[t.id]} picked</span>}
+                  {tabPicked[t.id] > 0 && <span className="text-[var(--accent-text)]">{tabPicked[t.id]} picked</span>}
                 </button>
               ))}
               <div className="relative ml-auto">
-                <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-[#707B94]" />
+                <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search"
                   aria-label="Search what is running"
-                  className="h-7 w-48 pl-7 pr-2 rounded-md bg-[#0E111A] border border-[#272D3D] text-[12px] text-[#F4F5FA] outline-none focus:border-[#8B5CF6]"
+                  className="h-7 w-48 pl-7 pr-2 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)]"
                 />
               </div>
             </div>
-            <p className="text-[11.5px] text-[#707B94] -mt-1">{tab.blurb}</p>
+            <p className="text-[11.5px] text-[var(--text-muted)] -mt-1">{tab.blurb}</p>
             <div className="max-h-80 overflow-y-auto grid grid-cols-2 gap-1.5 pr-1">
               {pickTab !== "services" &&
                 (pickTab === "apps" ? appRows : backgroundRows).map((p) => {
@@ -758,25 +758,25 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                   );
                 })}
               {(pickTab === "apps" ? appRows : pickTab === "background" ? backgroundRows : serviceRows).length === 0 && (
-                <p className="col-span-2 text-[12px] text-[#707B94] py-3 text-center">{q ? "Nothing matches your search." : "Nothing to show."}</p>
+                <p className="col-span-2 text-[12px] text-[var(--text-muted)] py-3 text-center">{q ? "Nothing matches your search." : "Nothing to show."}</p>
               )}
             </div>
-            <p className="text-[11px] text-[#707B94] leading-snug">
+            <p className="text-[11px] text-[var(--text-muted)] leading-snug">
               Windows itself, anti-cheat, graphics drivers, audio and security software and DeckForge are never listed and can never be picked.
             </p>
             {launchersToAdd.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap border-t border-[#272D3D] pt-3">
-                <span className="text-[11.5px] text-[#707B94]">Not open right now? Add a common launcher:</span>
+              <div className="flex items-center gap-2 flex-wrap border-t border-[var(--border-subtle)] pt-3">
+                <span className="text-[11.5px] text-[var(--text-muted)]">Not open right now? Add a common launcher:</span>
                 {launchersToAdd.map((t) => (
                   <button
                     key={t.id}
                     onClick={() => toggleTarget(t.id)}
                     aria-label={`Add ${t.label} to this mode`}
                     title={t.note}
-                    className="h-7 px-2.5 rounded-full text-[12px] border border-dashed border-[#3A4157] text-[#A6AFC4] hover:border-[#8B5CF6] hover:text-white cursor-pointer flex items-center gap-1.5"
+                    className="h-7 px-2.5 rounded-full text-[12px] border border-dashed border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-white cursor-pointer flex items-center gap-1.5"
                   >
                     <Plus size={11} /> {t.label}
-                    {t.running && <span className="w-1.5 h-1.5 rounded-full bg-[#35C98B]" aria-label="running" />}
+                    {t.running && <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-success)]" aria-label="running" />}
                   </button>
                 ))}
               </div>
@@ -788,18 +788,18 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
         <section aria-label={`In ${mode.name}`} className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <ShieldCheck size={14} />
-            <h2 className="text-[13px] font-semibold text-[#F4F5FA]">In {mode.name}</h2>
-            <span className="text-[11px] text-[#707B94]">
+            <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">In {mode.name}</h2>
+            <span className="text-[11px] text-[var(--text-muted)]">
               {selectedTargets.length === 0 ? "Nothing yet" : `${selectedTargets.length} to close or stop`}
             </span>
             {selectedTargets.length > 0 && (
-              <button onClick={clearTargets} className="ml-auto text-[11px] text-[#A6AFC4] hover:text-white cursor-pointer">
+              <button onClick={clearTargets} className="ml-auto text-[11px] text-[var(--text-secondary)] hover:text-white cursor-pointer">
                 Clear all
               </button>
             )}
           </div>
           {selectedTargets.length === 0 ? (
-            <p className="text-[11.5px] text-[#707B94] leading-snug">
+            <p className="text-[11.5px] text-[var(--text-muted)] leading-snug">
               Nothing is picked, so starting this mode only applies the power plan and tweaks below. Pick apps or services above, or add a launcher.
             </p>
           ) : (
@@ -812,38 +812,38 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                       .join(" · ")
                   : t.note;
                 return (
-                  <div key={t.id} className="relative bg-[#151126] border border-[#8B5CF6]/45 rounded-lg px-3.5 py-2.5 pr-10">
+                  <div key={t.id} className="relative bg-[var(--accent-soft)] border border-[var(--accent-primary)]/45 rounded-lg px-3.5 py-2.5 pr-10">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[12.5px] font-semibold text-[#F4F5FA]">{t.label}</span>
+                      <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">{t.label}</span>
                       {t.running ? (
-                        <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#35C98B]/12 text-[#35C98B] border border-[#35C98B]/30">
+                        <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[var(--status-success)]/12 text-[var(--status-success)] border border-[var(--status-success)]/30">
                           {t.processCount > 0
                             ? `Running · ${formatMemory(t.memoryMb)}${t.processCount > 1 ? ` · ${t.processCount} processes` : ""}`
                             : "Service running"}
                         </span>
                       ) : (
-                        <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#1A1F2E] text-[#707B94] border border-[#272D3D]">Not running</span>
+                        <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#1A1F2E] text-[var(--text-muted)] border border-[var(--border-subtle)]">Not running</span>
                       )}
                       {t.needsAdmin && (
-                        <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#F4B860]/10 text-[#F4B860] border border-[#F4B860]/30 flex items-center gap-1">
+                        <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[var(--status-warning)]/10 text-[var(--status-warning)] border border-[var(--status-warning)]/30 flex items-center gap-1">
                           <Lock size={9} /> helper
                         </span>
                       )}
                     </div>
-                    <div className="text-[11.5px] text-[#A6AFC4] mt-0.5 leading-snug">{detail}</div>
+                    <div className="text-[11.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">{detail}</div>
                     {custom && custom.processes.length > 0 && (
                       <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                         <button
                           onClick={() => updateCustom(custom.id, { graceful: !custom.graceful })}
                           aria-pressed={custom.graceful}
-                          className="flex items-center gap-1.5 text-[11px] text-[#A6AFC4] hover:text-white cursor-pointer"
+                          className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] hover:text-white cursor-pointer"
                         >
                           <Checkbox checked={custom.graceful} /> Ask it to close first
                         </button>
                         <button
                           onClick={() => updateCustom(custom.id, { reopen: !custom.reopen })}
                           aria-pressed={custom.reopen}
-                          className="flex items-center gap-1.5 text-[11px] text-[#A6AFC4] hover:text-white cursor-pointer"
+                          className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] hover:text-white cursor-pointer"
                         >
                           <Checkbox checked={custom.reopen} /> Reopen afterwards
                         </button>
@@ -853,7 +853,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                       onClick={() => toggleTarget(t.id)}
                       aria-label={`Take ${t.label} out of this mode`}
                       title="Take it out of this mode"
-                      className="absolute top-2 right-2 w-6 h-6 rounded-md flex items-center justify-center text-[#707B94] hover:text-[#F16B79] hover:bg-[#F16B79]/10 cursor-pointer"
+                      className="absolute top-2 right-2 w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--status-error)] hover:bg-[var(--status-error)]/10 cursor-pointer"
                     >
                       <X size={13} />
                     </button>
@@ -868,8 +868,8 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
         <section aria-label="Power plan" className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <Zap size={14} />
-            <h2 className="text-[13px] font-semibold text-[#F4F5FA]">Power plan</h2>
-            <span className="text-[11px] text-[#707B94]">The plans installed on this PC. Windows is using {scan.powerPlan || "an unknown plan"} now.</span>
+            <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Power plan</h2>
+            <span className="text-[11px] text-[var(--text-muted)]">The plans installed on this PC. Windows is using {scan.powerPlan || "an unknown plan"} now.</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {[{ guid: "", name: "Leave it as it is", active: false }, ...scan.powerPlans].map((plan) => {
@@ -881,22 +881,22 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                   aria-pressed={on}
                   aria-label={plan.guid === "" ? "Leave the power plan alone" : `Use the ${plan.name} power plan`}
                   className={`text-left flex items-center gap-3 px-3.5 py-2.5 rounded-lg border cursor-pointer transition-colors ${
-                    on ? "bg-[#151126] border-[#8B5CF6]/45" : "bg-[#10131D] border-[#272D3D] hover:border-[#3A4157]"
+                    on ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/45" : "bg-[var(--bg-sidebar)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
                   }`}
                 >
                   <Radio checked={on} />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[12.5px] font-semibold text-[#F4F5FA] truncate">{plan.name}</span>
-                    {plan.guid === "" && <span className="block text-[11px] text-[#707B94]">Game Mode never changes the plan</span>}
+                    <span className="block text-[12.5px] font-semibold text-[var(--text-primary)] truncate">{plan.name}</span>
+                    {plan.guid === "" && <span className="block text-[11px] text-[var(--text-muted)]">Game Mode never changes the plan</span>}
                   </span>
                   {plan.active && (
-                    <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#35C98B]/12 text-[#35C98B] border border-[#35C98B]/30 shrink-0">In use now</span>
+                    <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[var(--status-success)]/12 text-[var(--status-success)] border border-[var(--status-success)]/30 shrink-0">In use now</span>
                   )}
                 </button>
               );
             })}
           </div>
-          <p className="text-[11px] text-[#707B94] leading-snug">
+          <p className="text-[11px] text-[var(--text-muted)] leading-snug">
             {planMissing
               ? "The plan saved in this mode is not installed on this PC, so Game Mode leaves the plan alone. Pick one above."
               : modePlan
@@ -909,7 +909,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
         <section aria-label="Tweaks" className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <Zap size={14} />
-            <h2 className="text-[13px] font-semibold text-[#F4F5FA]">Tweaks while you play</h2>
+            <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Tweaks while you play</h2>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {scan.tweaks.map((tweak) => (
@@ -922,8 +922,8 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
         <section aria-label="Behaviour" className="flex flex-col gap-3 pb-6">
           <div className="flex items-center gap-2">
             <ShieldCheck size={14} />
-            <h2 className="text-[13px] font-semibold text-[#F4F5FA]">How it starts and ends</h2>
-            <span className="text-[11px] text-[#707B94] ml-auto">{savedAt > 0 ? "Saved" : "Changes save automatically"}</span>
+            <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">How it starts and ends</h2>
+            <span className="text-[11px] text-[var(--text-muted)] ml-auto">{savedAt > 0 ? "Saved" : "Changes save automatically"}</span>
           </div>
           <Toggle
             on={config.autoDetect}
@@ -934,20 +934,20 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
           />
           {config.autoDetect && (
             <div className="flex items-center gap-2 flex-wrap pl-1">
-              <span className="text-[12px] text-[#A6AFC4]">Wait after the game appears:</span>
+              <span className="text-[12px] text-[var(--text-secondary)]">Wait after the game appears:</span>
               {SETTLE_OPTIONS.map((seconds) => (
                 <button
                   key={seconds}
                   onClick={() => void save({ ...config, settleSeconds: seconds })}
                   aria-pressed={config.settleSeconds === seconds}
                   className={`h-7 px-2.5 rounded-md text-[12px] border cursor-pointer ${
-                    config.settleSeconds === seconds ? "bg-[#30244F] border-[#8B5CF6]/60 text-[#F4F5FA]" : "bg-[#10131D] border-[#272D3D] text-[#A6AFC4] hover:border-[#3A4157]"
+                    config.settleSeconds === seconds ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/60 text-[var(--text-primary)]" : "bg-[var(--bg-sidebar)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]"
                   }`}
                 >
                   {seconds}s
                 </button>
               ))}
-              <span className="text-[11px] text-[#707B94]">Lets the game finish loading before anything is closed, then closes one app at a time.</span>
+              <span className="text-[11px] text-[var(--text-muted)]">Lets the game finish loading before anything is closed, then closes one app at a time.</span>
             </div>
           )}
           {config.elevate === "ask" && (
@@ -961,7 +961,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
           )}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <div className="text-[11px] uppercase tracking-wider text-[#707B94] mb-1.5">When Game Mode ends</div>
+              <div className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5">When Game Mode ends</div>
               <div className="flex flex-col gap-1.5">
                 {RESTORE_OPTIONS.map((option) => (
                   <button
@@ -969,17 +969,17 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                     onClick={() => void save({ ...config, restore: option.id })}
                     aria-pressed={config.restore === option.id}
                     className={`text-left px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
-                      config.restore === option.id ? "bg-[#30244F] border-[#8B5CF6]/60" : "bg-[#10131D] border-[#272D3D] hover:border-[#3A4157]"
+                      config.restore === option.id ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/60" : "bg-[var(--bg-sidebar)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
                     }`}
                   >
-                    <span className="block text-[12.5px] font-medium text-[#F4F5FA]">{option.title}</span>
-                    <span className="block text-[11px] text-[#A6AFC4]">{option.hint}</span>
+                    <span className="block text-[12.5px] font-medium text-[var(--text-primary)]">{option.title}</span>
+                    <span className="block text-[11px] text-[var(--text-secondary)]">{option.hint}</span>
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <div className="text-[11px] uppercase tracking-wider text-[#707B94] mb-1.5">Admin rights for services</div>
+              <div className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5">Admin rights for services</div>
               <div className="flex flex-col gap-1.5">
                 {ELEVATE_OPTIONS.map((option) => (
                   <button
@@ -987,15 +987,15 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                     onClick={() => void save({ ...config, elevate: option.id })}
                     aria-pressed={config.elevate === option.id}
                     className={`text-left px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
-                      config.elevate === option.id ? "bg-[#30244F] border-[#8B5CF6]/60" : "bg-[#10131D] border-[#272D3D] hover:border-[#3A4157]"
+                      config.elevate === option.id ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/60" : "bg-[var(--bg-sidebar)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
                     }`}
                   >
-                    <span className="block text-[12.5px] font-medium text-[#F4F5FA]">{option.title}</span>
-                    <span className="block text-[11px] text-[#A6AFC4]">{option.hint}</span>
+                    <span className="block text-[12.5px] font-medium text-[var(--text-primary)]">{option.title}</span>
+                    <span className="block text-[11px] text-[var(--text-secondary)]">{option.hint}</span>
                   </button>
                 ))}
               </div>
-              <p className="text-[11px] text-[#707B94] mt-2 leading-snug">
+              <p className="text-[11px] text-[var(--text-muted)] mt-2 leading-snug">
                 {scan.isAdmin
                   ? "DeckForge already has admin rights, so no prompt appears."
                   : "The helper is a small hidden script that can only stop the services listed in your modes. It puts them back when Game Mode ends or DeckForge closes."}
@@ -1006,14 +1006,14 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
       </div>
 
       {/* Report column */}
-      <aside className="border-l border-[#272D3D] bg-[#10131D] overflow-y-auto p-4 flex flex-col gap-4">
+      <aside className="border-l border-[var(--border-subtle)] bg-[var(--bg-sidebar)] overflow-y-auto p-4 flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-[13px] font-semibold text-[#F4F5FA]">{active ? `${status?.mode || "Game Mode"} is on` : "Last run"}</h2>
+          <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">{active ? `${status?.mode || "Game Mode"} is on` : "Last run"}</h2>
           <button
             onClick={() => void refresh()}
             aria-label="Rescan this PC"
             title="Rescan this PC"
-            className="w-7 h-7 rounded-md bg-[#151925] border border-[#272D3D] hover:border-[#8B5CF6] flex items-center justify-center text-[#A6AFC4] cursor-pointer"
+            className="w-7 h-7 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] flex items-center justify-center text-[var(--text-secondary)] cursor-pointer"
           >
             <RefreshCw size={13} className={scanning ? "animate-spin" : ""} />
           </button>
@@ -1034,12 +1034,12 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             )}
             {status.closed.length > 0 && (
               <div>
-                <div className="text-[11px] uppercase tracking-wider text-[#707B94] mb-1.5">Closed</div>
+                <div className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5">Closed</div>
                 <ul className="flex flex-col gap-1">
                   {status.closed.map((app) => (
-                    <li key={app.id} className="flex items-center justify-between text-[12px] bg-[#151925] border border-[#272D3D] rounded-md px-2.5 py-1.5">
-                      <span className="text-[#F4F5FA]">{app.label}</span>
-                      <span className="text-[#A6AFC4]">{formatMemory(app.memoryMb)}</span>
+                    <li key={app.id} className="flex items-center justify-between text-[12px] bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-md px-2.5 py-1.5">
+                      <span className="text-[var(--text-primary)]">{app.label}</span>
+                      <span className="text-[var(--text-secondary)]">{formatMemory(app.memoryMb)}</span>
                     </li>
                   ))}
                 </ul>
@@ -1047,10 +1047,10 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             )}
             {status.stoppedServices.length > 0 && (
               <div>
-                <div className="text-[11px] uppercase tracking-wider text-[#707B94] mb-1.5">Services stopped</div>
+                <div className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5">Services stopped</div>
                 <div className="flex flex-wrap gap-1">
                   {status.stoppedServices.map((name) => (
-                    <span key={name} className="text-[11px] px-1.5 py-0.5 rounded bg-[#151925] border border-[#272D3D] text-[#A6AFC4]">
+                    <span key={name} className="text-[11px] px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
                       {name}
                     </span>
                   ))}
@@ -1058,17 +1058,17 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               </div>
             )}
             {status.failedServices.length > 0 && (
-              <div className="flex items-start gap-2 text-[11.5px] text-[#F4B860] bg-[#F4B860]/8 border border-[#F4B860]/30 rounded-md px-2.5 py-2">
+              <div className="flex items-start gap-2 text-[11.5px] text-[var(--status-warning)] bg-[var(--status-warning)]/8 border border-[var(--status-warning)]/30 rounded-md px-2.5 py-2">
                 <TriangleAlert size={13} className="mt-0.5 shrink-0" />
                 <span>Could not stop: {status.failedServices.join(", ")}</span>
               </div>
             )}
             {status.notes.length > 0 && (
               <div>
-                <div className="text-[11px] uppercase tracking-wider text-[#707B94] mb-1.5">Notes</div>
+                <div className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5">Notes</div>
                 <ul className="flex flex-col gap-1">
                   {status.notes.map((note, index) => (
-                    <li key={`${index}-${note}`} className="text-[11.5px] text-[#A6AFC4] leading-snug">
+                    <li key={`${index}-${note}`} className="text-[11.5px] text-[var(--text-secondary)] leading-snug">
                       {note}
                     </li>
                   ))}
@@ -1077,19 +1077,19 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             )}
           </>
         ) : (
-          <p className="text-[12px] text-[#A6AFC4] leading-relaxed">
+          <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed">
             Nothing has run yet. Start a mode to see what it closed, how much memory it freed and which services it stopped.
           </p>
         )}
 
-        <div className="mt-auto pt-4 border-t border-[#272D3D]">
-          <div className="flex items-center gap-2 mb-2 text-[#35C98B]">
+        <div className="mt-auto pt-4 border-t border-[var(--border-subtle)]">
+          <div className="flex items-center gap-2 mb-2 text-[var(--status-success)]">
             <ShieldCheck size={14} />
             <span className="text-[12px] font-semibold">Never touched</span>
           </div>
           <ul className="flex flex-col gap-1">
             {scan.protected.map((line) => (
-              <li key={line} className="text-[11.5px] text-[#A6AFC4] leading-snug">
+              <li key={line} className="text-[11.5px] text-[var(--text-secondary)] leading-snug">
                 {line}
               </li>
             ))}

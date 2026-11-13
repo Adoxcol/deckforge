@@ -461,3 +461,13 @@ pub fn get_workspace_status(device_id: String, profile_id: String, page: Profile
     let applied = state.lock_safe().applied_page_status(&device_id, &profile_id, &page);
     WorkspaceStatus { deck: deck_status(), applied }
 }
+
+/// Icon of a running app as a PNG data URL, for auto-switch rules. None when it isn't running.
+#[tauri::command]
+pub async fn app_icon(process_name: String) -> Option<String> {
+    // Searching install folders can take a moment, so keep it off the UI thread.
+    tauri::async_runtime::spawn_blocking(move || actions::app_icon_data_url(&process_name))
+        .await
+        .ok()
+        .flatten()
+}

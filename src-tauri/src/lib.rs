@@ -61,6 +61,10 @@ pub fn run() {
         Ok(None) => { instance::focus_existing(); return; }
         Err(err) => { eprintln!("Could not establish exclusive DeckForge instance: {err}"); return; }
     };
+    // Pause before state initialization or workers can start a physical transfer.
+    if std::env::args().any(|arg| arg == "--start-paused") {
+        drivers::hal::pause_deck_control();
+    }
     let shared: SharedState = Arc::new(Mutex::new(ManagedAppState::default()));
     let shared_for_setup = Arc::clone(&shared);
 
@@ -90,6 +94,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             lifecycle::quit_application,
+            commands::app_icon,
             lifecycle::get_launch_at_login,
             lifecycle::set_launch_at_login,
             get_initial_state,

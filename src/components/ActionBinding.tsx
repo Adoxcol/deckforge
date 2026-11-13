@@ -63,8 +63,8 @@ export const ActionBinding: React.FC<{
   const showRecord = actionId === "custom.hotkey" || actionId === "sys.hotkey";
   const showPresets = showRecord;
   return (
-    <div className="p-2.5 rounded-lg bg-[#151925] border border-[#272D3D] flex flex-col gap-2">
-      <label className="text-[11px] font-semibold text-[#F4F5FA]">{label}</label>
+    <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2">
+      <label className="text-[11px] font-semibold text-[var(--text-primary)]">{label}</label>
       <select
         value={choices.some((choice) => choice.id === actionId) ? actionId : actionId || "custom.hotkey"}
         onChange={(event) => {
@@ -72,7 +72,7 @@ export const ActionBinding: React.FC<{
           const choice = choices.find((item) => item.id === next);
           onChange(next, actionNeedsParam(next) ? choice?.defaultParam ?? "" : "");
         }}
-        className="w-full h-8 px-2 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+        className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
       >
         {!choices.some((choice) => choice.id === actionId) && actionId && (
           <option value={actionId}>{actionId}</option>
@@ -87,7 +87,7 @@ export const ActionBinding: React.FC<{
         <select
           value={actionParam}
           onChange={(event) => onChange(actionId, event.target.value)}
-          className="w-full h-8 px-2 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+          className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
         >
           {!paramOptions.some((option) => option.value === actionParam) && actionParam && (
           <option value={actionParam}>{actionParam}</option>
@@ -101,15 +101,15 @@ export const ActionBinding: React.FC<{
       ) : showParam ? (
         <>
           <div className="flex items-center justify-between gap-2">
-            <span className="text-[10.5px] text-[#A6AFC4]">{paramLabel(actionId)}</span>
+            <span className="text-[10.5px] text-[var(--text-secondary)]">{paramLabel(actionId)}</span>
             {showRecord && (
               <button
                 type="button"
                 onClick={onRecord}
                 className={`px-2 py-0.5 rounded text-[10.5px] font-semibold cursor-pointer ${
                   recording
-                    ? "bg-[#F16B79] text-white animate-pulse"
-                    : "bg-[#30244F] text-[#8B5CF6] border border-[#8B5CF6]/50"
+                    ? "bg-[var(--status-error)] text-white animate-pulse"
+                    : "bg-[var(--accent-soft)] text-[var(--accent-primary)] border border-[var(--accent-primary)]/50"
                 }`}
               >
                 {recording ? "Press any key..." : "Record keybind"}
@@ -120,7 +120,7 @@ export const ActionBinding: React.FC<{
             value={actionParam}
             onChange={(event) => onChange(actionId, event.target.value)}
             placeholder="Ctrl+Shift+M, notepad.exe, https://..."
-            className="w-full h-8 px-2.5 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs font-mono text-[#F4F5FA] outline-none"
+            className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] outline-none"
           />
           {showPresets && (
             <div className="flex flex-wrap gap-1">
@@ -129,7 +129,7 @@ export const ActionBinding: React.FC<{
                   key={preset}
                   type="button"
                   onClick={() => onChange(actionId === "sys.hotkey" ? "sys.hotkey" : "custom.hotkey", preset)}
-                  className="px-1.5 py-0.5 rounded bg-[#10131D] border border-[#272D3D] text-[10px] font-mono text-[#A6AFC4] cursor-pointer"
+                  className="px-1.5 py-0.5 rounded bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] text-[10px] font-mono text-[var(--text-secondary)] cursor-pointer"
                 >
                   {preset}
                 </button>
@@ -146,22 +146,22 @@ export const ObsConnection: React.FC<{
   obsSettings: ObsSettings;
   onSave: (settings: ObsSettings) => void;
 }> = ({ obsSettings, onSave }) => (
-  <div className="p-2.5 rounded-lg bg-[#151925] border border-[#272D3D] flex flex-col gap-2">
-    <div className="text-[11px] font-semibold text-[#F4F5FA]">OBS WebSocket</div>
-    <p className="text-[10.5px] leading-relaxed text-[#A6AFC4]">
+  <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2">
+    <div className="text-[11px] font-semibold text-[var(--text-primary)]">OBS WebSocket</div>
+    <p className="text-[10.5px] leading-relaxed text-[var(--text-secondary)]">
       In OBS, open Tools, then WebSocket Server Settings, and turn the server on. The usual address is ws://127.0.0.1:4455.
     </p>
     <input
       value={obsSettings.url}
       onChange={(event) => onSave({ ...obsSettings, url: event.target.value })}
-      className="w-full h-8 px-2.5 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs font-mono text-[#F4F5FA] outline-none"
+      className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] outline-none"
     />
     <input
       type="password"
       value={obsSettings.password}
       placeholder="Password, if OBS has one"
       onChange={(event) => onSave({ ...obsSettings, password: event.target.value })}
-      className="w-full h-8 px-2.5 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+      className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
     />
   </div>
 );

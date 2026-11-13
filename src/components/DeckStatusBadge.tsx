@@ -103,14 +103,14 @@ export const DeckStatusBadge: React.FC<Props> = ({ onNotify, status, onRefresh }
         onClick={resend}
         disabled={sending || status?.state !== "connected"}
         title="Send every picture to the deck again, with the full connect sequence"
-        className="h-8 px-3 shrink-0 whitespace-nowrap rounded-md border border-[#272D3D] bg-[#151925] text-[11px] text-[#A6AFC4] hover:text-white hover:border-[#8B5CF6] disabled:opacity-40 disabled:hover:border-[#272D3D] disabled:hover:text-[#A6AFC4] flex items-center gap-1 cursor-pointer disabled:cursor-default"
+        className="h-8 px-3 shrink-0 whitespace-nowrap rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[11px] text-[var(--text-secondary)] hover:text-white hover:border-[var(--accent-primary)] disabled:opacity-40 disabled:hover:border-[var(--border-subtle)] disabled:hover:text-[var(--text-secondary)] flex items-center gap-1 cursor-pointer disabled:cursor-default"
       >
         <RefreshCw size={12} className={sending ? "animate-spin" : ""} />
         <span>Resend layout</span>
       </button>
       <button type="button" onClick={changeControl}
         disabled={!status || changingControl || status.state === "pausing"}
-        className="h-8 px-3 shrink-0 whitespace-nowrap rounded-md border border-[#272D3D] text-[11px] text-[#F4B860] disabled:opacity-40"
+        className="h-8 px-3 shrink-0 whitespace-nowrap rounded-md border border-[var(--border-subtle)] text-[11px] text-[var(--status-warning)] disabled:opacity-40"
         title={suspended ? "Close AJAZZ first, then reconnect with DeckForge" : "Release the deck so you can use AJAZZ"}>
         {suspended ? "Use DeckForge" : "Pause DeckForge"}
       </button>

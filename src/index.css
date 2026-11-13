@@ -2,36 +2,44 @@
 
 @layer base {
   :root {
-    --bg-app: #0B0D14;
-    --bg-sidebar: #10131D;
-    --bg-panel: #151925;
-    --bg-elevated: #1C2130;
-    --bg-input: #111522;
-    --border-subtle: #272D3D;
-    --border-strong: #394158;
-    --text-primary: #F4F5FA;
-    --text-secondary: #A6AFC4;
-    --text-muted: #707B94;
-    --accent-primary: #8B5CF6;
-    --accent-hover: #9D75F8;
-    --accent-soft: #30244F;
-    --status-success: #35C98B;
-    --status-warning: #F4B860;
-    --status-error: #F16B79;
-    --status-info: #56B9F2;
+    /* Neutral graphite surfaces, one accent. Colour on the deck comes from the user. */
+    --bg-app: #0E0F12;
+    --bg-sidebar: #121317;
+    --bg-panel: #16171C;
+    --bg-elevated: #1D1F25;
+    --bg-input: #121317;
+    --border-subtle: #26282F;
+    --border-strong: #353841;
+    --text-primary: #EDEEF2;
+    --text-secondary: #A4A7B2;
+    --text-muted: #6F7380;
+    --accent-primary: #7C83F7;
+    --accent-hover: #9097FA;
+    --accent-soft: #23253D;
+    --accent-text: #B4B8FC;
+    --status-success: #3FC88A;
+    --status-warning: #E9B663;
+    --status-error: #EE6B78;
+    --status-info: #5AB4EE;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
   }
 
   * {
     box-sizing: border-box;
     scrollbar-width: thin;
-    scrollbar-color: #272D3D #10131D;
+    scrollbar-color: var(--border-strong) transparent;
   }
 
   body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background-color: #0B0D14;
-    color: #F4F5FA;
+    background-color: var(--bg-app);
+    color: var(--text-primary);
     font-size: 13px;
+    line-height: 1.45;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: 'cv11', 'ss01';
     margin: 0;
     padding: 0;
     user-select: none;
@@ -39,5 +47,15 @@
 
   code, pre, .font-mono {
     font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* Quieter labels: no shouty all-caps eyebrows. Unlayered so it wins over Tailwind utilities. */
+.uppercase { text-transform: none; letter-spacing: 0; }
+
+@layer base {
+  button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 1px;
   }
 }

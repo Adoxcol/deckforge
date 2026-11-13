@@ -83,6 +83,10 @@ pub struct AutoSwitchRule {
     pub process_name: String,
     pub window_title_contains: String,
     pub target_profile_id: String,
+    /// Page to open in that profile. Empty keeps the old behaviour: page 1, and no switch
+    /// when that profile is already showing.
+    #[serde(default)]
+    pub target_page_id: String,
     pub priority: u8,
     pub enabled: bool,
 }
@@ -576,6 +580,7 @@ pub fn default_auto_switch_rules() -> Vec<AutoSwitchRule> {
             process_name: "obs64.exe".to_string(),
             window_title_contains: "OBS".to_string(),
             target_profile_id: "profile-streaming".to_string(),
+            target_page_id: String::new(),
             priority: 1,
             enabled: true,
         },
@@ -584,6 +589,7 @@ pub fn default_auto_switch_rules() -> Vec<AutoSwitchRule> {
             process_name: "Resolve.exe".to_string(),
             window_title_contains: "DaVinci Resolve".to_string(),
             target_profile_id: "profile-editing".to_string(),
+            target_page_id: String::new(),
             priority: 2,
             enabled: true,
         },
@@ -592,6 +598,7 @@ pub fn default_auto_switch_rules() -> Vec<AutoSwitchRule> {
             process_name: "Code.exe".to_string(),
             window_title_contains: "Visual Studio Code".to_string(),
             target_profile_id: "profile-work".to_string(),
+            target_page_id: String::new(),
             priority: 3,
             enabled: true,
         },
@@ -600,6 +607,7 @@ pub fn default_auto_switch_rules() -> Vec<AutoSwitchRule> {
             process_name: "Spotify.exe".to_string(),
             window_title_contains: String::new(),
             target_profile_id: "profile-streaming".to_string(),
+            target_page_id: String::new(),
             priority: 4,
             enabled: false,
         },

@@ -50,17 +50,22 @@ pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
                         let mut rules = guard.auto_switch_rules.clone();
                         rules.sort_by_key(|rule| rule.priority);
                         rules.into_iter().find(|rule| rule_matches(rule, &stable_exe, &stable_title)).and_then(|rule| {
-                            if rule.target_profile_id == guard.active_profile_id {
-                                None
-                            } else if guard.profiles.iter().any(|profile| profile.id == rule.target_profile_id) {
-                                Some(rule.target_profile_id)
-                            } else {
-                                None
+                            let profile = guard.profiles.iter().find(|profile| profile.id == rule.target_profile_id)?;
+                            let page = (!rule.target_page_id.is_empty())
+                                .then(|| profile.pages.iter().position(|page| page.id == rule.target_page_id))
+                                .flatten();
+                            let same_profile = rule.target_profile_id == guard.active_profile_id;
+                            match page {
+                                // A rule for a page switches even inside the profile already showing.
+                                Some(index) if same_profile && index == guard.active_page_index => None,
+                                Some(index) => Some((rule.target_profile_id, index)),
+                                None if same_profile => None,
+                                None => Some((rule.target_profile_id, 0)),
                             }
                         })
                     }
                 };
-                if let Some(profile_id) = switch_to {
+                if let Some((profile_id, page_index)) = switch_to {
                     let _display = DISPLAY_WRITE.lock_safe();
                     let event = {
                         let mut guard = shared.lock().unwrap_or_else(|e| e.into_inner());
@@ -68,13 +73,16 @@ pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
                             .profiles
                             .iter()
                             .find(|profile| profile.id == profile_id)
-                            .map(|profile| profile.name.clone())
+                            .map(|profile| match profile.pages.get(page_index) {
+                                Some(page) if page_index > 0 => format!("{} / {}", profile.name, page.name),
+                                _ => profile.name.clone(),
+                            })
                             .unwrap_or_else(|| profile_id.clone());
                         guard.active_profile_id = profile_id.clone();
-                        guard.active_page_index = 0;
+                        guard.active_page_index = page_index;
                         DeckContextEvent {
                             profile_id,
-                            page_index: 0,
+                            page_index,
                             message: format!("{stable_exe} is in front. Switched to {name}"),
                         }
                     };

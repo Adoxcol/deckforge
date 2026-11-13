@@ -1,4 +1,6 @@
+mod app_icon;
 mod audio;
+pub use app_icon::app_icon_data_url;
 mod obs;
 mod window;
 

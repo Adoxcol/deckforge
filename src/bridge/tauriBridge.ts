@@ -832,6 +832,14 @@ export const deckforgeApi = {
     };
   },
 
+  /** Icon of a running app as a PNG data URL; null when it is not running or in the browser preview. */
+  async appIcon(processName: string): Promise<string | null> {
+    if (isTauriRuntime()) {
+      return (await invoke<string | null>("app_icon", { processName })) ?? null;
+    }
+    return null;
+  },
+
   async resendLayout(): Promise<string> {
     if (isTauriRuntime()) {
       return await invoke<string>("resend_layout");

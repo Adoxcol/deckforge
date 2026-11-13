@@ -56,7 +56,7 @@ import { OnboardingModal } from "./components/OnboardingModal";
 import { WorkspaceToolbar } from "./components/WorkspaceToolbar";
 import { DeckStage } from "./components/DeckStage";
 import { WorkspaceSidebar } from "./components/WorkspaceSidebar";
-import { ActionDrawer } from "./components/ActionDrawer";
+import { ActionDrawer, keyPatchForAction } from "./components/ActionDrawer";
 import { KeyInspector } from "./components/KeyInspector";
 import { DevicesScreen } from "./screens/DevicesScreen";
 import { PluginsScreen } from "./screens/PluginsScreen";
@@ -89,6 +89,15 @@ import { ACTION_CATALOG, type ActionTemplate } from "./data/actionCatalog";
 import { bytesToBase64, buildPulseFrames, errorText } from "./lib/format";
 import { buildProfileFile, placeBackup, parseProfileFile, pickJsonFile, placeImportedProfile, slugify } from "./lib/shareFiles";
 import { LevelMeter, liveKeyLook, liveZoneValue } from "./components/LiveFace";
+
+const NAV_ITEMS = [
+    { id: "workspace", label: "Profiles and keys", icon: Layers },
+    { id: "macros", label: "Macro studio", icon: Zap },
+    { id: "icons", label: "Icon studio", icon: Palette },
+    { id: "gamemode", label: "Game mode", icon: Gamepad2 },
+    { id: "plugins", label: "Plugins", icon: Puzzle },
+    { id: "devices", label: "Devices", icon: Usb },
+  ] as const;
 
 export const App: React.FC = () => {
   const [activeScreen, setActiveScreen] = useState<NavScreenId>("workspace");
@@ -590,6 +599,41 @@ export const App: React.FC = () => {
     );
   };
 
+  const patchKeys = (change: (keys: KeyConfig[]) => KeyConfig[]) => {
+    if (!activeProfile || !activePage) return;
+    pushUndoSnapshot();
+    setProfiles((prev) =>
+      prev.map((prof) =>
+        prof.id !== activeProfile.id
+          ? prof
+          : {
+              ...prof,
+              lastModifiedMs: Date.now(),
+              pages: prof.pages.map((pg, pIdx) => (pIdx === selectedPageIdx ? { ...pg, keys: change(pg.keys) } : pg)),
+            }
+      )
+    );
+  };
+
+  /** Dropping an action card on a key binds that key, whichever key is selected. */
+  const handleDropAction = (keyIndex: number, actionId: string) => {
+    const act = allActionTemplates.find((a) => a.id === actionId);
+    if (!act) return;
+    patchKeys((keys) => keys.map((k) => (k.index === keyIndex ? { ...k, ...keyPatchForAction(act) } : k)));
+    triggerToast(`${act.title} is on key ${keyIndex + 1}`, "info");
+  };
+
+  /** Dragging one key onto another swaps them, so an empty slot receives the key. */
+  const handleMoveKey = (from: number, to: number) => {
+    if (from === to || Number.isNaN(from)) return;
+    patchKeys((keys) => {
+      const a = keys.find((k) => k.index === from);
+      const b = keys.find((k) => k.index === to);
+      if (!a || !b) return keys;
+      return keys.map((k) => (k.index === from ? { ...b, index: from } : k.index === to ? { ...a, index: to } : k));
+    });
+  };
+
   const clipFor = (cfg?: ScreenMediaConfig | null) => (cfg ? mediaLibrary[cfg.mediaId] ?? null : null);
 
   const assignMedia = (target: ScreenTarget, index: number, cfg: ScreenMediaConfig | null) => {
@@ -1000,27 +1044,27 @@ export const App: React.FC = () => {
     onCancel={() => setQuitOpen(false)} onQuit={finishQuit} />;
 
   if (bootstrapError) {
-    return <div className="h-screen bg-[#0B0D14] text-[#F4F5FA] flex flex-col items-center justify-center gap-4 p-8" role="alert">
+    return <div className="h-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col items-center justify-center gap-4 p-8" role="alert">
       {quitDialog}
       <h1 className="text-xl font-bold">Could not load DeckForge</h1>
-      <p className="text-[#F4B860] max-w-xl break-words">{bootstrapError}</p>
-      <button className="px-4 py-2 rounded bg-[#8B5CF6]" onClick={() => setBootstrapAttempt(n => n + 1)}>Retry loading</button>
+      <p className="text-[var(--status-warning)] max-w-xl break-words">{bootstrapError}</p>
+      <button className="px-4 py-2 rounded bg-[var(--accent-primary)]" onClick={() => setBootstrapAttempt(n => n + 1)}>Retry loading</button>
     </div>;
   }
 
   if (recoveryChecked && (recoveryDraft || recoveryError)) {
-    return <div className="h-screen bg-[#0B0D14] text-[#F4F5FA] flex items-center justify-center p-8">
+    return <div className="h-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex items-center justify-center p-8">
       {quitDialog}
-      <section aria-labelledby="recovery-title" className="max-w-lg w-full rounded-xl border border-[#394158] bg-[#151925] p-6 space-y-4">
+      <section aria-labelledby="recovery-title" className="max-w-lg w-full rounded-xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-6 space-y-4">
         <h1 id="recovery-title" className="text-xl font-bold">{recoveryDraft ? "Recover unsaved edits?" : "Could not read recovery draft"}</h1>
-        {recoveryDraft && <p className="text-sm text-[#A6AFC4]">{recoveryDraft.draft.profiles.length} profiles captured {new Date(recoveryDraft.draft.updatedAtMs).toLocaleString()}. Restore opens them as unsaved editor drafts. Saved profiles and the deck stay unchanged until you Save or Apply.</p>}
-        {recoveryDraft?.savedProfilesChanged && <p className="text-sm text-[#F4B860]">Saved profiles have changed since this draft began. Restoring replaces the editor contents with the recovered version; review it before saving. Undo returns to the loaded saved profiles.</p>}
-        {recoveryError && <p role="alert" className="text-sm text-[#F16B79] break-words">{recoveryError}</p>}
-        {!recoveryDraft && <p className="text-sm text-[#A6AFC4]">The file is preserved at %APPDATA%\DeckForge\profile-draft.json. Retry reading it, or discard this recovery copy to open saved profiles.</p>}
+        {recoveryDraft && <p className="text-sm text-[var(--text-secondary)]">{recoveryDraft.draft.profiles.length} profiles captured {new Date(recoveryDraft.draft.updatedAtMs).toLocaleString()}. Restore opens them as unsaved editor drafts. Saved profiles and the deck stay unchanged until you Save or Apply.</p>}
+        {recoveryDraft?.savedProfilesChanged && <p className="text-sm text-[var(--status-warning)]">Saved profiles have changed since this draft began. Restoring replaces the editor contents with the recovered version; review it before saving. Undo returns to the loaded saved profiles.</p>}
+        {recoveryError && <p role="alert" className="text-sm text-[var(--status-error)] break-words">{recoveryError}</p>}
+        {!recoveryDraft && <p className="text-sm text-[var(--text-secondary)]">The file is preserved at %APPDATA%\DeckForge\profile-draft.json. Retry reading it, or discard this recovery copy to open saved profiles.</p>}
         <div className="flex flex-wrap gap-3 text-sm">
-          {recoveryDraft ? <button autoFocus disabled={recoveryBusy} className="px-4 py-2 rounded-lg bg-[#8B5CF6] disabled:opacity-40" onClick={() => resolveRecovery(true)}>Restore draft</button>
-            : <button disabled={recoveryBusy} className="px-4 py-2 rounded-lg border border-[#707B94]" onClick={() => { setRecoveryChecked(false); setRecoveryError(null); setBootstrapAttempt(n => n + 1); }}>Retry recovery</button>}
-          <button disabled={recoveryBusy} className="px-4 py-2 rounded-lg border border-[#707B94] disabled:opacity-40" onClick={() => resolveRecovery(false)}>Discard draft</button>
+          {recoveryDraft ? <button autoFocus disabled={recoveryBusy} className="px-4 py-2 rounded-lg bg-[var(--accent-primary)] disabled:opacity-40" onClick={() => resolveRecovery(true)}>Restore draft</button>
+            : <button disabled={recoveryBusy} className="px-4 py-2 rounded-lg border border-[var(--text-muted)]" onClick={() => { setRecoveryChecked(false); setRecoveryError(null); setBootstrapAttempt(n => n + 1); }}>Retry recovery</button>}
+          <button disabled={recoveryBusy} className="px-4 py-2 rounded-lg border border-[var(--text-muted)] disabled:opacity-40" onClick={() => resolveRecovery(false)}>Discard draft</button>
         </div>
       </section>
     </div>;
@@ -1028,9 +1072,9 @@ export const App: React.FC = () => {
 
   if (!recoveryChecked || !activeDevice || !activeProfile || !activePage || !activeKey) {
     return (
-      <div className="h-screen w-screen bg-[#0B0D14] text-[#F4F5FA] flex items-center justify-center">
-        <div className="flex items-center gap-3 text-[#A6AFC4]">
-          <RefreshCw className="animate-spin text-[#8B5CF6]" size={20} />
+      <div className="h-screen w-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex items-center justify-center">
+        <div className="flex items-center gap-3 text-[var(--text-secondary)]">
+          <RefreshCw className="animate-spin text-[var(--accent-primary)]" size={20} />
           {quitDialog}
           <span>Initializing DeckForge Rust Hardware & Action Service...</span>
         </div>
@@ -1039,16 +1083,16 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="h-screen w-screen bg-[#0B0D14] text-[#F4F5FA] flex flex-col overflow-hidden select-none">
+    <div className="h-screen w-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col overflow-hidden select-none">
       {quitDialog}
-      {(!savedLocally || draftStatus.error) && <div role={draftStatus.error ? "alert" : "status"} className="px-4 py-1.5 text-xs bg-[#151925] text-[#A6AFC4] flex items-center gap-3">
+      {(!savedLocally || draftStatus.error) && <div role={draftStatus.error ? "alert" : "status"} className="px-4 py-1.5 text-xs bg-[var(--bg-panel)] text-[var(--text-secondary)] flex items-center gap-3">
         <span>{draftStatus.error ? `Recovery copy could not update: ${draftStatus.error}. Retry recovery or save your profiles.` : draftStatus.pending ? "Updating recovery copy…" : "Recovery copy saved · Profile edits are still unsaved"}</span>
-        {draftStatus.error && <button className="underline text-[#F4B860]" onClick={draftWriter.retry}>Retry recovery copy</button>}
+        {draftStatus.error && <button className="underline text-[var(--status-warning)]" onClick={draftWriter.retry}>Retry recovery copy</button>}
       </div>}
       {Object.entries(saveQueues).map(([name, queue]) => {
         const status = saveStatuses[name] ?? savedStatus;
         if (!status.pending) return null;
-        return <div key={name} role={status.error ? "alert" : "status"} className="px-4 py-2 text-xs bg-[#30244F] text-[#F4B860] flex items-center gap-3">
+        return <div key={name} role={status.error ? "alert" : "status"} className="px-4 py-2 text-xs bg-[var(--accent-soft)] text-[var(--status-warning)] flex items-center gap-3">
           <span>{status.error ? `${name} not saved: ${status.error}. Your edits remain in this session.` : `Saving ${name.toLowerCase()}…`}</span>
           {status.error && <button className="underline font-semibold" onClick={queue.retry}>Retry save</button>}
         </div>;
@@ -1073,8 +1117,8 @@ export const App: React.FC = () => {
       />
       {/* Transient Top-Right Toast (Spec Section 11.5) */}
       {toastMessage && (
-        <div className="fixed top-14 right-5 z-50 flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-[#1C2130] border border-[#8B5CF6]/60 shadow-2xl text-xs font-medium text-[#F4F5FA]">
-          <span className="w-2 h-2 rounded-full bg-[#35C98B]" />
+        <div className="fixed bottom-14 right-5 z-50 flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--accent-primary)]/60 shadow-2xl text-xs font-medium text-[var(--text-primary)]">
+          <span className="w-2 h-2 rounded-full bg-[var(--status-success)]" />
           <span>{toastMessage.text}</span>
         </div>
       )}
@@ -1089,84 +1133,70 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* 1. GLOBAL TOP NAVIGATION BAR (48px — Spec Section 3 & Reference Screenshot) */}
-      <header className="min-h-14 bg-[#10131D] border-b border-[#272D3D] px-4 py-2 flex flex-wrap items-center justify-between gap-2 shrink-0">
-        {/* Brand */}
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-md bg-[#30244F] border border-[#8B5CF6] p-1 grid grid-cols-2 gap-0.5 shadow-[0_0_14px_rgba(139,92,246,0.35)]">
-            <span className="bg-[#8B5CF6] rounded-[1.5px]" />
-            <span className="bg-[#8B5CF6] rounded-[1.5px]" />
-            <span className="bg-[#8B5CF6] rounded-[1.5px]" />
-            <span className="bg-[#8B5CF6] rounded-[1.5px]" />
-          </div>
-          <div>
-            <div className="text-[14px] font-bold tracking-tight text-[#F4F5FA] leading-tight">
-              DeckForge
-            </div>
-            <div className="text-[10.5px] text-[#707B94] leading-tight">
-              Your deck, your workflow
-            </div>
-          </div>
+      <div className="flex-1 min-h-0 flex">
+      {/* Icon rail: one place to switch screens, labels on hover. */}
+      <nav aria-label="Screens" className="w-14 shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] flex flex-col items-center gap-1 py-3">
+        <div aria-hidden className="w-7 h-7 mb-3 rounded-[var(--radius-sm)] bg-[var(--accent-primary)] p-[5px] grid grid-cols-2 gap-[3px]">
+          <span className="bg-[var(--bg-app)] rounded-[1.5px]" />
+          <span className="bg-[var(--bg-app)] rounded-[1.5px]" />
+          <span className="bg-[var(--bg-app)] rounded-[1.5px]" />
+          <span className="bg-[var(--bg-app)] rounded-[1.5px] opacity-50" />
         </div>
-
-        {/* Center Navigation Tabs */}
-        <nav className="order-3 flex w-full items-center gap-1 overflow-x-auto 2xl:order-none 2xl:w-auto">
-          {(
-            [
-              { id: "workspace", label: "Profiles & Keys", icon: Layers },
-              { id: "plugins", label: "Plugins", icon: Puzzle },
-              { id: "devices", label: "Devices", icon: Usb },
-              { id: "macros", label: "Macro Studio", icon: Zap },
-              { id: "icons", label: "Icon Studio", icon: Palette },
-              { id: "gamemode", label: "Game Mode", icon: Gamepad2 },
-              { id: "settings", label: "Settings", icon: Settings },
-            ] as Array<{ id: NavScreenId; label: string; icon: React.ComponentType<{ size?: number }> }>
-          ).map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeScreen === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => {
-                  setActiveScreen(tab.id);
-                  if (tab.id === "icons") {
-                    setSurface("key");
-                    setSurfaceIndex(activeKey.index);
-                  }
-                }}
-                className={`h-9 px-3.5 shrink-0 whitespace-nowrap rounded-md text-[12.5px] font-medium flex items-center gap-2 transition-all cursor-pointer border ${
-                  isActive
-                    ? "bg-[#30244F] text-[#F4F5FA] border-[#8B5CF6]/50 shadow-[inset_0_-2px_0_#8B5CF6]"
-                    : "bg-transparent text-[#A6AFC4] border-transparent hover:text-[#F4F5FA] hover:bg-[#151925]"
-                }`}
-              >
-                <Icon size={15} />
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-
+        {(
+          [...(NAV_ITEMS), { id: "settings", label: "Settings", icon: Settings }] as Array<{ id: NavScreenId; label: string; icon: React.ComponentType<{ size?: number; strokeWidth?: number }> }>
+        ).map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeScreen === tab.id;
+          return (
+            <button
+              key={tab.id}
+              title={tab.label}
+              aria-label={tab.label}
+              aria-current={isActive ? "page" : undefined}
+              onClick={() => {
+                setActiveScreen(tab.id);
+                if (tab.id === "icons") {
+                  setSurface("key");
+                  setSurfaceIndex(activeKey.index);
+                }
+              }}
+              className={`relative w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center transition-colors cursor-pointer ${tab.id === "settings" ? "mt-auto" : ""} ${
+                isActive
+                  ? "bg-[var(--bg-elevated)] text-[var(--text-primary)]"
+                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
+              }`}
+            >
+              {isActive && <span aria-hidden className="absolute -left-2 top-2.5 bottom-2.5 w-[3px] rounded-r bg-[var(--accent-primary)]" />}
+              <Icon size={19} strokeWidth={1.75} />
+            </button>
+          );
+        })}
+      </nav>
+      <div className="flex-1 min-w-0 flex flex-col">
+      <header className="h-12 bg-[var(--bg-app)] border-b border-[var(--border-subtle)] px-4 flex items-center justify-between gap-3 shrink-0">
+        <h1 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary)]">
+          {[...NAV_ITEMS, { id: "settings", label: "Settings" }].find((n) => n.id === activeScreen)?.label ?? "DeckForge"}
+        </h1>
         {/* Right Controls */}
         <div className="flex items-center gap-2">
           {telemetry?.officialStreamdockRunning && (
-            <span className="text-xs text-[#F4B860] max-w-[250px]">
+            <span className="text-xs text-[var(--status-warning)] max-w-[250px]">
               AJAZZ detected. Close it, then choose Use DeckForge in the status bar.
             </span>
           )}
           <button
             onClick={handleImportLegacyProfiles}
             title="Parse & Import Legacy .sdProfile Configurations from %APPDATA%\HotSpot\StreamDock\profiles"
-            className="h-8 px-2.5 rounded-md bg-[#151925] border border-[#272D3D] hover:border-[#8B5CF6] text-[#A6AFC4] hover:text-white text-[11.5px] font-medium flex items-center gap-1.5 cursor-pointer"
+            className="h-8 px-2.5 rounded-[var(--radius-sm)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] text-[12px] font-medium flex items-center gap-1.5 cursor-pointer"
           >
             <Download size={13} />
-            <span>Import .sdProfiles</span>
+            <span>Import from Stream Dock</span>
           </button>
           <button
             onClick={handleUndo}
             disabled={undoStack.length === 0}
             title="Undo (Ctrl+Z)"
-            className="w-8 h-8 rounded-md bg-[#151925] border border-[#272D3D] flex items-center justify-center text-[#A6AFC4] hover:text-white disabled:opacity-35 cursor-pointer"
+            className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] disabled:opacity-35 cursor-pointer"
           >
             <RotateCcw size={14} />
           </button>
@@ -1174,14 +1204,14 @@ export const App: React.FC = () => {
             onClick={handleRedo}
             disabled={redoStack.length === 0}
             title="Redo (Ctrl+Y)"
-            className="w-8 h-8 rounded-md bg-[#151925] border border-[#272D3D] flex items-center justify-center text-[#A6AFC4] hover:text-white disabled:opacity-35 cursor-pointer"
+            className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] disabled:opacity-35 cursor-pointer"
           >
             <RotateCw size={14} />
           </button>
           <button
             onClick={() => setShowOnboarding(true)}
             title="Quick-start guide"
-            className="w-8 h-8 rounded-md bg-[#151925] border border-[#272D3D] flex items-center justify-center text-[#A6AFC4] hover:text-white cursor-pointer"
+            className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] cursor-pointer"
           >
             <HelpCircle size={15} />
           </button>
@@ -1195,12 +1225,12 @@ export const App: React.FC = () => {
           <WorkspaceSidebar activeProfile={activeProfile} autoSwitchRules={autoSwitchRules} connectedDevices={connectedDevices} handleAddProfile={handleAddProfile} onExportProfile={handleExportProfile} onImportProfile={handleImportProfile} profiles={profiles} saveRules={saveRules} setDevices={setDevices} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSelectedProfileId={setSelectedProfileId} triggerToast={triggerToast} />
 
           {/* CENTER WORKSPACE COLUMN: Toolbar + Hardware Bezel + Bottom Action Library Drawer */}
-          <main className="flex flex-col justify-between bg-[#0B0D14] overflow-hidden">
+          <main className="flex flex-col justify-between bg-[var(--bg-app)] overflow-hidden">
             {/* Top Workspace Toolbar */}
             <WorkspaceToolbar activeDevice={activeDevice} activeProfile={activeProfile} canvasZoom={canvasZoom} connectedDevices={connectedDevices} handleApplyToDevice={handleApplyToDevice} handleSaveLocally={handleSaveLocally} setCanvasZoom={setCanvasZoom} setSelectedDeviceId={setSelectedDeviceId} setSelectedKeyIdx={setSelectedKeyIdx} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} />
 
             {/* Central Hardware Bezel Stage */}
-            <DeckStage activeDevice={activeDevice} activeKey={activeKey} activePage={activePage} activeProfile={activeProfile} canvasZoom={canvasZoom} clipFor={clipFor} face={face} handleAddPage={handleAddPage} ingestFile={ingestFile} livePressedKeyIdx={livePressedKeyIdx} selectedPageIdx={selectedPageIdx} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} setTemplatesOpen={setTemplatesOpen} surface={surface} surfaceIndex={surfaceIndex} />
+            <DeckStage activeDevice={activeDevice} activeKey={activeKey} activePage={activePage} activeProfile={activeProfile} canvasZoom={canvasZoom} clipFor={clipFor} face={face} handleAddPage={handleAddPage} ingestFile={ingestFile} livePressedKeyIdx={livePressedKeyIdx} selectedPageIdx={selectedPageIdx} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} setTemplatesOpen={setTemplatesOpen} surface={surface} surfaceIndex={surfaceIndex} onDropAction={handleDropAction} onMoveKey={handleMoveKey} autoSwitchRules={autoSwitchRules} saveRules={saveRules} />
 
             {/* BOTTOM ACTION LIBRARY DRAWER (Matches Reference Screenshot Bottom Panel) */}
             <ActionDrawer actionCategoryFilter={actionCategoryFilter} actionSearch={actionSearch} activeEncoder={activeEncoder} activeKey={activeKey} activeZone={activeZone} filteredActions={filteredActions} setActionCategoryFilter={setActionCategoryFilter} setActionSearch={setActionSearch} surface={surface} triggerToast={triggerToast} updateSelectedEncoder={updateSelectedEncoder} updateSelectedKey={updateSelectedKey} updateSelectedZone={updateSelectedZone} />
@@ -1291,6 +1321,9 @@ export const App: React.FC = () => {
       {activeScreen === "settings" && (
         <SettingsScreen onBackup={handleBackup} onRestore={handleRestoreBackup} onNavigate={setActiveScreen} onOpenGuide={() => setShowOnboarding(true)} />
       )}
+
+      </div>
+      </div>
 
       {/* First-Run Onboarding / Hardware Guide Modal (Spec Section 11.1) */}
       {showOnboarding && (

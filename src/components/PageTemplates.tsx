@@ -128,22 +128,22 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
       <div
         role="dialog"
         aria-label="Page templates"
-        className="w-[1040px] max-w-full h-[640px] max-h-full bg-[#0B0D14] border border-[#272D3D] rounded-xl shadow-2xl flex flex-col overflow-hidden"
+        className="w-[1040px] max-w-full h-[640px] max-h-full bg-[var(--bg-app)] border border-[var(--border-subtle)] rounded-xl shadow-2xl flex flex-col overflow-hidden"
       >
-        <div className="flex items-center gap-3 px-5 h-14 border-b border-[#272D3D] shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-[#30244F] text-[#B79CFF] flex items-center justify-center">
+        <div className="flex items-center gap-3 px-5 h-14 border-b border-[var(--border-subtle)] shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-[var(--accent-soft)] text-[var(--accent-text)] flex items-center justify-center">
             <LayoutTemplate size={16} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-[#F4F5FA]">Page templates</div>
-            <div className="text-[11px] text-[#A6AFC4]">
+            <div className="text-sm font-semibold text-[var(--text-primary)]">Page templates</div>
+            <div className="text-[11px] text-[var(--text-secondary)]">
               Start a page from a ready-made layout in {profileName}. Every key is a real action you can still edit.
             </div>
           </div>
           <button
             onClick={onClose}
             aria-label="Close templates"
-            className="w-8 h-8 rounded-md text-[#A6AFC4] hover:text-white hover:bg-[#151925] flex items-center justify-center cursor-pointer"
+            className="w-8 h-8 rounded-md text-[var(--text-secondary)] hover:text-white hover:bg-[var(--bg-panel)] flex items-center justify-center cursor-pointer"
           >
             <X size={16} />
           </button>
@@ -151,7 +151,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
 
         <div className="flex-1 min-h-0 grid grid-cols-[168px_1fr_316px]">
           {/* Categories */}
-          <div className="border-r border-[#272D3D] p-3 flex flex-col gap-0.5 overflow-y-auto">
+          <div className="border-r border-[var(--border-subtle)] p-3 flex flex-col gap-0.5 overflow-y-auto">
             {TEMPLATE_CATEGORIES.map((cat) => {
               const active = category === cat;
               const count = countFor(cat);
@@ -161,12 +161,12 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                   onClick={() => setCategory(cat)}
                   className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-md text-[12px] cursor-pointer transition-colors ${
                     active
-                      ? "bg-[#30244F] text-[#F4F5FA] font-semibold"
-                      : "text-[#A6AFC4] hover:bg-[#151925] hover:text-white"
+                      ? "bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-white"
                   }`}
                 >
                   <span>{cat === "Mine" ? "My templates" : cat}</span>
-                  <span className={`text-[10px] ${active ? "text-[#B79CFF]" : "text-[#707B94]"}`}>{count}</span>
+                  <span className={`text-[10px] ${active ? "text-[var(--accent-text)]" : "text-[var(--text-muted)]"}`}>{count}</span>
                 </button>
               );
             })}
@@ -175,9 +175,9 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
           {/* Cards */}
           <div className="overflow-y-auto p-4">
             {visible.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-center text-[#707B94] gap-2">
+              <div className="h-full flex flex-col items-center justify-center text-center text-[var(--text-muted)] gap-2">
                 <BookmarkPlus size={26} />
-                <div className="text-sm text-[#A6AFC4]">No saved templates yet</div>
+                <div className="text-sm text-[var(--text-secondary)]">No saved templates yet</div>
                 <div className="text-xs max-w-[260px]">
                   Build a page you like, open this window, and use “Save current page as template”.
                 </div>
@@ -193,8 +193,8 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                       onDoubleClick={() => onAdd(instantiateTemplate(tpl, tpl.name))}
                       className={`text-left rounded-lg border p-3 flex flex-col gap-2.5 cursor-pointer transition-colors ${
                         active
-                          ? "border-[#8B5CF6] bg-[#151126]"
-                          : "border-[#272D3D] bg-[#10131D] hover:border-[#3A4258]"
+                          ? "border-[var(--accent-primary)] bg-[var(--accent-soft)]"
+                          : "border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:border-[var(--border-strong)]"
                       }`}
                     >
                       <KeyGrid page={tpl.page} size="sm" />
@@ -204,9 +204,9 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                             className="w-2 h-2 rounded-full shrink-0"
                             style={{ background: tpl.accent }}
                           />
-                          <span className="text-[13px] font-semibold text-[#F4F5FA] truncate">{tpl.name}</span>
+                          <span className="text-[13px] font-semibold text-[var(--text-primary)] truncate">{tpl.name}</span>
                         </div>
-                        <div className="text-[11px] leading-snug text-[#A6AFC4] mt-1 line-clamp-2">
+                        <div className="text-[11px] leading-snug text-[var(--text-secondary)] mt-1 line-clamp-2">
                           {tpl.tagline}
                         </div>
                       </div>
@@ -218,21 +218,21 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
           </div>
 
           {/* Detail */}
-          <div className="border-l border-[#272D3D] p-4 flex flex-col gap-3 overflow-y-auto bg-[#0E111A]">
+          <div className="border-l border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto bg-[var(--bg-sidebar)]">
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-[#707B94]">{selected.category}</div>
-              <div className="text-base font-semibold text-[#F4F5FA]">{selected.name}</div>
-              <div className="text-xs text-[#A6AFC4] mt-0.5">{selected.tagline}</div>
+              <div className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{selected.category}</div>
+              <div className="text-base font-semibold text-[var(--text-primary)]">{selected.name}</div>
+              <div className="text-xs text-[var(--text-secondary)] mt-0.5">{selected.tagline}</div>
             </div>
 
             <KeyGrid page={selected.page} size="lg" />
 
-            <div className="text-[11px] text-[#A6AFC4]">
+            <div className="text-[11px] text-[var(--text-secondary)]">
               {assigned.length === 0 ? (
                 "All ten keys are empty. Pick actions from the library below the deck."
               ) : (
                 <>
-                  <span className="text-[#F4F5FA] font-medium">{assigned.length} keys</span> ·{" "}
+                  <span className="text-[var(--text-primary)] font-medium">{assigned.length} keys</span> ·{" "}
                   {assigned
                     .slice(0, 6)
                     .map((k) => k.title)
@@ -243,18 +243,18 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
             </div>
 
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] text-[#A6AFC4]">Page name</span>
+              <span className="text-[11px] text-[var(--text-secondary)]">Page name</span>
               <input
                 value={pageName}
                 onChange={(e) => setPageName(e.target.value)}
-                className="h-8 px-2.5 rounded-md bg-[#111522] border border-[#272D3D] focus:border-[#8B5CF6] text-xs text-[#F4F5FA] outline-none"
+                className="h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
               />
             </label>
 
             <div className="flex flex-col gap-2">
               <button
                 onClick={() => onAdd(instantiateTemplate(selected, pageName))}
-                className="h-9 rounded-md bg-[#8B5CF6] hover:bg-[#7C4DEB] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                className="h-9 rounded-md bg-[var(--accent-primary)] hover:bg-[#7C4DEB] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Check size={14} /> Add as a new page
               </button>
@@ -262,25 +262,25 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                 <button
                   onClick={() => setConfirmReplace(true)}
                   disabled={!currentPage}
-                  className="h-9 rounded-md border border-[#272D3D] hover:border-[#8B5CF6] text-[#F4F5FA] text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
+                  className="h-9 rounded-md border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-[var(--text-primary)] text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
                 >
                   <Replace size={14} /> Replace “{currentPage?.name ?? "current page"}”
                 </button>
               ) : (
-                <div className="rounded-md border border-[#F4B860]/50 bg-[#2A2215] p-2.5 flex flex-col gap-2">
-                  <div className="text-[11px] text-[#F4B860]">
+                <div className="rounded-md border border-[var(--status-warning)]/50 bg-[#2A2215] p-2.5 flex flex-col gap-2">
+                  <div className="text-[11px] text-[var(--status-warning)]">
                     This overwrites every key, touch zone and knob on “{currentPage?.name}”. You can undo it with Ctrl+Z.
                   </div>
                   <div className="flex gap-2">
                     <button
                       onClick={() => onReplace(instantiateTemplate(selected, pageName, currentPage?.id))}
-                      className="flex-1 h-8 rounded-md bg-[#F4B860] text-[#2A2215] text-xs font-semibold cursor-pointer"
+                      className="flex-1 h-8 rounded-md bg-[var(--status-warning)] text-[#2A2215] text-xs font-semibold cursor-pointer"
                     >
                       Replace page
                     </button>
                     <button
                       onClick={() => setConfirmReplace(false)}
-                      className="flex-1 h-8 rounded-md border border-[#272D3D] text-[#F4F5FA] text-xs cursor-pointer"
+                      className="flex-1 h-8 rounded-md border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs cursor-pointer"
                     >
                       Keep it
                     </button>
@@ -290,15 +290,15 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
               {!selected.builtIn && (
                 <button
                   onClick={() => removeCustom(selected)}
-                  className="h-8 rounded-md border border-[#F16B79]/40 text-[#F16B79] hover:bg-[#2A1521] text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="h-8 rounded-md border border-[var(--status-error)]/40 text-[var(--status-error)] hover:bg-[#2A1521] text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Trash2 size={13} /> Delete this template
                 </button>
               )}
             </div>
 
-            <div className="mt-auto pt-3 border-t border-[#272D3D] flex flex-col gap-2">
-              <div className="text-[11px] text-[#A6AFC4]">
+            <div className="mt-auto pt-3 border-t border-[var(--border-subtle)] flex flex-col gap-2">
+              <div className="text-[11px] text-[var(--text-secondary)]">
                 Save “{currentPage?.name ?? "current page"}” so you can reuse it in any profile.
               </div>
               <div className="flex gap-2">
@@ -306,12 +306,12 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                   value={saveName}
                   onChange={(e) => setSaveName(e.target.value)}
                   placeholder={currentPage?.name ?? "Template name"}
-                  className="flex-1 min-w-0 h-8 px-2.5 rounded-md bg-[#111522] border border-[#272D3D] focus:border-[#8B5CF6] text-xs text-[#F4F5FA] outline-none"
+                  className="flex-1 min-w-0 h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
                 />
                 <button
                   onClick={saveCurrent}
                   disabled={!currentPage}
-                  className="h-8 px-3 rounded-md bg-[#30244F] hover:bg-[#3C2D63] text-[#F4F5FA] text-xs font-medium flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                  className="h-8 px-3 rounded-md bg-[var(--accent-soft)] hover:bg-[#3C2D63] text-[var(--text-primary)] text-xs font-medium flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
                 >
                   <BookmarkPlus size={13} /> Save
                 </button>

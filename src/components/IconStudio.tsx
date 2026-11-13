@@ -43,7 +43,7 @@ function KeyCap({
           borderRadius: keyConfig.cornerRadius,
           background,
         }}
-        className="relative overflow-hidden border border-[#394158]"
+        className="relative overflow-hidden border border-[var(--border-strong)]"
       >
         {clip ? (
           <ScreenFace
@@ -72,7 +72,7 @@ function KeyCap({
             </span>
             {keyConfig.showTitle && (
               <span
-                className={`max-w-[100px] truncate px-1 text-center font-semibold text-[#F4F5FA] ${
+                className={`max-w-[100px] truncate px-1 text-center font-semibold text-[var(--text-primary)] ${
                   keyConfig.titleSize === "Small" ? "text-[10px]" : keyConfig.titleSize === "Large" ? "text-[14px]" : "text-[12px]"
                 }`}
               >
@@ -127,8 +127,8 @@ export const IconStudio: React.FC<{
 
   return (
     <div className="flex-1 grid grid-cols-[280px_1fr_300px] overflow-hidden">
-      <aside className="bg-[#10131D] border-r border-[#272D3D] p-4 flex flex-col gap-3 overflow-y-auto">
-        <div className="text-[11px] font-semibold text-[#A6AFC4]">This page</div>
+      <aside className="bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
+        <div className="text-[11px] font-semibold text-[var(--text-secondary)]">This page</div>
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(1, columns)}, 44px)` }}>
           {keys.map((item) => {
             const selected = item.index === face.index;
@@ -140,7 +140,7 @@ export const IconStudio: React.FC<{
                 aria-label={item.title || `Key ${item.index + 1}`}
                 onClick={() => onSelectKey(item.index)}
                 className={`relative flex h-11 w-11 items-center justify-center rounded-lg border cursor-pointer ${
-                  selected ? "border-[#8B5CF6] shadow-[0_0_0_1px_#8B5CF6]" : "border-[#272D3D] hover:border-[#394158]"
+                  selected ? "border-[var(--accent-primary)] shadow-[0_0_0_1px_#8B5CF6]" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
                 }`}
                 style={{
                   background: item.media
@@ -151,13 +151,13 @@ export const IconStudio: React.FC<{
                 }}
               >
                 <DeckIcon name={item.iconName} size={16} color={item.accentColor} />
-                {item.media && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[#C084FC]" />}
+                {item.media && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[var(--accent-text)]" />}
               </button>
             );
           })}
         </div>
-        <div className="text-xs font-semibold text-[#F4F5FA]">{face.title || `Key ${face.index + 1}`}</div>
-        <p className="text-[10.5px] leading-relaxed text-[#707B94]">
+        <div className="text-xs font-semibold text-[var(--text-primary)]">{face.title || `Key ${face.index + 1}`}</div>
+        <p className="text-[10.5px] leading-relaxed text-[var(--text-muted)]">
           Pick a key. The face you build here is the picture that key sends to the deck.
         </p>
       </aside>
@@ -178,25 +178,25 @@ export const IconStudio: React.FC<{
       >
         <div className="flex items-end gap-3">
           <KeyCap keyConfig={face} clip={clip} pixelWidth={pixelWidth} pixelHeight={pixelHeight} scale={2.4} />
-          <div className="pb-2 text-[11px] font-mono text-[#A6AFC4]">
+          <div className="pb-2 text-[11px] font-mono text-[var(--text-secondary)]">
             {pixelWidth}×{pixelHeight}
-            <div className="text-[#707B94]">key {face.index + 1}</div>
+            <div className="text-[var(--text-muted)]">key {face.index + 1}</div>
           </div>
         </div>
 
         {clip && clip.frames.length > 0 && (
-          <div className="w-full max-w-[640px] rounded-2xl border border-[#272D3D] bg-[#10131D]/90 p-3">
+          <div className="w-full max-w-[640px] rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-sidebar)]/90 p-3">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11px] font-semibold text-[#A6AFC4]">Frames</span>
-              <span className="text-[11px] font-mono text-[#F4F5FA]">
+              <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Frames</span>
+              <span className="text-[11px] font-mono text-[var(--text-primary)]">
                 {clip.frames.length} · {timing}ms
               </span>
             </div>
             <div className="flex h-14 items-end gap-1">
               {clip.frames.map((src, index) => (
                 <div key={`${clip.id}-${index}`} className="flex h-full min-w-0 flex-col justify-end" style={{ flex: delays[index] || 1 }}>
-                  <img src={src} alt="" className="h-9 w-full rounded-md object-cover border border-[#272D3D]" />
-                  <span className="mt-1 text-center text-[9px] font-mono text-[#707B94]">{delays[index]}</span>
+                  <img src={src} alt="" className="h-9 w-full rounded-md object-cover border border-[var(--border-subtle)]" />
+                  <span className="mt-1 text-center text-[9px] font-mono text-[var(--text-muted)]">{delays[index]}</span>
                 </div>
               ))}
             </div>
@@ -204,7 +204,7 @@ export const IconStudio: React.FC<{
         )}
 
         <div className="w-full max-w-[640px] relative pl-8 flex flex-col">
-          <div className="absolute left-[15px] top-3 bottom-3 w-px bg-gradient-to-b from-[#C084FC] via-[#56B9F2] to-[#35C98B]" />
+          <div className="absolute left-[15px] top-3 bottom-3 w-px bg-gradient-to-b from-[var(--accent-text)] via-[var(--status-info)] to-[var(--status-success)]" />
           {(
             [
               { id: "picture" as const, title: "Picture", detail: clip ? clip.fileName : "No image yet", color: "#C084FC" },
@@ -218,19 +218,19 @@ export const IconStudio: React.FC<{
               type="button"
               onClick={() => setLayer(item.id)}
               className={`relative mb-2 w-full rounded-2xl border p-3 text-left cursor-pointer ${
-                layer === item.id ? "border-[#8B5CF6] bg-[#1C2130]" : "border-[#272D3D] bg-[#151925]"
+                layer === item.id ? "border-[var(--accent-primary)] bg-[var(--bg-elevated)]" : "border-[var(--border-subtle)] bg-[var(--bg-panel)]"
               }`}
             >
-              <span className="absolute -left-8 top-4 h-4 w-4 rounded-full border-2 border-[#0B0D14]" style={{ background: item.color }} />
-              <div className="text-sm font-semibold text-[#F4F5FA]">{item.title}</div>
-              <div className="text-[11px] font-mono text-[#A6AFC4] truncate">{item.detail}</div>
+              <span className="absolute -left-8 top-4 h-4 w-4 rounded-full border-2 border-[var(--bg-app)]" style={{ background: item.color }} />
+              <div className="text-sm font-semibold text-[var(--text-primary)]">{item.title}</div>
+              <div className="text-[11px] font-mono text-[var(--text-secondary)] truncate">{item.detail}</div>
             </button>
           ))}
         </div>
       </main>
 
-      <aside className="bg-[#10131D] border-l border-[#272D3D] p-4 flex flex-col gap-3 overflow-y-auto">
-        <div className="text-sm font-bold text-[#F4F5FA]">
+      <aside className="bg-[var(--bg-sidebar)] border-l border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
+        <div className="text-sm font-bold text-[var(--text-primary)]">
           {layer === "picture" ? "Picture" : layer === "title" ? "Title" : layer === "icon" ? "Icon" : "Background"}
         </div>
 
@@ -239,7 +239,7 @@ export const IconStudio: React.FC<{
             <button
               type="button"
               onClick={onUpload}
-              className="h-9 rounded-lg bg-[#30244F] border border-[#8B5CF6] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer"
+              className="h-9 rounded-lg bg-[var(--accent-soft)] border border-[var(--accent-primary)] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Upload size={14} />
               Upload image or GIF
@@ -247,7 +247,7 @@ export const IconStudio: React.FC<{
             <button
               type="button"
               onClick={onSample}
-              className="h-8 rounded-lg border border-[#272D3D] text-xs text-[#A6AFC4] flex items-center justify-center gap-1.5 cursor-pointer"
+              className="h-8 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] flex items-center justify-center gap-1.5 cursor-pointer"
             >
               <Film size={13} />
               Sample pulse
@@ -261,14 +261,14 @@ export const IconStudio: React.FC<{
                       type="button"
                       onClick={() => onMediaPatch({ fit })}
                       className={`h-7 rounded text-[11px] capitalize cursor-pointer ${
-                        face.media?.fit === fit ? "bg-[#30244F] text-white font-semibold" : "bg-[#151925] text-[#A6AFC4]"
+                        face.media?.fit === fit ? "bg-[var(--accent-soft)] text-white font-semibold" : "bg-[var(--bg-panel)] text-[var(--text-secondary)]"
                       }`}
                     >
                       {fit}
                     </button>
                   ))}
                 </div>
-                <label className="text-[11px] text-[#A6AFC4]">Speed {face.media.speed.toFixed(2)}×</label>
+                <label className="text-[11px] text-[var(--text-secondary)]">Speed {face.media.speed.toFixed(2)}×</label>
                 <input
                   type="range"
                   min={0.25}
@@ -276,26 +276,26 @@ export const IconStudio: React.FC<{
                   step={0.25}
                   value={face.media.speed}
                   onChange={(event) => onMediaPatch({ speed: Number(event.target.value) })}
-                  className="accent-[#8B5CF6]"
+                  className="accent-[var(--accent-primary)]"
                 />
                 <button
                   type="button"
                   onClick={() => onMediaPatch({ loopPlayback: !face.media?.loopPlayback })}
-                  className="h-8 rounded-lg border border-[#272D3D] text-xs text-[#F4F5FA] cursor-pointer"
+                  className="h-8 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] cursor-pointer"
                 >
                   {face.media.loopPlayback ? "Looping" : "Play once"}
                 </button>
                 <button
                   type="button"
                   onClick={onClearMedia}
-                  className="h-8 rounded-lg border border-[#3A2430] text-xs text-[#F16B79] flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="h-8 rounded-lg border border-[#3A2430] text-xs text-[var(--status-error)] flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Trash2 size={13} />
                   Remove picture
                 </button>
               </>
             )}
-            {!clip && <p className="text-[11px] leading-relaxed text-[#707B94]">Drop a PNG, JPEG, WebP, or GIF on the canvas. A GIF plays on the key after you send the page.</p>}
+            {!clip && <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">Drop a PNG, JPEG, WebP, or GIF on the canvas. A GIF plays on the key after you send the page.</p>}
           </>
         )}
 
@@ -304,12 +304,12 @@ export const IconStudio: React.FC<{
             <input
               value={face.title}
               onChange={(event) => onChange({ title: event.target.value })}
-              className="h-9 px-2.5 rounded-lg bg-[#0B0D14] border border-[#272D3D] text-sm text-[#F4F5FA] outline-none"
+              className="h-9 px-2.5 rounded-lg bg-[var(--bg-app)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] outline-none"
             />
             <button
               type="button"
               onClick={() => onChange({ showTitle: !face.showTitle })}
-              className="h-8 rounded-lg border border-[#272D3D] text-xs text-[#F4F5FA] flex items-center justify-center gap-1.5 cursor-pointer"
+              className="h-8 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer"
             >
               {face.showTitle ? <Eye size={13} /> : <EyeOff size={13} />}
               {face.showTitle ? "Title is on the key" : "Title is hidden"}
@@ -321,14 +321,14 @@ export const IconStudio: React.FC<{
                   type="button"
                   onClick={() => onChange({ titleSize: size })}
                   className={`h-7 rounded text-[11px] cursor-pointer ${
-                    face.titleSize === size ? "bg-[#30244F] text-white font-semibold" : "bg-[#151925] text-[#A6AFC4]"
+                    face.titleSize === size ? "bg-[var(--accent-soft)] text-white font-semibold" : "bg-[var(--bg-panel)] text-[var(--text-secondary)]"
                   }`}
                 >
                   {size}
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-[#707B94] flex items-center gap-1">
+            <p className="text-[11px] text-[var(--text-muted)] flex items-center gap-1">
               <Type size={12} /> Two short words render largest on the deck.
             </p>
           </>
@@ -343,7 +343,7 @@ export const IconStudio: React.FC<{
                 title={name}
                 onClick={() => onChange({ iconName: name })}
                 className={`h-9 rounded-lg flex items-center justify-center cursor-pointer ${
-                  face.iconName === name ? "bg-[#30244F] border border-[#8B5CF6]" : "bg-[#151925] border border-[#272D3D]"
+                  face.iconName === name ? "bg-[var(--accent-soft)] border border-[var(--accent-primary)]" : "bg-[var(--bg-panel)] border border-[var(--border-subtle)]"
                 }`}
               >
                 <DeckIcon name={name} size={16} color={face.accentColor} />
@@ -366,14 +366,14 @@ export const IconStudio: React.FC<{
                 />
               ))}
             </div>
-            <label className="text-[11px] text-[#A6AFC4]">Accent</label>
+            <label className="text-[11px] text-[var(--text-secondary)]">Accent</label>
             <input
               type="color"
               value={face.accentColor}
               onChange={(event) => onChange({ accentColor: event.target.value })}
               className="h-8 w-full bg-transparent cursor-pointer"
             />
-            <label className="text-[11px] text-[#A6AFC4]">Surface</label>
+            <label className="text-[11px] text-[var(--text-secondary)]">Surface</label>
             <input
               type="color"
               value={face.bgColor}
@@ -387,21 +387,21 @@ export const IconStudio: React.FC<{
                   type="button"
                   onClick={() => onChange({ backgroundStyle: style })}
                   className={`h-7 rounded text-[11px] cursor-pointer ${
-                    face.backgroundStyle === style ? "bg-[#30244F] text-white font-semibold" : "bg-[#151925] text-[#A6AFC4]"
+                    face.backgroundStyle === style ? "bg-[var(--accent-soft)] text-white font-semibold" : "bg-[var(--bg-panel)] text-[var(--text-secondary)]"
                   }`}
                 >
                   {style}
                 </button>
               ))}
             </div>
-            <label className="text-[11px] text-[#A6AFC4]">Corners {face.cornerRadius}px</label>
+            <label className="text-[11px] text-[var(--text-secondary)]">Corners {face.cornerRadius}px</label>
             <input
               type="range"
               min={2}
               max={18}
               value={face.cornerRadius}
               onChange={(event) => onChange({ cornerRadius: Number(event.target.value) })}
-              className="accent-[#8B5CF6]"
+              className="accent-[var(--accent-primary)]"
             />
           </>
         )}
@@ -409,14 +409,14 @@ export const IconStudio: React.FC<{
         <button
           type="button"
           onClick={onPaintPage}
-          className="mt-auto h-8 rounded-lg border border-[#272D3D] text-[11px] text-[#A6AFC4] cursor-pointer"
+          className="mt-auto h-8 rounded-lg border border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] cursor-pointer"
         >
           Paint this color on every key
         </button>
         <button
           type="button"
           onClick={onApply}
-          className="h-10 rounded-lg bg-[#8B5CF6] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer"
+          className="h-10 rounded-lg bg-[var(--accent-primary)] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <ImagePlus size={14} />
           Send this page to the deck

@@ -129,6 +129,8 @@ export interface AutoSwitchRule {
   processName: string;
   windowTitleContains: string;
   targetProfileId: string;
+  /** Page to open in that profile; empty means the first page. */
+  targetPageId?: string;
   priority: number;
   enabled: boolean;
 }

@@ -3,6 +3,9 @@ import { LevelMeter, liveKeyLook, liveZoneValue } from "./LiveFace";
 import { ScreenFace } from "./ScreenFace";
 import { DeckIcon } from "./DeckIcon";
 import { deckforgeApi } from "../bridge/tauriBridge";
+import { ACTION_DRAG_TYPE } from "./ActionDrawer";
+import { PageApps } from "./AppRuleList";
+import type { AutoSwitchRule } from "../types/deckforge";
 import { ChevronLeft, ChevronRight, LayoutTemplate, Plus } from "lucide-react";
 import type { DeckFaceState, DeviceDescriptor, KeyConfig, MediaPreview, Profile, ProfilePage, ScreenMediaConfig, ScreenTarget } from "../types/deckforge";
 
@@ -25,7 +28,13 @@ interface DeckStageProps {
   setTemplatesOpen: React.Dispatch<React.SetStateAction<boolean>>;
   surface: "key" | "zone" | "strip" | "encoder";
   surfaceIndex: number;
+  onDropAction: (keyIndex: number, actionId: string) => void;
+  onMoveKey: (from: number, to: number) => void;
+  autoSwitchRules: AutoSwitchRule[];
+  saveRules: (rules: AutoSwitchRule[]) => void;
 }
+
+const KEY_DRAG_TYPE = "application/x-deckforge-key";
 
 export const DeckStage: React.FC<DeckStageProps> = ({
   activeDevice,
@@ -46,16 +55,21 @@ export const DeckStage: React.FC<DeckStageProps> = ({
   setTemplatesOpen,
   surface,
   surfaceIndex,
+  onDropAction,
+  onMoveKey,
+  autoSwitchRules,
+  saveRules,
 }) => {
+  const [dropTarget, setDropTarget] = React.useState<number | null>(null);
   return (
     <div className="min-h-0 flex-1 flex flex-col items-center justify-start px-6 py-3 gap-3 overflow-y-auto">
       <div
         style={{ transform: `scale(${canvasZoom / 100})` }}
-        className="shrink-0 origin-top bg-[#151925] border border-[#394158] rounded-2xl p-4 shadow-[0_24px_60px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.06)] transition-transform max-w-[650px] w-full flex flex-col gap-3"
+        className="shrink-0 origin-top bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 transition-transform max-w-[650px] w-full flex flex-col gap-3"
       >
         {/* Dynamic Key Grid matching real hardware rows x cols */}
         <div
-          className="grid gap-2.5"
+          className="grid gap-3"
           style={{
             gridTemplateColumns: `repeat(${activeDevice.keys.cols}, minmax(0, 1fr))`,
           }}
@@ -73,11 +87,29 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                   setSurfaceIndex(k.index);
                   setSelectedKeyIdx(k.index);
                 }}
-                onDragOver={(event) => event.preventDefault()}
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.setData(KEY_DRAG_TYPE, String(k.index));
+                  event.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  if (dropTarget !== k.index) setDropTarget(k.index);
+                }}
+                onDragLeave={() => setDropTarget((t) => (t === k.index ? null : t))}
+                onDragEnd={() => setDropTarget(null)}
                 onDrop={(event) => {
                   event.preventDefault();
+                  setDropTarget(null);
+                  const actionId = event.dataTransfer.getData(ACTION_DRAG_TYPE);
+                  const fromKey = event.dataTransfer.getData(KEY_DRAG_TYPE);
                   const file = event.dataTransfer.files?.[0];
-                  if (file) void ingestFile(file, "key", k.index);
+                  if (actionId) onDropAction(k.index, actionId);
+                  else if (fromKey !== "") onMoveKey(Number(fromKey), k.index);
+                  else if (file) void ingestFile(file, "key", k.index);
+                  setSurface("key");
+                  setSurfaceIndex(k.index);
+                  setSelectedKeyIdx(k.index);
                 }}
                 style={{
                   borderRadius: `${k.cornerRadius}px`,
@@ -88,12 +120,14 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                       ? `radial-gradient(circle at 50% 28%, ${k.accentColor}44, ${k.bgColor})`
                       : k.bgColor,
                 }}
-                className={`aspect-[1/0.9] border p-2 flex flex-col items-center justify-center gap-1.5 relative overflow-hidden cursor-pointer transition-all group ${
-                  isLivePressed
-                    ? "border-2 border-[#35C98B] shadow-[0_0_24px_rgba(53,201,139,0.75)] scale-95"
+                className={`aspect-[1/0.9] border border-[var(--border-subtle)] p-2 flex flex-col items-center justify-center gap-1.5 relative overflow-hidden cursor-pointer active:cursor-grabbing transition-[outline-color,transform] duration-100 outline outline-2 outline-offset-2 group ${
+                  dropTarget === k.index
+                    ? "outline-[var(--accent-hover)] scale-[1.03]"
+                    : isLivePressed
+                    ? "outline-[var(--status-success)] scale-95"
                     : isSelected
-                    ? "border-2 border-[#8B5CF6] shadow-[0_0_20px_rgba(139,92,246,0.45)] -translate-y-0.5"
-                    : "border-[#272D3D] hover:border-[#394158] hover:-translate-y-0.5"
+                    ? "outline-[var(--accent-primary)]"
+                    : "outline-transparent hover:border-[var(--border-strong)]"
                 }`}
               >
                 {clip ? (
@@ -120,7 +154,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                     </div>
                     {k.showTitle && (
                       <span
-                        className={`font-semibold text-[#F4F5FA] truncate max-w-full leading-tight ${
+                        className={`font-semibold text-[var(--text-primary)] truncate max-w-full leading-tight ${
                           k.titleSize === "Small"
                             ? "text-[10px]"
                             : k.titleSize === "Large"
@@ -154,15 +188,15 @@ export const DeckStage: React.FC<DeckStageProps> = ({
               }}
               className={`h-7 rounded-md border text-[10.5px] font-semibold cursor-pointer ${
                 surface === "strip"
-                  ? "border-[#8B5CF6] bg-[#30244F] text-white"
-                  : "border-[#272D3D] bg-[#111522] text-[#A6AFC4]"
+                  ? "border-[var(--accent-primary)] bg-[var(--accent-soft)] text-white"
+                  : "border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]"
               }`}
             >
               Whole touch strip · {activeDevice.touchStrip.pixelWidth}×{activeDevice.touchStrip.pixelHeight}
               {activePage.stripMedia ? " · image" : ""}
             </button>
             <div
-              className="grid gap-2 bg-[#0B0D14] border border-[#272D3D] rounded-xl p-2"
+              className="grid gap-2 bg-[var(--bg-app)] border border-[var(--border-subtle)] rounded-xl p-2"
               style={{ gridTemplateColumns: `repeat(${activeDevice.touchStrip.zones}, minmax(0, 1fr))` }}
             >
               {activePage.touchZones.slice(0, activeDevice.touchStrip.zones).map((tz) => {
@@ -182,8 +216,8 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                       const file = event.dataTransfer.files?.[0];
                       if (file) void ingestFile(file, "zone", tz.index);
                     }}
-                    className={`relative min-h-14 overflow-hidden px-2.5 py-1.5 rounded-lg bg-[#151925] border cursor-pointer flex items-center justify-between ${
-                      zoneSelected ? "border-[#8B5CF6]" : "border-[#272D3D] hover:border-[#8B5CF6]/60"
+                    className={`relative min-h-14 overflow-hidden px-2.5 py-1.5 rounded-lg bg-[var(--bg-panel)] border cursor-pointer flex items-center justify-between ${
+                      zoneSelected ? "border-[var(--accent-primary)]" : "border-[var(--border-subtle)] hover:border-[var(--accent-primary)]/60"
                     }`}
                   >
                     {zoneClip ? (
@@ -198,7 +232,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                       />
                     ) : (
                       <div>
-                        <div className="text-[9.5px] font-bold text-[#707B94] tracking-wider">
+                        <div className="text-[9.5px] font-bold text-[var(--text-muted)] tracking-wider">
                           {tz.label}
                         </div>
                         <div
@@ -239,18 +273,18 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                   setSurface("encoder");
                   setSurfaceIndex(enc.index);
                 }}
-                className={`px-2.5 py-1.5 rounded-xl bg-[#111522] border flex items-center gap-2.5 cursor-pointer ${
+                className={`px-2.5 py-1.5 rounded-xl bg-[var(--bg-input)] border flex items-center gap-2.5 cursor-pointer ${
                   surface === "encoder" && surfaceIndex === enc.index
-                    ? "border-[#8B5CF6]"
-                    : "border-[#272D3D] hover:border-[#8B5CF6]/60"
+                    ? "border-[var(--accent-primary)]"
+                    : "border-[var(--border-subtle)] hover:border-[var(--accent-primary)]/60"
                 }`}
               >
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#394158] to-[#10131D] border border-dashed border-[#A6AFC4]/60 shrink-0" />
+                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[var(--border-strong)] to-[var(--bg-sidebar)] border border-dashed border-[var(--text-secondary)]/60 shrink-0" />
                 <div className="min-w-0">
-                  <div className="text-[11px] font-semibold text-[#F4F5FA] truncate">
+                  <div className="text-[11px] font-semibold text-[var(--text-primary)] truncate">
                     {enc.label}
                   </div>
-                  <div className="text-[9.5px] font-mono text-[#A6AFC4] truncate">
+                  <div className="text-[9.5px] font-mono text-[var(--text-secondary)] truncate">
                     {knobValue}
                   </div>
                   {volumeKnob && face?.volumePercent != null && (
@@ -264,7 +298,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
         )}
       </div>
 
-      <div className="text-[11px] text-[#707B94]">
+      <div className="text-[11px] text-[var(--text-muted)]">
         {activeDevice.keys.count} LCD screens · {activeDevice.keys.pixelWidth}×{activeDevice.keys.pixelHeight}px
         {activeDevice.keys.rotation ? ` · ${activeDevice.keys.rotation}°` : ""}
         {activeDevice.touchStrip
@@ -275,13 +309,13 @@ export const DeckStage: React.FC<DeckStageProps> = ({
 
       {/* Page Switcher Bar below the Deck Bezel */}
       <div className="flex items-center gap-1.5">
-        <div className="flex items-center bg-[#151925] border border-[#272D3D] rounded-md h-7 px-1">
+        <div className="flex items-center bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-md h-7 px-1">
           <button
             onClick={() => {
               deckforgeApi.holdAutoSwitch().catch(() => {});
               setSelectedPageIdx((p) => Math.max(0, p - 1));
             }}
-            className="px-1.5 text-[#A6AFC4] hover:text-white cursor-pointer"
+            className="px-1.5 text-[var(--text-secondary)] hover:text-white cursor-pointer"
           >
             <ChevronLeft size={13} />
           </button>
@@ -291,10 +325,10 @@ export const DeckStage: React.FC<DeckStageProps> = ({
               deckforgeApi.holdAutoSwitch().catch(() => {});
               setSelectedPageIdx(Number(e.target.value));
             }}
-            className="bg-transparent text-xs font-medium text-[#F4F5FA] px-2 outline-none cursor-pointer"
+            className="bg-transparent text-xs font-medium text-[var(--text-primary)] px-2 outline-none cursor-pointer"
           >
             {activeProfile.pages.map((pg, idx) => (
-              <option key={pg.id} value={idx} className="bg-[#151925]">
+              <option key={pg.id} value={idx} className="bg-[var(--bg-panel)]">
                 {pg.name}
               </option>
             ))}
@@ -304,7 +338,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
               deckforgeApi.holdAutoSwitch().catch(() => {});
               setSelectedPageIdx((p) => Math.min(activeProfile.pages.length - 1, p + 1));
             }}
-            className="px-1.5 text-[#A6AFC4] hover:text-white cursor-pointer"
+            className="px-1.5 text-[var(--text-secondary)] hover:text-white cursor-pointer"
           >
             <ChevronRight size={13} />
           </button>
@@ -313,7 +347,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
         <button
           onClick={handleAddPage}
           title="Add New Page"
-          className="w-7 h-7 rounded-md bg-[#151925] border border-[#272D3D] hover:border-[#8B5CF6] text-[#A6AFC4] hover:text-white flex items-center justify-center cursor-pointer"
+          className="w-7 h-7 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-[var(--text-secondary)] hover:text-white flex items-center justify-center cursor-pointer"
         >
           <Plus size={13} />
         </button>
@@ -321,10 +355,11 @@ export const DeckStage: React.FC<DeckStageProps> = ({
           onClick={() => setTemplatesOpen(true)}
           title="Page templates"
           aria-label="Page templates"
-          className="h-7 px-2 rounded-md bg-[#151925] border border-[#272D3D] hover:border-[#8B5CF6] text-[#A6AFC4] hover:text-white flex items-center justify-center gap-1.5 text-[11px] font-medium cursor-pointer"
+          className="h-7 px-2 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-[var(--text-secondary)] hover:text-white flex items-center justify-center gap-1.5 text-[11px] font-medium cursor-pointer"
         >
           <LayoutTemplate size={13} /> Templates
         </button>
+        <PageApps rules={autoSwitchRules} profile={activeProfile} pageIndex={selectedPageIdx} saveRules={saveRules} />
       </div>
     </div>
   );

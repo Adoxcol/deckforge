@@ -80,10 +80,10 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
   useSampleAnimation,
 }) => {
   return (
-    <aside className="bg-[#10131D] border-l border-[#272D3D] p-4 flex flex-col justify-between overflow-y-auto">
+    <aside className="bg-[var(--bg-sidebar)] border-l border-[var(--border-subtle)] p-4 flex flex-col justify-between overflow-y-auto">
       <div className="flex flex-col gap-3.5">
         <div className="flex items-center justify-between">
-          <h2 className="text-[14px] font-bold text-[#F4F5FA]">
+          <h2 className="text-[14px] font-bold text-[var(--text-primary)]">
             {surface === "zone"
               ? "Touch Zone"
               : surface === "strip"
@@ -92,7 +92,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
               ? "Rotary Encoder"
               : "Button Properties"}
           </h2>
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#151925] border border-[#272D3D] text-[#A6AFC4]">
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
             {surface === "zone"
               ? `Zone #${(activeZone?.index ?? 0) + 1}`
               : surface === "strip"
@@ -115,7 +115,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   ? `radial-gradient(circle at 50% 30%, ${activeKey.accentColor}55, ${activeKey.bgColor})`
                   : activeKey.bgColor,
             }}
-            className="relative w-16 h-16 overflow-hidden border border-[#8B5CF6] flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(139,92,246,0.25)]"
+            className="relative w-16 h-16 overflow-hidden border border-[var(--accent-primary)] flex items-center justify-center shrink-0 shadow-[0_0_16px_rgba(139,92,246,0.25)]"
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault();
@@ -144,18 +144,18 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
             )}
           </div>
           <div className="flex-1">
-            <label className="block text-[11.5px] text-[#A6AFC4] mb-1">Title</label>
+            <label className="block text-[11.5px] text-[var(--text-secondary)] mb-1">Title</label>
             <input
               value={activeKey.title}
               onChange={(e) => updateSelectedKey({ title: e.target.value })}
-              className="w-full h-9 px-2.5 rounded-md bg-[#111522] border border-[#272D3D] focus:border-[#8B5CF6] text-xs text-[#F4F5FA] outline-none"
+              className="w-full h-9 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
             />
             {(() => {
               const look = liveKeyLook(activeKey.actionId, activeKey.title, activeKey.iconName, activeKey.media ? null : face);
               if (look.title === activeKey.title && look.level == null) return null;
               return (
                 <div className="mt-1.5 flex flex-col gap-1">
-                  <div className="text-[10.5px] text-[#35C98B] truncate">Live · {look.title}</div>
+                  <div className="text-[10.5px] text-[var(--status-success)] truncate">Live · {look.title}</div>
                   {look.level != null && <LevelMeter percent={look.level} accent={activeKey.accentColor} muted={look.muted} />}
                 </div>
               );
@@ -197,17 +197,17 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
 
         {surface === "zone" && activeZone && (
           <div className="flex flex-col gap-2">
-            <label className="text-[11.5px] text-[#A6AFC4]">Zone label</label>
+            <label className="text-[11.5px] text-[var(--text-secondary)]">Zone label</label>
             <input
               value={activeZone.label}
               onChange={(e) => updateSelectedZone(activeZone.index, { label: e.target.value })}
-              className="w-full h-8 px-2.5 rounded-md bg-[#111522] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+              className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
             />
-            <label className="text-[11.5px] text-[#A6AFC4]">Value text</label>
+            <label className="text-[11.5px] text-[var(--text-secondary)]">Value text</label>
             <input
               value={activeZone.valueText}
               onChange={(e) => updateSelectedZone(activeZone.index, { valueText: e.target.value })}
-              className="w-full h-8 px-2.5 rounded-md bg-[#111522] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+              className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
             />
             <ActionBinding
               label="Tap"
@@ -235,18 +235,18 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
         )}
 
         {surface === "strip" && (
-          <p className="text-[11px] leading-relaxed text-[#A6AFC4]">
+          <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
             A full-strip image covers all zones. Leave it empty to keep the zone cards, and upload a GIF on an individual zone if only that part should animate.
           </p>
         )}
 
         {surface === "encoder" && activeEncoder && (
           <div className="flex flex-col gap-2">
-            <label className="text-[11.5px] text-[#A6AFC4]">Label</label>
+            <label className="text-[11.5px] text-[var(--text-secondary)]">Label</label>
             <input
               value={activeEncoder.label}
               onChange={(e) => updateSelectedEncoder(activeEncoder.index, { label: e.target.value })}
-              className="w-full h-8 px-2.5 rounded-md bg-[#111522] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+              className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
             />
             {(["cw", "ccw", "push"] as const).map((field) => {
               const stored = field === "cw" ? activeEncoder.cwAction : field === "ccw" ? activeEncoder.ccwAction : activeEncoder.pushAction;
@@ -324,15 +324,15 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
         )}
 
         {/* Segmented Tabs: General (Action) | Icon (Appearance) | Style (Behavior) */}
-        <div className="grid grid-cols-3 bg-[#111522] border border-[#272D3D] p-0.5 rounded-md">
+        <div className="grid grid-cols-3 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
           {(["Action", "Appearance", "Behavior"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setInspectorTab(tab)}
               className={`h-7 rounded text-[11.5px] font-medium cursor-pointer transition-colors ${
                 inspectorTab === tab
-                  ? "bg-[#30244F] text-[#F4F5FA] font-semibold"
-                  : "text-[#A6AFC4] hover:text-white"
+                  ? "bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold"
+                  : "text-[var(--text-secondary)] hover:text-white"
               }`}
             >
               {tab === "Action" ? "General" : tab === "Appearance" ? "Icon" : "Style"}
@@ -344,11 +344,11 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
           <div className="flex flex-col gap-3">
             {/* Show Title Toggle */}
             <div className="flex items-center justify-between">
-              <span className="text-xs text-[#A6AFC4]">Show Title</span>
+              <span className="text-xs text-[var(--text-secondary)]">Show Title</span>
               <button
                 onClick={() => updateSelectedKey({ showTitle: !activeKey.showTitle })}
                 className={`w-10 h-5 rounded-full p-0.5 transition-colors cursor-pointer ${
-                  activeKey.showTitle ? "bg-[#8B5CF6]" : "bg-[#272D3D]"
+                  activeKey.showTitle ? "bg-[var(--accent-primary)]" : "bg-[var(--border-subtle)]"
                 }`}
               >
                 <div
@@ -361,7 +361,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
 
             {/* Title Size */}
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-[#A6AFC4]">Title Size</span>
+              <span className="text-xs text-[var(--text-secondary)]">Title Size</span>
               <select
                 value={activeKey.titleSize}
                 onChange={(e) =>
@@ -369,7 +369,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                     titleSize: e.target.value as "Small" | "Medium" | "Large",
                   })
                 }
-                className="w-40 h-8 px-2 rounded-md bg-[#111522] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+                className="w-40 h-8 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
               >
                 <option value="Small">Small</option>
                 <option value="Medium">Medium</option>
@@ -379,7 +379,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
 
             {/* Background */}
             <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-[#A6AFC4]">Background</span>
+              <span className="text-xs text-[var(--text-secondary)]">Background</span>
               <select
                 value={activeKey.backgroundStyle}
                 onChange={(e) =>
@@ -387,7 +387,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                     backgroundStyle: e.target.value as "Gradient" | "Solid" | "Image",
                   })
                 }
-                className="w-40 h-8 px-2 rounded-md bg-[#111522] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+                className="w-40 h-8 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
               >
                 <option value="Gradient">Gradient</option>
                 <option value="Solid">Solid Surface</option>
@@ -419,9 +419,9 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
 
             {/* Rounded Corners Slider */}
             <div>
-              <div className="flex items-center justify-between text-xs text-[#A6AFC4] mb-1">
+              <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] mb-1">
                 <span>Rounded Corners</span>
-                <span className="font-mono text-[#F4F5FA]">{activeKey.cornerRadius} px</span>
+                <span className="font-mono text-[var(--text-primary)]">{activeKey.cornerRadius} px</span>
               </div>
               <input
                 type="range"
@@ -431,7 +431,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 onChange={(e) =>
                   updateSelectedKey({ cornerRadius: Number(e.target.value) })
                 }
-                className="w-full accent-[#8B5CF6] cursor-pointer"
+                className="w-full accent-[var(--accent-primary)] cursor-pointer"
               />
             </div>
           </div>
@@ -439,8 +439,8 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
 
         {inspectorTab === "Appearance" && (
           <div className="flex flex-col gap-2">
-            <span className="text-xs text-[#A6AFC4]">Choose Key Icon (Lucide Vector)</span>
-            <div className="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto p-1 bg-[#111522] border border-[#272D3D] rounded-md">
+            <span className="text-xs text-[var(--text-secondary)]">Choose Key Icon (Lucide Vector)</span>
+            <div className="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto p-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-md">
               {AVAILABLE_ICON_NAMES.map((ico) => (
                 <button
                   key={ico}
@@ -448,8 +448,8 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   title={ico}
                   className={`h-9 rounded flex items-center justify-center cursor-pointer ${
                     activeKey.iconName === ico
-                      ? "bg-[#30244F] border border-[#8B5CF6] text-white"
-                      : "text-[#A6AFC4] hover:bg-[#1C2130] hover:text-white"
+                      ? "bg-[var(--accent-soft)] border border-[var(--accent-primary)] text-white"
+                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-white"
                   }`}
                 >
                   <DeckIcon name={ico} size={16} />
@@ -462,13 +462,13 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
         {inspectorTab === "Behavior" && (
           <div className="flex flex-col gap-3">
             <div>
-              <label className="block text-xs text-[#A6AFC4] mb-1">
+              <label className="block text-xs text-[var(--text-secondary)] mb-1">
                 Command / Parameter
               </label>
               <input
                 value={activeKey.actionParam}
                 onChange={(e) => updateSelectedKey({ actionParam: e.target.value })}
-                className="w-full h-8 px-2.5 rounded-md bg-[#111522] border border-[#272D3D] text-xs font-mono text-[#F4F5FA] outline-none"
+                className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] outline-none"
               />
             </div>
             <button
@@ -489,7 +489,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 setActionCategoryFilter("Custom");
                 triggerToast(`Saved "${activeKey.title}" to ★ Custom Actions catalog!`, "success");
               }}
-              className="w-full h-8 rounded-md bg-[#30244F] border border-[#8B5CF6]/60 hover:bg-[#8B5CF6] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+              className="w-full h-8 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/60 hover:bg-[var(--accent-primary)] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
             >
               <Plus size={13} />
               <span>Save to ★ Custom Actions Library</span>
@@ -500,7 +500,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   setClipboardKey(JSON.parse(JSON.stringify(activeKey)));
                   triggerToast(`Copied Key #${activeKey.index + 1}`, "info");
                 }}
-                className="flex-1 h-8 rounded-md bg-[#151925] border border-[#272D3D] hover:border-[#8B5CF6] text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 h-8 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Copy size={12} />
                 <span>Copy</span>
@@ -515,7 +515,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   });
                   triggerToast(`Pasted to Key #${activeKey.index + 1}`, "success");
                 }}
-                className="flex-1 h-8 rounded-md bg-[#151925] border border-[#272D3D] hover:border-[#8B5CF6] disabled:opacity-40 text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 h-8 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] disabled:opacity-40 text-xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <span>Paste</span>
               </button>
@@ -527,10 +527,10 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
       </div>
 
       {surface === "key" && (
-      <div className="flex flex-col gap-2 pt-3 border-t border-[#272D3D]">
+      <div className="flex flex-col gap-2 pt-3 border-t border-[var(--border-subtle)]">
         <button
           onClick={handleTestSelectedAction}
-          className="w-full h-9 rounded-md bg-[#151925] border border-[#394158] hover:border-[#8B5CF6] text-xs font-semibold text-[#F4F5FA] flex items-center justify-center gap-2 cursor-pointer transition-colors"
+          className="w-full h-9 rounded-md bg-[var(--bg-panel)] border border-[var(--border-strong)] hover:border-[var(--accent-primary)] text-xs font-semibold text-[var(--text-primary)] flex items-center justify-center gap-2 cursor-pointer transition-colors"
         >
           <Play size={13} />
           <span>Test Action</span>
@@ -538,7 +538,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
         <button
           onClick={handleClearSelectedKey}
           title="Clear this key in the editor. Apply to Device to update the physical key."
-          className="w-full h-8 rounded-md bg-transparent border border-[#272D3D] hover:border-[#F16B79] text-xs text-[#A6AFC4] hover:text-[#F16B79] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+          className="w-full h-8 rounded-md bg-transparent border border-[var(--border-subtle)] hover:border-[var(--status-error)] text-xs text-[var(--text-secondary)] hover:text-[var(--status-error)] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
         >
           <Trash2 size={12} />
           <span>Clear Key in Editor</span>

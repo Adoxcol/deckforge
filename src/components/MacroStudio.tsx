@@ -116,11 +116,11 @@ export const MacroStudio: React.FC<{
 
   return (
     <div className="flex-1 grid grid-cols-[250px_1fr_300px] overflow-hidden">
-      <aside className="bg-[#10131D] border-r border-[#272D3D] p-3 flex flex-col gap-2 overflow-y-auto">
+      <aside className="bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-3 flex flex-col gap-2 overflow-y-auto">
         <button
           type="button"
           onClick={createMacro}
-          className="h-9 rounded-lg bg-[#8B5CF6] hover:bg-[#9D75F8] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+          className="h-9 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
         >
           <Plus size={14} />
           New chain
@@ -138,11 +138,11 @@ export const MacroStudio: React.FC<{
                 onSelectStep(0);
               }}
               className={`text-left p-3 rounded-xl border cursor-pointer ${
-                active ? "bg-[#221A36] border-[#8B5CF6]" : "bg-[#151925] border-[#272D3D] hover:border-[#394158]"
+                active ? "bg-[#221A36] border-[var(--accent-primary)]" : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
               }`}
             >
-              <div className="text-xs font-bold text-[#F4F5FA] truncate">{item.name}</div>
-              <div className="mt-2 flex h-2 rounded-full overflow-hidden bg-[#0B0D14]">
+              <div className="text-xs font-bold text-[var(--text-primary)] truncate">{item.name}</div>
+              <div className="mt-2 flex h-2 rounded-full overflow-hidden bg-[var(--bg-app)]">
                 {bars.map((value, index) => (
                   <span
                     key={`${item.id}-${index}`}
@@ -150,7 +150,7 @@ export const MacroStudio: React.FC<{
                   />
                 ))}
               </div>
-              <div className="mt-1.5 text-[10.5px] text-[#707B94]">
+              <div className="mt-1.5 text-[10.5px] text-[var(--text-muted)]">
                 {item.steps.length} blocks · {formatMs(bars.reduce((acc, value) => acc + value, 0))}
               </div>
             </button>
@@ -173,36 +173,36 @@ export const MacroStudio: React.FC<{
                 <input
                   value={macro.name}
                   onChange={(event) => updateMacro((current) => ({ ...current, name: event.target.value, lastEditedMs: Date.now() }))}
-                  className="w-full bg-transparent text-xl font-bold text-[#F4F5FA] outline-none"
+                  className="w-full bg-transparent text-xl font-bold text-[var(--text-primary)] outline-none"
                 />
                 <input
                   value={macro.description}
                   onChange={(event) =>
                     updateMacro((current) => ({ ...current, description: event.target.value, lastEditedMs: Date.now() }))
                   }
-                  className="w-full mt-1 bg-transparent text-xs text-[#A6AFC4] outline-none"
+                  className="w-full mt-1 bg-transparent text-xs text-[var(--text-secondary)] outline-none"
                 />
               </div>
               <button
                 type="button"
                 onClick={() => onRun(macro)}
-                className="h-9 px-4 rounded-lg bg-[#35C98B] text-[#062117] text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+                className="h-9 px-4 rounded-lg bg-[var(--status-success)] text-[#062117] text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
               >
                 <Play size={13} />
                 Run chain
               </button>
             </div>
 
-            <div className="flex items-center justify-between gap-3 text-xs text-[#A6AFC4]">
+            <div className="flex items-center justify-between gap-3 text-xs text-[var(--text-secondary)]">
               <span>One chain at a time. Extra starts are rejected. Limit: 256 blocks and 60 seconds.</span>
-              <button type="button" onClick={onStop} className="px-3 py-2 rounded border border-[#F16B79] text-[#F16B79] shrink-0">
+              <button type="button" onClick={onStop} className="px-3 py-2 rounded border border-[var(--status-error)] text-[var(--status-error)] shrink-0">
                 Stop running chain
               </button>
             </div>
-            <div className="rounded-2xl border border-[#272D3D] bg-[#10131D]/90 p-3">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-sidebar)]/90 p-3">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-[11px] font-semibold text-[#A6AFC4]">Timing</span>
-                <span className="text-[11px] font-mono text-[#F4F5FA]">{formatMs(total)}</span>
+                <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Timing</span>
+                <span className="text-[11px] font-mono text-[var(--text-primary)]">{formatMs(total)}</span>
               </div>
               <svg viewBox="0 0 640 78" className="w-full h-[78px]">
                 {(() => {
@@ -243,13 +243,13 @@ export const MacroStudio: React.FC<{
                   });
                 })()}
               </svg>
-              <div className="text-[10.5px] text-[#707B94]">Top bars are the plan. Bottom bars are the last run.</div>
+              <div className="text-[10.5px] text-[var(--text-muted)]">Top bars are the plan. Bottom bars are the last run.</div>
             </div>
 
             <div className="relative pl-8 flex flex-col gap-0">
-              <div className="absolute left-[15px] top-3 bottom-3 w-px bg-gradient-to-b from-[#8B5CF6] via-[#56B9F2] to-[#35C98B]" />
+              <div className="absolute left-[15px] top-3 bottom-3 w-px bg-gradient-to-b from-[var(--accent-primary)] via-[var(--status-info)] to-[var(--status-success)]" />
               {macro.steps.length === 0 && (
-                <div className="ml-4 rounded-2xl border border-dashed border-[#394158] p-8 text-center text-sm text-[#A6AFC4]">
+                <div className="ml-4 rounded-2xl border border-dashed border-[var(--border-strong)] p-8 text-center text-sm text-[var(--text-secondary)]">
                   Add the first block. The chain runs from top to bottom when the key is pressed.
                 </div>
               )}
@@ -263,11 +263,11 @@ export const MacroStudio: React.FC<{
                       type="button"
                       onClick={() => onSelectStep(index)}
                       className={`w-full text-left rounded-2xl border p-3 mb-3 cursor-pointer ${
-                        selected ? "bg-[#1C2130] border-[#8B5CF6] shadow-[0_0_0_1px_#8B5CF6]" : "bg-[#151925] border-[#272D3D]"
+                        selected ? "bg-[var(--bg-elevated)] border-[var(--accent-primary)] shadow-[0_0_0_1px_#8B5CF6]" : "bg-[var(--bg-panel)] border-[var(--border-subtle)]"
                       }`}
                     >
                       <span
-                        className="absolute -left-8 top-4 w-4 h-4 rounded-full border-2 border-[#0B0D14]"
+                        className="absolute -left-8 top-4 w-4 h-4 rounded-full border-2 border-[var(--bg-app)]"
                         style={{ background: kind.color }}
                       />
                       <div className="flex items-center gap-3">
@@ -275,10 +275,10 @@ export const MacroStudio: React.FC<{
                           <Glyph size={16} color={kind.color} />
                         </span>
                         <div className="min-w-0 flex-1">
-                          <div className="text-sm font-semibold text-[#F4F5FA]">{item.label || kind.title}</div>
-                          <div className="text-[11px] font-mono text-[#A6AFC4] truncate">{item.parameter || kind.hint}</div>
+                          <div className="text-sm font-semibold text-[var(--text-primary)]">{item.label || kind.title}</div>
+                          <div className="text-[11px] font-mono text-[var(--text-secondary)] truncate">{item.parameter || kind.hint}</div>
                         </div>
-                        <span className="text-[10.5px] font-mono text-[#707B94]">{formatMs(plannedMs(item))}</span>
+                        <span className="text-[10.5px] font-mono text-[var(--text-muted)]">{formatMs(plannedMs(item))}</span>
                       </div>
                     </button>
                   </div>
@@ -286,13 +286,13 @@ export const MacroStudio: React.FC<{
               })}
             </div>
 
-            <div className="sticky bottom-0 rounded-2xl border border-[#272D3D] bg-[#10131D]/95 backdrop-blur p-2 flex flex-wrap gap-1.5">
+            <div className="sticky bottom-0 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-sidebar)]/95 backdrop-blur p-2 flex flex-wrap gap-1.5">
               {BLOCKS.map((kind) => (
                 <button
                   key={kind.type}
                   type="button"
                   onClick={() => addBlock(kind.type)}
-                  className="h-8 px-2.5 rounded-lg border border-[#272D3D] bg-[#151925] hover:border-[#8B5CF6] text-[11.5px] font-semibold text-[#F4F5FA] flex items-center gap-1.5 cursor-pointer"
+                  className="h-8 px-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:border-[var(--accent-primary)] text-[11.5px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer"
                 >
                   <Plus size={12} color={kind.color} />
                   {kind.title}
@@ -303,11 +303,11 @@ export const MacroStudio: React.FC<{
         )}
       </main>
 
-      <aside className="bg-[#10131D] border-l border-[#272D3D] p-4 flex flex-col gap-3 overflow-y-auto">
-        <div className="text-sm font-bold text-[#F4F5FA]">Block</div>
+      <aside className="bg-[var(--bg-sidebar)] border-l border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
+        <div className="text-sm font-bold text-[var(--text-primary)]">Block</div>
         {macro && step ? (
           <>
-            <label className="text-[11px] text-[#A6AFC4]">Name</label>
+            <label className="text-[11px] text-[var(--text-secondary)]">Name</label>
             <input
               value={step.label}
               onChange={(event) => {
@@ -317,9 +317,9 @@ export const MacroStudio: React.FC<{
                   steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, label } : item)),
                 }));
               }}
-              className="h-8 px-2.5 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+              className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
             />
-            <label className="text-[11px] text-[#A6AFC4]">Kind</label>
+            <label className="text-[11px] text-[var(--text-secondary)]">Kind</label>
             <select
               value={step.stepType}
               onChange={(event) => {
@@ -332,7 +332,7 @@ export const MacroStudio: React.FC<{
                   ),
                 }));
               }}
-              className="h-8 px-2 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+              className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
             >
               {BLOCKS.map((kind) => (
                 <option key={kind.type} value={kind.type}>
@@ -340,7 +340,7 @@ export const MacroStudio: React.FC<{
                 </option>
               ))}
             </select>
-            <label className="text-[11px] text-[#A6AFC4]">{blockFor(step.stepType).hint}</label>
+            <label className="text-[11px] text-[var(--text-secondary)]">{blockFor(step.stepType).hint}</label>
             {step.stepType === "SwitchProfile" ? (
               <select
                 value={step.parameter}
@@ -351,7 +351,7 @@ export const MacroStudio: React.FC<{
                     steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, parameter } : item)),
                   }));
                 }}
-                className="h-8 px-2 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+                className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
               >
                 {profiles.map((profile) => (
                   <option key={profile.id} value={profile.id}>
@@ -369,19 +369,19 @@ export const MacroStudio: React.FC<{
                     steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, parameter } : item)),
                   }));
                 }}
-                className="h-8 px-2.5 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs font-mono text-[#F4F5FA] outline-none"
+                className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] outline-none"
               />
             )}
-            <label className="text-[11px] text-[#A6AFC4]">Block timeout (ms, including retry)</label>
+            <label className="text-[11px] text-[var(--text-secondary)]">Block timeout (ms, including retry)</label>
             <input type="number" min={1} max={60000} value={step.timeoutMs}
               onChange={(event) => {
                 const timeoutMs = Math.max(1, Math.min(60000, Number(event.target.value) || 1));
                 updateMacro(current => ({ ...current, steps: current.steps.map((item, index) =>
                   index === selectedStepIdx ? { ...item, timeoutMs } : item) }));
               }}
-              className="h-8 px-2.5 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs" />
-            <p className="text-[10px] text-[#707B94]">Timeout or Stop ends the chain. An action already dispatched cannot be undone.</p>
-            <label className="text-[11px] text-[#A6AFC4]">If this block fails</label>
+              className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs" />
+            <p className="text-[10px] text-[var(--text-muted)]">Timeout or Stop ends the chain. An action already dispatched cannot be undone.</p>
+            <label className="text-[11px] text-[var(--text-secondary)]">If this block fails</label>
             <select
               value={step.onError}
               onChange={(event) => {
@@ -391,7 +391,7 @@ export const MacroStudio: React.FC<{
                   steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, onError } : item)),
                 }));
               }}
-              className="h-8 px-2 rounded-md bg-[#0B0D14] border border-[#272D3D] text-xs text-[#F4F5FA] outline-none"
+              className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
             >
               <option value="Stop">Stop the chain</option>
               <option value="Continue">Keep going</option>
@@ -410,7 +410,7 @@ export const MacroStudio: React.FC<{
                   });
                   onSelectStep(selectedStepIdx - 1);
                 }}
-                className="h-8 flex-1 rounded-md border border-[#272D3D] text-[#A6AFC4] flex items-center justify-center cursor-pointer"
+                className="h-8 flex-1 rounded-md border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center cursor-pointer"
               >
                 <ChevronUp size={14} />
               </button>
@@ -426,7 +426,7 @@ export const MacroStudio: React.FC<{
                   });
                   onSelectStep(selectedStepIdx + 1);
                 }}
-                className="h-8 flex-1 rounded-md border border-[#272D3D] text-[#A6AFC4] flex items-center justify-center cursor-pointer"
+                className="h-8 flex-1 rounded-md border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center cursor-pointer"
               >
                 <ChevronDown size={14} />
               </button>
@@ -439,31 +439,31 @@ export const MacroStudio: React.FC<{
                   }));
                   onSelectStep(Math.max(0, selectedStepIdx - 1));
                 }}
-                className="h-8 w-8 rounded-md border border-[#3A2430] text-[#F16B79] flex items-center justify-center cursor-pointer"
+                className="h-8 w-8 rounded-md border border-[#3A2430] text-[var(--status-error)] flex items-center justify-center cursor-pointer"
               >
                 <Trash2 size={14} />
               </button>
             </div>
           </>
         ) : (
-          <p className="text-xs text-[#A6AFC4]">Select a block in the chain, or add one from the row below the graph.</p>
+          <p className="text-xs text-[var(--text-secondary)]">Select a block in the chain, or add one from the row below the graph.</p>
         )}
 
         {macro && (
           <button
             type="button"
             onClick={() => onAssign(macro)}
-            className="mt-auto h-10 rounded-lg bg-[#30244F] border border-[#8B5CF6] text-[#F4F5FA] text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+            className="mt-auto h-10 rounded-lg bg-[var(--accent-soft)] border border-[var(--accent-primary)] text-[var(--text-primary)] text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Zap size={14} />
             {activeKeyLabel ? `Put on ${activeKeyLabel}` : "Put on selected key"}
           </button>
         )}
         {runReport && runReport.macroId === macro?.id && (
-          <div className="rounded-xl border border-[#272D3D] bg-[#0B0D14] p-2.5 text-[11px] font-mono text-[#A6AFC4]">
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-app)] p-2.5 text-[11px] font-mono text-[var(--text-secondary)]">
             {runReport.stepResults.map((result) => (
               <div key={result.stepId} className="py-0.5">
-                <span className={result.status === "Passed" ? "text-[#35C98B]" : "text-[#F16B79]"}>{result.status}</span>{" "}
+                <span className={result.status === "Passed" ? "text-[var(--status-success)]" : "text-[var(--status-error)]"}>{result.status}</span>{" "}
                 {result.detail}
               </div>
             ))}
