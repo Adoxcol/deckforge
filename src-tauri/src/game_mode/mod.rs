@@ -69,3 +69,17 @@ pub use scan::*;
 use services::*;
 pub use session::*;
 pub use watcher::*;
+/// Programs with an open window right now, as "name.exe", for picking an app in switching rules.
+pub fn open_app_exes() -> Vec<String> {
+    let windowed = windowed_pids();
+    let own = std::process::id();
+    let mut names: Vec<String> = snapshot()
+        .into_iter()
+        .filter(|p| p.pid != own && windowed.contains(&p.pid))
+        .map(|p| format!("{}.exe", p.name))
+        .filter(|n| !matches!(n.as_str(), "explorer.exe" | "applicationframehost.exe" | "textinputhost.exe" | "systemsettings.exe"))
+        .collect();
+    names.sort();
+    names.dedup();
+    names
+}

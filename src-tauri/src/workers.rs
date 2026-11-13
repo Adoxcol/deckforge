@@ -47,22 +47,14 @@ pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
                     if now < guard.auto_switch_hold_until_ms {
                         None
                     } else {
-                        let mut rules = guard.auto_switch_rules.clone();
-                        rules.sort_by_key(|rule| rule.priority);
-                        rules.into_iter().find(|rule| rule_matches(rule, &stable_exe, &stable_title)).and_then(|rule| {
-                            let profile = guard.profiles.iter().find(|profile| profile.id == rule.target_profile_id)?;
-                            let page = (!rule.target_page_id.is_empty())
-                                .then(|| profile.pages.iter().position(|page| page.id == rule.target_page_id))
-                                .flatten();
-                            let same_profile = rule.target_profile_id == guard.active_profile_id;
-                            match page {
-                                // A rule for a page switches even inside the profile already showing.
-                                Some(index) if same_profile && index == guard.active_page_index => None,
-                                Some(index) => Some((rule.target_profile_id, index)),
-                                None if same_profile => None,
-                                None => Some((rule.target_profile_id, 0)),
-                            }
-                        })
+                        auto_switch_target(
+                            &guard.auto_switch_rules,
+                            &guard.profiles,
+                            &guard.active_profile_id,
+                            guard.active_page_index,
+                            &stable_exe,
+                            &stable_title,
+                        )
                     }
                 };
                 if let Some((profile_id, page_index)) = switch_to {

@@ -3,7 +3,7 @@ import { LevelMeter, liveKeyLook, liveZoneValue } from "./LiveFace";
 import { ScreenFace } from "./ScreenFace";
 import { DeckIcon } from "./DeckIcon";
 import { deckforgeApi } from "../bridge/tauriBridge";
-import { ACTION_DRAG_TYPE } from "./ActionDrawer";
+import { ACTION_DRAG_TYPE, type KnobPart } from "./ActionDrawer";
 import { PageApps } from "./AppRuleList";
 import type { AutoSwitchRule } from "../types/deckforge";
 import { ChevronLeft, ChevronRight, LayoutTemplate, Plus } from "lucide-react";
@@ -28,8 +28,9 @@ interface DeckStageProps {
   setTemplatesOpen: React.Dispatch<React.SetStateAction<boolean>>;
   surface: "key" | "zone" | "strip" | "encoder";
   surfaceIndex: number;
-  onDropAction: (target: "key" | "zone" | "encoder", index: number, actionId: string) => void;
+  onDropAction: (target: "key" | "zone" | "encoder", index: number, actionId: string, part?: KnobPart) => void;
   onMoveKey: (from: number, to: number) => void;
+  onMoveKeyToPage: (keyIndex: number, pageIndex: number) => void;
   autoSwitchRules: AutoSwitchRule[];
   saveRules: (rules: AutoSwitchRule[]) => void;
 }
@@ -57,11 +58,15 @@ export const DeckStage: React.FC<DeckStageProps> = ({
   surfaceIndex,
   onDropAction,
   onMoveKey,
+  onMoveKeyToPage,
   autoSwitchRules,
   saveRules,
 }) => {
   const [dropTarget, setDropTarget] = React.useState<number | null>(null);
   const [dropZone, setDropZone] = React.useState<string | null>(null);
+  const [dropPart, setDropPart] = React.useState<KnobPart | null>(null);
+  const [draggingKey, setDraggingKey] = React.useState<number | null>(null);
+  const [dropPage, setDropPage] = React.useState<number | null>(null);
   return (
     <div className="min-h-0 flex-1 flex flex-col items-center justify-start px-6 py-3 gap-3 overflow-y-auto">
       <div
@@ -92,13 +97,18 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                 onDragStart={(event) => {
                   event.dataTransfer.setData(KEY_DRAG_TYPE, String(k.index));
                   event.dataTransfer.effectAllowed = "move";
+                  setDraggingKey(k.index);
                 }}
                 onDragOver={(event) => {
                   event.preventDefault();
                   if (dropTarget !== k.index) setDropTarget(k.index);
                 }}
                 onDragLeave={() => setDropTarget((t) => (t === k.index ? null : t))}
-                onDragEnd={() => setDropTarget(null)}
+                onDragEnd={() => {
+                  setDropTarget(null);
+                  setDraggingKey(null);
+                  setDropPage(null);
+                }}
                 onDrop={(event) => {
                   event.preventDefault();
                   setDropTarget(null);
@@ -290,17 +300,19 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                   event.preventDefault();
                   if (dropZone !== `enc-${enc.index}`) setDropZone(`enc-${enc.index}`);
                 }}
-                onDragLeave={() => setDropZone(null)}
+                onDragLeave={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node)) setDropZone(null);
+                }}
                 onDrop={(event) => {
                   event.preventDefault();
                   setDropZone(null);
                   const actionId = event.dataTransfer.getData(ACTION_DRAG_TYPE);
                   if (!actionId) return;
-                  onDropAction("encoder", enc.index, actionId);
+                  onDropAction("encoder", enc.index, actionId, "push");
                   setSurface("encoder");
                   setSurfaceIndex(enc.index);
                 }}
-                className={`px-2.5 py-1.5 rounded-xl bg-[var(--bg-input)] border flex items-center gap-2.5 cursor-pointer ${
+                className={`relative px-2.5 py-1.5 rounded-xl bg-[var(--bg-input)] border flex items-center gap-2.5 cursor-pointer ${
                   dropZone === `enc-${enc.index}`
                     ? "border-[var(--accent-hover)] bg-[var(--bg-elevated)]"
                     : surface === "encoder" && surfaceIndex === enc.index
@@ -308,6 +320,41 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                     : "border-[var(--border-subtle)] hover:border-[var(--accent-primary)]/60"
                 }`}
               >
+                {dropZone === `enc-${enc.index}` && (
+                  <div className="absolute inset-0 z-10 grid grid-cols-3 gap-px rounded-xl overflow-hidden bg-[var(--border-subtle)]">
+                    {(
+                      [
+                        ["ccw", "Turn left"],
+                        ["push", "Press"],
+                        ["cw", "Turn right"],
+                      ] as Array<[KnobPart, string]>
+                    ).map(([part, label]) => (
+                      <div
+                        key={part}
+                        onDragOver={(event) => {
+                          event.preventDefault();
+                          if (dropPart !== part) setDropPart(part);
+                        }}
+                        onDrop={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setDropZone(null);
+                          setDropPart(null);
+                          const actionId = event.dataTransfer.getData(ACTION_DRAG_TYPE);
+                          if (!actionId) return;
+                          onDropAction("encoder", enc.index, actionId, part);
+                          setSurface("encoder");
+                          setSurfaceIndex(enc.index);
+                        }}
+                        className={`flex items-center justify-center text-[11px] font-medium ${
+                          dropPart === part ? "bg-[var(--accent-primary)] text-white" : "bg-[var(--bg-elevated)] text-[var(--text-secondary)]"
+                        }`}
+                      >
+                        {label}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[var(--border-strong)] to-[var(--bg-sidebar)] border border-dashed border-[var(--text-secondary)]/60 shrink-0" />
                 <div className="min-w-0">
                   <div className="text-[11px] font-semibold text-[var(--text-primary)] truncate">
@@ -336,10 +383,42 @@ export const DeckStage: React.FC<DeckStageProps> = ({
         . Drop a GIF onto any screen.
       </div>
 
-      {/* Page Switcher Bar below the Deck Bezel */}
+      {/* Page Switcher Bar below the Deck Bezel. While a key is dragged, it offers the other pages as drop targets. */}
+      {draggingKey !== null && activeProfile.pages.length > 1 ? (
+        <div className="flex items-center gap-1.5 flex-wrap justify-center min-h-8">
+          <span className="text-[12px] text-[var(--text-muted)]">Move to</span>
+          {activeProfile.pages.map((pg, idx) =>
+            idx === selectedPageIdx ? null : (
+              <div
+                key={pg.id}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  if (dropPage !== idx) setDropPage(idx);
+                }}
+                onDragLeave={() => setDropPage((p) => (p === idx ? null : p))}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  const from = Number(event.dataTransfer.getData(KEY_DRAG_TYPE));
+                  setDraggingKey(null);
+                  setDropPage(null);
+                  if (!Number.isNaN(from)) onMoveKeyToPage(from, idx);
+                }}
+                className={`h-8 px-3 rounded-[var(--radius-sm)] border border-dashed flex items-center text-[12px] ${
+                  dropPage === idx
+                    ? "border-[var(--accent-primary)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
+                    : "border-[var(--border-strong)] text-[var(--text-secondary)]"
+                }`}
+              >
+                {pg.name}
+              </div>
+            )
+          )}
+        </div>
+      ) : (
       <div className="flex items-center gap-1.5">
         <div className="flex items-center bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] h-8 px-1">
           <button
+            title="Previous page (Page Up)"
             onClick={() => {
               deckforgeApi.holdAutoSwitch().catch(() => {});
               setSelectedPageIdx((p) => Math.max(0, p - 1));
@@ -363,6 +442,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
             ))}
           </select>
           <button
+            title="Next page (Page Down)"
             onClick={() => {
               deckforgeApi.holdAutoSwitch().catch(() => {});
               setSelectedPageIdx((p) => Math.min(activeProfile.pages.length - 1, p + 1));
@@ -375,7 +455,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
 
         <button
           onClick={handleAddPage}
-          title="Add New Page"
+          title="Add a page"
           className="w-7 h-8 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer"
         >
           <Plus size={13} />
@@ -390,6 +470,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
         </button>
         <PageApps rules={autoSwitchRules} profile={activeProfile} pageIndex={selectedPageIdx} saveRules={saveRules} />
       </div>
+      )}
     </div>
   );
 };

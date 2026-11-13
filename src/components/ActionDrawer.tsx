@@ -46,12 +46,15 @@ export const zonePatchForAction = (act: ActionTemplate): Partial<TouchZoneConfig
   accentColor: act.accentColor,
 });
 
-/** What a knob press takes from an action, for click or drop. */
-export const encoderPatchForAction = (act: ActionTemplate): Partial<EncoderConfig> => ({
-  label: act.title,
-  pushAction: act.id,
-  pushParam: actionNeedsParam(act.id) ? act.defaultParam : "",
-});
+export type KnobPart = "ccw" | "push" | "cw";
+
+/** What a knob takes from an action: its press (which also names the knob) or one turn direction. */
+export const encoderPatchForAction = (act: ActionTemplate, part: KnobPart = "push"): Partial<EncoderConfig> => {
+  const param = actionNeedsParam(act.id) ? act.defaultParam : "";
+  if (part === "cw") return { cwAction: act.id, cwParam: param };
+  if (part === "ccw") return { ccwAction: act.id, ccwParam: param };
+  return { label: act.title, pushAction: act.id, pushParam: param };
+};
 
 export const ActionDrawer: React.FC<ActionDrawerProps> = ({
   actionCategoryFilter,

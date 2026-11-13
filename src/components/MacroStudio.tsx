@@ -223,8 +223,9 @@ export const MacroStudio: React.FC<{
                     const actualWidth = actual ? Math.max(8, Math.min(width, (actual.elapsedMs / (total || 1)) * usable)) : width * 0.35;
                     return (
                       <g key={macro.steps[index].id} onClick={() => onSelectStep(index)} className="cursor-pointer">
-                        <rect x={x} y={8} width={width} height={28} rx={7} fill={kind.color} opacity={selected ? 1 : 0.55} />
-                        <text x={x + 8} y={26} fill="#0B0D14" fontSize="11" fontWeight="700">
+                        <rect x={x} y={8} width={width} height={28} rx={6} fill={kind.color} fillOpacity={selected ? 0.3 : 0.14} stroke={kind.color} strokeOpacity={selected ? 0.9 : 0} />
+                        <rect x={x} y={8} width={3} height={28} rx={1.5} fill={kind.color} />
+                        <text x={x + 10} y={26} fill={kind.color} fontSize="11" fontWeight="600">
                           {width > 64 ? kind.title : String(index + 1)}
                         </text>
                         <rect
@@ -233,9 +234,9 @@ export const MacroStudio: React.FC<{
                           width={actualWidth}
                           height={8}
                           rx={4}
-                          fill={actual ? (actual.status === "Passed" ? "#35C98B" : "#F16B79") : "#272D3D"}
+                          fill={actual ? (actual.status === "Passed" ? "var(--status-success)" : "var(--status-error)") : "var(--border-subtle)"}
                         />
-                        <text x={x} y={70} fill="#707B94" fontSize="10">
+                        <text x={x} y={70} fill="var(--text-muted)" fontSize="10">
                           {formatMs(actual?.elapsedMs ?? weights[index])}
                         </text>
                       </g>
@@ -247,7 +248,7 @@ export const MacroStudio: React.FC<{
             </div>
 
             <div className="relative pl-8 flex flex-col gap-0">
-              <div className="absolute left-[15px] top-3 bottom-3 w-px bg-gradient-to-b from-[var(--accent-primary)] via-[var(--status-info)] to-[var(--status-success)]" />
+              <div className="absolute left-[15px] top-3 bottom-3 w-px bg-[var(--border-strong)]" />
               {macro.steps.length === 0 && (
                 <div className="ml-4 rounded-2xl border border-dashed border-[var(--border-strong)] p-8 text-center text-sm text-[var(--text-secondary)]">
                   Add the first block. The chain runs from top to bottom when the key is pressed.

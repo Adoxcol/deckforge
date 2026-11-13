@@ -832,6 +832,16 @@ export const deckforgeApi = {
     };
   },
 
+  /** Programs with an open window, as "name.exe"; empty in the browser preview. */
+  async openApps(): Promise<string[]> {
+    if (!isTauriRuntime()) return [];
+    try {
+      return await invoke<string[]>("open_apps");
+    } catch {
+      return [];
+    }
+  },
+
   /** Icon of a running app as a PNG data URL; null when it is not running or in the browser preview. */
   async appIcon(processName: string): Promise<string | null> {
     if (isTauriRuntime()) {

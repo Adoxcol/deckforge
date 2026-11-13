@@ -6,6 +6,7 @@
  * because they live in this PC's media library and would not exist on another PC.
  */
 import type {
+  AutoSwitchRule,
   EncoderConfig,
   GameModeCustomTarget,
   GameModeMode,
@@ -88,6 +89,16 @@ export interface ProfileFile {
   exportedAt: string;
   profile: Profile;
   macros: MacroSequence[];
+  /** Apps that open this profile's pages. Older files have none. */
+  appRules?: SharedAppRule[];
+}
+
+/** An app switching rule as it travels in a profile file: the profile is implied. */
+export interface SharedAppRule {
+  processName: string;
+  windowTitleContains: string;
+  pageId: string;
+  enabled: boolean;
 }
 
 /** Calls `fn` for every action slot of a profile and writes back what it returns. */
@@ -135,7 +146,11 @@ export function macroIdsUsed(profile: Profile): string[] {
   return [...ids];
 }
 
-export function buildProfileFile(profile: Profile, macros: MacroSequence[]): { file: ProfileFile; mediaRemoved: number } {
+export function buildProfileFile(
+  profile: Profile,
+  macros: MacroSequence[],
+  rules: AutoSwitchRule[] = []
+): { file: ProfileFile; mediaRemoved: number } {
   let mediaRemoved = 0;
   const strip = <T extends { media?: unknown }>(item: T): T => {
     if (item.media) mediaRemoved += 1;
@@ -162,6 +177,14 @@ export function buildProfileFile(profile: Profile, macros: MacroSequence[]): { f
       exportedAt: new Date().toISOString(),
       profile: clean,
       macros: macros.filter((macro) => used.has(macro.id)),
+      appRules: rules
+        .filter((rule) => rule.targetProfileId === profile.id && rule.processName.trim())
+        .map((rule) => ({
+          processName: rule.processName,
+          windowTitleContains: rule.windowTitleContains,
+          pageId: rule.targetPageId ?? "",
+          enabled: rule.enabled,
+        })),
     },
   };
 }
@@ -253,6 +276,7 @@ function readMacro(raw: Rec): MacroSequence | null {
 export interface ParsedProfileFile {
   profile: Profile;
   macros: MacroSequence[];
+  appRules: SharedAppRule[];
 }
 
 export function parseProfileFile(text: string): ParsedProfileFile {
@@ -281,7 +305,17 @@ export function parseProfileFile(text: string): ParsedProfileFile {
   const macros = records(data.macros)
     .map(readMacro)
     .filter((macro): macro is MacroSequence => macro !== null);
-  return { profile, macros };
+  const pageIds = new Set(pages.map((page) => page.id));
+  const appRules = records(data.appRules)
+    .map((rule) => ({
+      processName: str(rule.processName).trim().slice(0, 120),
+      windowTitleContains: str(rule.windowTitleContains).slice(0, 200),
+      pageId: pageIds.has(str(rule.pageId)) ? str(rule.pageId) : "",
+      enabled: bool(rule.enabled, true),
+    }))
+    .filter((rule) => rule.processName.length > 0)
+    .slice(0, 50);
+  return { profile, macros, appRules };
 }
 
 /** Result of placing an imported profile next to the ones that already exist. */

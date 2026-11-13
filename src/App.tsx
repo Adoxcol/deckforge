@@ -56,7 +56,7 @@ import { OnboardingModal } from "./components/OnboardingModal";
 import { WorkspaceToolbar } from "./components/WorkspaceToolbar";
 import { DeckStage } from "./components/DeckStage";
 import { WorkspaceSidebar } from "./components/WorkspaceSidebar";
-import { ActionDrawer, keyPatchForAction, zonePatchForAction, encoderPatchForAction } from "./components/ActionDrawer";
+import { ActionDrawer, keyPatchForAction, zonePatchForAction, encoderPatchForAction, type KnobPart } from "./components/ActionDrawer";
 import { KeyInspector } from "./components/KeyInspector";
 import { DevicesScreen } from "./screens/DevicesScreen";
 import { PluginsScreen } from "./screens/PluginsScreen";
@@ -89,6 +89,8 @@ import { ACTION_CATALOG, type ActionTemplate } from "./data/actionCatalog";
 import { bytesToBase64, buildPulseFrames, errorText } from "./lib/format";
 import { buildProfileFile, placeBackup, parseProfileFile, pickJsonFile, placeImportedProfile, slugify } from "./lib/shareFiles";
 import { LevelMeter, liveKeyLook, liveZoneValue } from "./components/LiveFace";
+
+type ToastAction = { label: string; run: () => void };
 
 const NAV_ITEMS = [
     { id: "workspace", label: "Profiles and keys", icon: Layers },
@@ -164,7 +166,7 @@ export const App: React.FC = () => {
   const [appliedRefresh, setAppliedRefresh] = useState(0);
   const [undoStack, setUndoStack] = useState<Profile[][]>([]);
   const [redoStack, setRedoStack] = useState<Profile[][]>([]);
-  const [toastMessage, setToastMessage] = useState<{ text: string; kind: "success" | "info" | "warning" } | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; kind: "success" | "info" | "warning"; action?: ToastAction } | null>(null);
 
   // Sub-screen states
   const [selectedMacroId, setSelectedMacroId] = useState<string>("macro-go-live");
@@ -175,12 +177,17 @@ export const App: React.FC = () => {
   const [face, setFace] = useState<DeckFaceState | null>(null);
   const [obsSettings, setObsSettings] = useState<ObsSettings>({ url: "ws://127.0.0.1:4455", password: "" });
 
-  const triggerToast = (text: string, kind: "success" | "info" | "warning" = "success") => {
-    setToastMessage({ text, kind });
+  /** A toast with an action button stays longer so there is time to press it. */
+  const triggerToast = (text: string, kind: "success" | "info" | "warning" = "success", action?: ToastAction) => {
+    setToastMessage({ text, kind, action });
     window.setTimeout(() => {
       setToastMessage((prev) => (prev?.text === text ? null : prev));
-    }, 3200);
+    }, action ? 7000 : 3200);
   };
+  // Toast buttons run later than the render that made them, so they call through refs.
+  const undoRef = React.useRef<() => void>(() => {});
+  const applyRef = React.useRef<() => void>(() => {});
+  const undoAction: ToastAction = { label: "Undo", run: () => undoRef.current() };
 
   useEffect(() => {
     let disposed = false;
@@ -429,6 +436,15 @@ export const App: React.FC = () => {
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
         e.preventDefault();
         handleRedo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        e.preventDefault();
+        void handleApplyToDevice();
+      } else if ((e.key === "PageUp" || e.key === "PageDown") && activeScreen === "workspace" && activeProfile) {
+        const el = e.target as HTMLElement | null;
+        if (el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) return;
+        e.preventDefault();
+        const last = activeProfile.pages.length - 1;
+        setSelectedPageIdx((p) => (e.key === "PageUp" ? Math.max(0, p - 1) : Math.min(last, p + 1)));
       }
     };
     window.addEventListener("keydown", onKeyDown, true);
@@ -569,6 +585,8 @@ export const App: React.FC = () => {
     triggerToast("Undid last key edit", "info");
   };
 
+  undoRef.current = handleUndo;
+
   const handleRedo = () => {
     if (redoStack.length === 0) return;
     const next = redoStack[redoStack.length - 1];
@@ -615,19 +633,66 @@ export const App: React.FC = () => {
     );
   };
 
+  /** Moves a key to another page of this profile: the same slot if it is empty there, else the first empty one. */
+  const handleMoveKeyToPage = (keyIndex: number, pageIndex: number) => {
+    if (!activeProfile || pageIndex === selectedPageIdx) return;
+    const source = activeProfile.pages[selectedPageIdx]?.keys.find((k) => k.index === keyIndex);
+    const target = activeProfile.pages[pageIndex];
+    if (!source || !target) return;
+    const isEmpty = (k: KeyConfig) => k.actionId === "none" && !k.customImageDataUrl;
+    const slot = target.keys.find((k) => k.index === keyIndex && isEmpty(k)) ?? target.keys.find(isEmpty);
+    if (!slot) {
+      triggerToast(`${target.name} has no empty key. Clear one there first.`, "warning");
+      return;
+    }
+    const blank: KeyConfig = {
+      ...source,
+      title: "Empty",
+      subtitle: "",
+      iconName: "Plus",
+      actionId: "none",
+      actionLabel: "No Action Assigned",
+      actionCategory: "System",
+      customImageDataUrl: undefined,
+      actionParam: "",
+      accentColor: "#394158",
+      bgColor: "#151925",
+    };
+    pushUndoSnapshot();
+    setProfiles((prev) =>
+      prev.map((prof) =>
+        prof.id !== activeProfile.id
+          ? prof
+          : {
+              ...prof,
+              lastModifiedMs: Date.now(),
+              pages: prof.pages.map((pg, pIdx) =>
+                pIdx === selectedPageIdx
+                  ? { ...pg, keys: pg.keys.map((k) => (k.index === keyIndex ? blank : k)) }
+                  : pIdx === pageIndex
+                  ? { ...pg, keys: pg.keys.map((k) => (k.index === slot.index ? { ...source, index: slot.index } : k)) }
+                  : pg
+              ),
+            }
+      )
+    );
+    triggerToast(`${source.title} moved to ${target.name}, key ${slot.index + 1}`, "info", undoAction);
+  };
+
   /** Dropping an action card on a key binds that key, whichever key is selected. */
-  const handleDropAction = (target: "key" | "zone" | "encoder", index: number, actionId: string) => {
+  const handleDropAction = (target: "key" | "zone" | "encoder", index: number, actionId: string, part: KnobPart = "push") => {
     const act = allActionTemplates.find((a) => a.id === actionId);
     if (!act) return;
     if (target === "zone") {
       updateSelectedZone(index, zonePatchForAction(act));
-      triggerToast(`${act.title} is on touch zone ${index + 1}`, "info");
+      triggerToast(`${act.title} is on touch zone ${index + 1}`, "info", undoAction);
     } else if (target === "encoder") {
-      updateSelectedEncoder(index, encoderPatchForAction(act));
-      triggerToast(`${act.title} is on knob ${index + 1} press`, "info");
+      updateSelectedEncoder(index, encoderPatchForAction(act, part));
+      const where = part === "cw" ? "turn right" : part === "ccw" ? "turn left" : "press";
+      triggerToast(`${act.title} is on knob ${index + 1} ${where}`, "info", undoAction);
     } else {
       patchKeys((keys) => keys.map((k) => (k.index === index ? { ...k, ...keyPatchForAction(act) } : k)));
-      triggerToast(`${act.title} is on key ${index + 1}`, "info");
+      triggerToast(`${act.title} is on key ${index + 1}`, "info", undoAction);
     }
   };
 
@@ -820,7 +885,7 @@ export const App: React.FC = () => {
       );
     } catch (err) {
       setAppliedRefresh(n => n + 1);
-      triggerToast(`Could not send to the deck: ${errorText(err)}. Try Re-send layout in the status bar.`, "warning");
+      triggerToast(`Could not send to the deck: ${errorText(err)}`, "warning", { label: "Retry", run: () => applyRef.current() });
       return;
     }
     setAppliedRefresh(n => n + 1);
@@ -834,6 +899,8 @@ export const App: React.FC = () => {
     }));
     triggerToast(res.statusMessage, "success");
   };
+
+  applyRef.current = () => void handleApplyToDevice();
 
   const handleTestSelectedAction = async () => {
     if (!activeKey) return;
@@ -908,7 +975,7 @@ export const App: React.FC = () => {
   const handleExportProfile = async () => {
     if (!activeProfile) return;
     try {
-      const { file, mediaRemoved } = buildProfileFile(activeProfile, macros);
+      const { file, mediaRemoved } = buildProfileFile(activeProfile, macros, autoSwitchRules);
       const where = await deckforgeApi.saveExportFile(
         `deckforge-profile-${slugify(activeProfile.name)}.json`,
         JSON.stringify(file, null, 2)
@@ -925,7 +992,8 @@ export const App: React.FC = () => {
     try {
       picked = await pickJsonFile();
       if (!picked) return;
-      const placed = placeImportedProfile(parseProfileFile(picked.text), profiles, macros);
+      const parsed = parseProfileFile(picked.text);
+      const placed = placeImportedProfile(parsed, profiles, macros);
       const next = [...profiles, placed.profile];
       pushUndoSnapshot();
       setProfiles(next);
@@ -936,6 +1004,21 @@ export const App: React.FC = () => {
         }
       }
       await profilePersistence.save(next);
+      if (parsed.appRules.length > 0) {
+        const stamp = Date.now();
+        saveRules([
+          ...autoSwitchRules,
+          ...parsed.appRules.map((rule, i) => ({
+            id: `rule-${stamp}-${i}`,
+            processName: rule.processName,
+            windowTitleContains: rule.windowTitleContains,
+            targetProfileId: placed.profile.id,
+            targetPageId: rule.pageId,
+            priority: autoSwitchRules.length + i + 1,
+            enabled: rule.enabled,
+          })),
+        ]);
+      }
       setSelectedProfileId(placed.profile.id);
       setSelectedPageIdx(0);
       setSelectedKeyIdx(0);
@@ -1125,9 +1208,25 @@ export const App: React.FC = () => {
       />
       {/* Transient Top-Right Toast (Spec Section 11.5) */}
       {toastMessage && (
-        <div className="fixed bottom-14 right-5 z-50 flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--accent-primary)]/60 shadow-2xl text-xs font-medium text-[var(--text-primary)]">
-          <span className="w-2 h-2 rounded-full bg-[var(--status-success)]" />
+        <div className="fixed bottom-14 right-5 z-50 flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-[var(--bg-elevated)] border border-[var(--border-subtle)] shadow-2xl text-[12.5px] font-medium text-[var(--text-primary)]">
+          <span
+            className={`w-2 h-2 rounded-full shrink-0 ${
+              toastMessage.kind === "warning" ? "bg-[var(--status-warning)]" : toastMessage.kind === "info" ? "bg-[var(--accent-primary)]" : "bg-[var(--status-success)]"
+            }`}
+          />
           <span>{toastMessage.text}</span>
+          {toastMessage.action && (
+            <button
+              type="button"
+              onClick={() => {
+                toastMessage.action?.run();
+                setToastMessage(null);
+              }}
+              className="ml-1 px-2 h-6 rounded-[var(--radius-sm)] text-[var(--accent-text)] hover:bg-[var(--bg-panel)] font-semibold cursor-pointer"
+            >
+              {toastMessage.action.label}
+            </button>
+          )}
         </div>
       )}
       {templatesOpen && (
@@ -1238,7 +1337,7 @@ export const App: React.FC = () => {
             <WorkspaceToolbar activeDevice={activeDevice} activeProfile={activeProfile} canvasZoom={canvasZoom} connectedDevices={connectedDevices} handleApplyToDevice={handleApplyToDevice} handleSaveLocally={handleSaveLocally} setCanvasZoom={setCanvasZoom} setSelectedDeviceId={setSelectedDeviceId} setSelectedKeyIdx={setSelectedKeyIdx} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} />
 
             {/* Central Hardware Bezel Stage */}
-            <DeckStage activeDevice={activeDevice} activeKey={activeKey} activePage={activePage} activeProfile={activeProfile} canvasZoom={canvasZoom} clipFor={clipFor} face={face} handleAddPage={handleAddPage} ingestFile={ingestFile} livePressedKeyIdx={livePressedKeyIdx} selectedPageIdx={selectedPageIdx} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} setTemplatesOpen={setTemplatesOpen} surface={surface} surfaceIndex={surfaceIndex} onDropAction={handleDropAction} onMoveKey={handleMoveKey} autoSwitchRules={autoSwitchRules} saveRules={saveRules} />
+            <DeckStage activeDevice={activeDevice} activeKey={activeKey} activePage={activePage} activeProfile={activeProfile} canvasZoom={canvasZoom} clipFor={clipFor} face={face} handleAddPage={handleAddPage} ingestFile={ingestFile} livePressedKeyIdx={livePressedKeyIdx} selectedPageIdx={selectedPageIdx} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} setTemplatesOpen={setTemplatesOpen} surface={surface} surfaceIndex={surfaceIndex} onDropAction={handleDropAction} onMoveKey={handleMoveKey} onMoveKeyToPage={handleMoveKeyToPage} autoSwitchRules={autoSwitchRules} saveRules={saveRules} />
 
             {/* BOTTOM ACTION LIBRARY DRAWER (Matches Reference Screenshot Bottom Panel) */}
             <ActionDrawer actionCategoryFilter={actionCategoryFilter} actionSearch={actionSearch} activeEncoder={activeEncoder} activeKey={activeKey} activeZone={activeZone} filteredActions={filteredActions} setActionCategoryFilter={setActionCategoryFilter} setActionSearch={setActionSearch} surface={surface} triggerToast={triggerToast} updateSelectedEncoder={updateSelectedEncoder} updateSelectedKey={updateSelectedKey} updateSelectedZone={updateSelectedZone} />

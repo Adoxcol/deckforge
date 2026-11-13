@@ -267,6 +267,18 @@ const CORE_ACTIONS: ActionTemplate[] = [
     description: "Show the previous page on the deck",
   },
   {
+    id: "profile.back",
+    title: "Back",
+    subtitle: "PAGE",
+    category: "Navigation",
+    iconName: "Undo",
+    actionLabel: "Page: Back to the last page",
+    defaultParam: "",
+    accentColor: "#56B9F2",
+    bgColor: "#132235",
+    description: "Return to the page shown before, so an Open Page key works like a folder",
+  },
+  {
     id: "profile.switch_page",
     title: "Open Page",
     subtitle: "PAGE",

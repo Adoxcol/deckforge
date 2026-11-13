@@ -95,6 +95,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             lifecycle::quit_application,
             commands::app_icon,
+            commands::open_apps,
             lifecycle::get_launch_at_login,
             lifecycle::set_launch_at_login,
             get_initial_state,

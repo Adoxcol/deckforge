@@ -94,6 +94,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
         {/* Primary Violet CTA: Apply / Deploy to Device */}
         <button
           onClick={handleApplyToDevice}
+          title="Send this page to the deck (Ctrl+Enter)"
           className="h-9 shrink-0 whitespace-nowrap px-4 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center gap-2 cursor-pointer transition-all"
         >
           <Play size={13} fill="currentColor" />

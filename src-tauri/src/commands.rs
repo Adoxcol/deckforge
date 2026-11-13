@@ -471,3 +471,8 @@ pub async fn app_icon(process_name: String) -> Option<String> {
         .ok()
         .flatten()
 }
+
+#[tauri::command]
+pub async fn open_apps() -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(crate::game_mode::open_app_exes).await.unwrap_or_default()
+}

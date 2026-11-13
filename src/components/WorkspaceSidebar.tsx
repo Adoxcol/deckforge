@@ -150,7 +150,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
         </div>
       </div>
 
-      <AppRuleList rules={autoSwitchRules} profiles={activeProfile ? [activeProfile] : []} saveRules={saveRules} />
+      <AppRuleList rules={autoSwitchRules} profiles={profiles} showProfileId={activeProfile?.id} saveRules={saveRules} />
     </aside>
   );
 };

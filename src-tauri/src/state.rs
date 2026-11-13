@@ -108,6 +108,8 @@ pub struct ManagedAppState {
     pub profiles: Vec<Profile>,
     pub active_profile_id: String,
     pub active_page_index: usize,
+    /// The profile and page shown before the last page action, for the Back key.
+    pub previous_page: Option<(String, usize)>,
     pub applied_layout: Option<AppliedLayout>,
     pub applied_layout_path: Option<std::path::PathBuf>,
     pub layout_ready: bool,
@@ -187,6 +189,7 @@ impl Default for ManagedAppState {
             profiles,
             active_profile_id,
             active_page_index,
+            previous_page: None,
             applied_layout,
             applied_layout_path: Some(applied_layout_path),
             layout_ready: false,

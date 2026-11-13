@@ -135,6 +135,7 @@ pub(crate) fn known_action(binding: &str) -> bool {
             | "profile.prev_page"
             | "profile.switch_page"
             | "profile.switch"
+            | "profile.back"
             | "macro.run"
             | "sys.game_mode"
     )
@@ -623,7 +624,7 @@ pub(crate) fn apply_navigation(
 ) -> Option<Result<String, String>> {
     if !matches!(
         action_id,
-        "profile.next_page" | "profile.prev_page" | "profile.switch_page" | "profile.switch"
+        "profile.next_page" | "profile.prev_page" | "profile.switch_page" | "profile.switch" | "profile.back"
     ) {
         return None;
     }
@@ -647,6 +648,25 @@ pub(crate) fn apply_navigation(
 }
 
 pub(crate) fn switch_active_page(guard: &mut ManagedAppState, action_id: &str, param: &str) -> Option<String> {
+    let before = (guard.active_profile_id.clone(), guard.active_page_index);
+    if action_id == "profile.back" {
+        let (profile_id, page_index) = guard.previous_page.take()?;
+        let profile = guard.profiles.iter().find(|profile| profile.id == profile_id)?;
+        let page_index = page_index.min(profile.pages.len().saturating_sub(1));
+        let page_name = profile.pages.get(page_index).map(|page| page.name.clone()).unwrap_or_default();
+        guard.active_profile_id = profile_id;
+        guard.active_page_index = page_index;
+        guard.previous_page = Some(before);
+        return Some(format!("Back to {page_name}"));
+    }
+    let message = switch_active_page_inner(guard, action_id, param)?;
+    if (guard.active_profile_id.clone(), guard.active_page_index) != before {
+        guard.previous_page = Some(before);
+    }
+    Some(message)
+}
+
+fn switch_active_page_inner(guard: &mut ManagedAppState, action_id: &str, param: &str) -> Option<String> {
     match action_id {
         "profile.switch" => {
             let profile = guard
@@ -857,6 +877,34 @@ pub(crate) fn face_delta_bursts(guard: &mut ManagedAppState, face: &DeckFaceStat
     Some((dev, bursts))
 }
 
+/// The profile and page to show for the app in front, or None to stay put.
+/// The first enabled rule by priority wins. A rule naming a page switches even inside the
+/// profile already showing; a rule without one (or whose page was deleted) opens page 1,
+/// and only when that profile is not already showing.
+pub(crate) fn auto_switch_target(
+    rules: &[AutoSwitchRule],
+    profiles: &[Profile],
+    active_profile_id: &str,
+    active_page_index: usize,
+    exe: &str,
+    title: &str,
+) -> Option<(String, usize)> {
+    let mut rules: Vec<&AutoSwitchRule> = rules.iter().collect();
+    rules.sort_by_key(|rule| rule.priority);
+    let rule = rules.into_iter().find(|rule| rule_matches(rule, exe, title))?;
+    let profile = profiles.iter().find(|profile| profile.id == rule.target_profile_id)?;
+    let page = (!rule.target_page_id.is_empty())
+        .then(|| profile.pages.iter().position(|page| page.id == rule.target_page_id))
+        .flatten();
+    let same_profile = rule.target_profile_id == active_profile_id;
+    match page {
+        Some(index) if same_profile && index == active_page_index => None,
+        Some(index) => Some((rule.target_profile_id.clone(), index)),
+        None if same_profile => None,
+        None => Some((rule.target_profile_id.clone(), 0)),
+    }
+}
+
 pub(crate) fn rule_matches(rule: &AutoSwitchRule, exe: &str, title: &str) -> bool {
     if !rule.enabled {
         return false;
@@ -881,7 +929,7 @@ mod live_tests {
     use super::*;
 
     // No HID discovery, user files, threads, or native actions in these tests.
-    fn test_state() -> SharedState {
+    pub(super) fn test_state() -> SharedState {
         let mut devices = builtin_device_catalog();
         devices[0].connected = true;
         Arc::new(Mutex::new(ManagedAppState {
@@ -889,6 +937,7 @@ mod live_tests {
             profiles: db::default_profiles(),
             active_profile_id: "profile-streaming".into(),
             active_page_index: 0,
+            previous_page: None,
             applied_layout: None,
             applied_layout_path: None,
             layout_ready: false,
@@ -1290,5 +1339,103 @@ mod live_tests {
         let action = binding_action("hotkey.snap_left", "Win+Left", "Snap Left", String::new(), "deck".to_string());
         assert_eq!(action.action_id, "hotkey.snap_left");
         assert_eq!(action.param, "Win+Left");
+    }
+}
+
+#[cfg(test)]
+mod auto_switch_tests {
+    use super::auto_switch_target;
+    use crate::db::{AutoSwitchRule, Profile, ProfilePage};
+
+    fn page(id: &str) -> ProfilePage {
+        ProfilePage { id: id.into(), name: id.into(), keys: vec![], touch_zones: vec![], encoders: vec![], strip_media: None }
+    }
+
+    fn profile(id: &str, pages: &[&str]) -> Profile {
+        Profile {
+            id: id.into(),
+            name: id.into(),
+            icon: String::new(),
+            color_strip: String::new(),
+            target_device_id: String::new(),
+            pages: pages.iter().map(|p| page(p)).collect(),
+            last_modified_ms: 0,
+        }
+    }
+
+    fn rule(exe: &str, profile: &str, page: &str, priority: u8) -> AutoSwitchRule {
+        AutoSwitchRule {
+            id: format!("{exe}-{priority}"),
+            process_name: exe.into(),
+            window_title_contains: String::new(),
+            target_profile_id: profile.into(),
+            target_page_id: page.into(),
+            priority,
+            enabled: true,
+        }
+    }
+
+    fn profiles() -> Vec<Profile> {
+        vec![profile("stream", &["main", "scenes"]), profile("edit", &["timeline"])]
+    }
+
+    #[test]
+    fn page_rule_switches_inside_the_profile_already_showing() {
+        let rules = [rule("obs64.exe", "stream", "scenes", 1)];
+        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 0, "obs64.exe", ""), Some(("stream".into(), 1)));
+    }
+
+    #[test]
+    fn page_rule_stays_put_when_that_page_is_showing() {
+        let rules = [rule("obs64.exe", "stream", "scenes", 1)];
+        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 1, "obs64.exe", ""), None);
+    }
+
+    #[test]
+    fn profile_rule_does_not_pull_back_to_page_one() {
+        let rules = [rule("obs64.exe", "stream", "", 1)];
+        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 1, "obs64.exe", ""), None);
+        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "obs64.exe", ""), Some(("stream".into(), 0)));
+    }
+
+    #[test]
+    fn deleted_page_falls_back_to_page_one() {
+        let rules = [rule("resolve.exe", "edit", "gone", 1)];
+        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 1, "resolve.exe", ""), Some(("edit".into(), 0)));
+    }
+
+    #[test]
+    fn missing_profile_disabled_rule_and_other_apps_do_nothing() {
+        let mut off = rule("obs64.exe", "stream", "scenes", 1);
+        off.enabled = false;
+        assert_eq!(auto_switch_target(&[off], &profiles(), "edit", 0, "obs64.exe", ""), None);
+        let rules = [rule("obs64.exe", "nope", "", 1)];
+        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "obs64.exe", ""), None);
+        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "code.exe", ""), None);
+    }
+
+    #[test]
+    fn lowest_priority_number_wins() {
+        let rules = [rule("obs64.exe", "edit", "", 2), rule("obs64", "stream", "scenes", 1)];
+        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "OBS64.EXE", ""), Some(("stream".into(), 1)));
+    }
+}
+
+#[cfg(test)]
+mod back_tests {
+    use super::*;
+
+    #[test]
+    fn back_returns_to_the_page_shown_before() {
+        let shared = super::live_tests::test_state();
+        let mut guard = shared.lock().unwrap();
+        assert!(switch_active_page(&mut guard, "profile.back", "").is_none(), "nothing to go back to yet");
+        switch_active_page(&mut guard, "profile.next_page", "").unwrap();
+        assert_eq!(guard.active_page_index, 1);
+        switch_active_page(&mut guard, "profile.back", "").unwrap();
+        assert_eq!(guard.active_page_index, 0);
+        // Back again toggles forward, like a folder key and its back key.
+        switch_active_page(&mut guard, "profile.back", "").unwrap();
+        assert_eq!(guard.active_page_index, 1);
     }
 }

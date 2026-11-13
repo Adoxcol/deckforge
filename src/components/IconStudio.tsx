@@ -204,7 +204,7 @@ export const IconStudio: React.FC<{
         )}
 
         <div className="w-full max-w-[640px] relative pl-8 flex flex-col">
-          <div className="absolute left-[15px] top-3 bottom-3 w-px bg-gradient-to-b from-[var(--accent-text)] via-[var(--status-info)] to-[var(--status-success)]" />
+          <div className="absolute left-[15px] top-3 bottom-3 w-px bg-[var(--border-strong)]" />
           {(
             [
               { id: "picture" as const, title: "Picture", detail: clip ? clip.fileName : "No image yet", color: "#C084FC" },

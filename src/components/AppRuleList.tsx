@@ -37,6 +37,20 @@ const hueFor = (text: string) => [...text.toLowerCase()].reduce((h, c) => (h * 3
 
 const iconCache = new Map<string, string | null>();
 
+/** Programs with an open window, loaded while `active` is true. */
+const useOpenApps = (active: boolean) => {
+  const [apps, setApps] = React.useState<string[]>([]);
+  React.useEffect(() => {
+    if (!active) return;
+    let alive = true;
+    deckforgeApi.openApps().then((list) => alive && setApps(list));
+    return () => {
+      alive = false;
+    };
+  }, [active]);
+  return apps;
+};
+
 const AppIcon: React.FC<{ exe: string; size?: number }> = ({ exe, size = 32 }) => {
   const key = exe.trim().toLowerCase();
   const [src, setSrc] = React.useState<string | null>(iconCache.get(key) ?? null);
@@ -108,10 +122,12 @@ interface Props {
   rules: AutoSwitchRule[];
   profiles: Profile[];
   saveRules: (rules: AutoSwitchRule[]) => void;
+  /** Only list this profile's pages; the rest are still used to find rules with no home. */
+  showProfileId?: string;
 }
 
 /** Pages listed with the apps that open them. Drag an app onto another page to move it. */
-export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules }) => {
+export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showProfileId }) => {
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [addingAt, setAddingAt] = React.useState<string | null>(null);
   const [draft, setDraft] = React.useState("");
@@ -147,6 +163,11 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules }) => 
   };
 
   const selected = rules.find((r) => r.id === selectedId) ?? null;
+  const shown = showProfileId ? profiles.filter((p) => p.id === showProfileId) : profiles;
+  // Rules whose profile is gone would otherwise vanish from view while still saved.
+  const homeless = rules.filter((r) => !profiles.some((p) => p.id === r.targetProfileId));
+  const isStale = (r: AutoSwitchRule) =>
+    !!r.targetPageId && !profiles.find((p) => p.id === r.targetProfileId)?.pages.some((pg) => pg.id === r.targetPageId);
 
   return (
     <div className="flex flex-col gap-2">
@@ -166,7 +187,7 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules }) => 
       </datalist>
 
       <div className="flex flex-col gap-3">
-        {profiles.map((prof) => (
+        {shown.map((prof) => (
           <div key={prof.id} className="flex flex-col">
             <div className="text-[11px] font-medium text-[var(--text-muted)] px-1 pb-1">{prof.name}</div>
             <div className="flex flex-col rounded-[var(--radius-md)] border border-[var(--border-subtle)] divide-y divide-[var(--border-subtle)]">
@@ -202,12 +223,17 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules }) => 
                               e.dataTransfer.effectAllowed = "move";
                             }}
                             onClick={() => setSelectedId(selectedId === r.id ? null : r.id)}
-                            title={`${appName(r.processName)}${r.enabled ? "" : " (off)"}`}
+                            title={isStale(r) ? `${appName(r.processName)}: its page was deleted, so it opens page 1. Drag it to a page to fix.` : `${appName(r.processName)}${r.enabled ? "" : " (off)"}`}
                             className={`rounded-[var(--radius-sm)] cursor-grab active:cursor-grabbing outline outline-2 outline-offset-1 ${
                               selectedId === r.id ? "outline-[var(--accent-primary)]" : "outline-transparent"
                             } ${r.enabled ? "" : "opacity-40 grayscale"}`}
                           >
-                            <AppIcon exe={r.processName} size={24} />
+                            <span className="relative block">
+                              <AppIcon exe={r.processName} size={24} />
+                              {isStale(r) && (
+                                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[var(--status-warning)] ring-2 ring-[var(--bg-sidebar)]" />
+                              )}
+                            </span>
                           </button>
                         ))}
                         <button
@@ -275,6 +301,37 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules }) => 
             </div>
           </div>
         ))}
+        {homeless.length > 0 && (
+          <div className="flex flex-col gap-1 rounded-[var(--radius-md)] border border-dashed border-[var(--status-warning)]/50 p-2">
+            <div className="text-[11.5px] text-[var(--status-warning)]">Profile deleted. Drag these onto a page, or remove them.</div>
+            <div className="flex items-center gap-1 flex-wrap">
+              {homeless.map((r) => (
+                <span key={r.id} className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.setData(RULE_DRAG_TYPE, r.id);
+                      e.dataTransfer.effectAllowed = "move";
+                    }}
+                    title={appName(r.processName)}
+                    className="cursor-grab active:cursor-grabbing"
+                  >
+                    <AppIcon exe={r.processName} size={24} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => saveRules(rules.filter((x) => x.id !== r.id))}
+                    title={`Remove ${appName(r.processName)}`}
+                    className="text-[var(--text-muted)] hover:text-[var(--status-error)] cursor-pointer"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -290,6 +347,7 @@ export const PageApps: React.FC<{
   const [open, setOpen] = React.useState<string | null>(null); // rule id, "add", or null
   const [draft, setDraft] = React.useState("");
   const boxRef = React.useRef<HTMLDivElement>(null);
+  const openApps = useOpenApps(open === "add");
   const page = profile.pages[pageIndex];
   React.useEffect(() => {
     if (!open) return;
@@ -307,8 +365,10 @@ export const PageApps: React.FC<{
   const selected = apps.find((r) => r.id === open);
   const patch = (id: string, change: Partial<AutoSwitchRule>) =>
     saveRules(rules.map((r) => (r.id === id ? { ...r, ...change } : r)));
-  const add = () => {
-    const exe = draft.trim();
+  const taken = new Set(apps.map((r) => r.processName.toLowerCase()));
+  const choices = openApps.filter((exe) => !taken.has(exe));
+  const add = (pick?: string) => {
+    const exe = (pick ?? draft).trim();
     setDraft("");
     setOpen(null);
     if (!exe) return;
@@ -335,12 +395,15 @@ export const PageApps: React.FC<{
           key={r.id}
           type="button"
           onClick={() => setOpen(open === r.id ? null : r.id)}
-          title={`${appName(r.processName)}${r.enabled ? "" : " (off)"}`}
-          className={`rounded-[4px] cursor-pointer outline outline-2 outline-offset-1 ${open === r.id ? "outline-[var(--accent-primary)]" : "outline-transparent"} ${
+          title={r.targetPageId && r.targetPageId !== page.id ? `${appName(r.processName)}: its page was deleted, so it opens page 1. Drag it to a page to fix.` : `${appName(r.processName)}${r.enabled ? "" : " (off)"}`}
+          className={`relative rounded-[4px] cursor-pointer outline outline-2 outline-offset-1 ${open === r.id ? "outline-[var(--accent-primary)]" : "outline-transparent"} ${
             r.enabled ? "" : "opacity-40 grayscale"
           }`}
         >
           <AppIcon exe={r.processName} size={20} />
+          {r.targetPageId && r.targetPageId !== page.id && (
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[var(--status-warning)] ring-2 ring-[var(--bg-panel)]" />
+          )}
         </button>
       ))}
       <button
@@ -360,6 +423,22 @@ export const PageApps: React.FC<{
           {open === "add" ? (
             <>
               <div className="text-[12px] font-medium text-[var(--text-primary)]">Open {page.name} when this app is in front</div>
+              {choices.length > 0 && (
+                <div className="flex flex-col gap-0.5 max-h-48 overflow-y-auto -mx-1">
+                  <div className="text-[11px] text-[var(--text-muted)] px-1">Open now</div>
+                  {choices.map((exe) => (
+                    <button
+                      key={exe}
+                      type="button"
+                      onClick={() => add(exe)}
+                      className="flex items-center gap-2 px-1 py-1 rounded-[var(--radius-sm)] hover:bg-[var(--bg-panel)] text-left cursor-pointer"
+                    >
+                      <AppIcon exe={exe} size={20} />
+                      <span className="text-[12px] text-[var(--text-primary)] truncate">{appName(exe)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               <datalist id="deckforge-page-apps">
                 {Object.entries(KNOWN_APPS).map(([exe, name]) => (
                   <option key={exe} value={exe}>
@@ -371,7 +450,7 @@ export const PageApps: React.FC<{
                 autoFocus
                 list="deckforge-page-apps"
                 value={draft}
-                placeholder="Program, e.g. obs64.exe"
+                placeholder={choices.length ? "Or type a program, e.g. obs64.exe" : "Program, e.g. obs64.exe"}
                 onChange={(e) => setDraft(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") add();
@@ -381,7 +460,7 @@ export const PageApps: React.FC<{
               />
               <button
                 type="button"
-                onClick={add}
+                onClick={() => add()}
                 className="h-7 rounded-[var(--radius-sm)] bg-[var(--accent-primary)] text-white text-[12px] font-medium cursor-pointer"
               >
                 Add app
