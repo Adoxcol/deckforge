@@ -102,6 +102,7 @@ pub fn run() {
             take_over_from_official_app,
             pause_deck_control,
             get_deck_status,
+            get_workspace_status,
             resend_layout,
             save_export_file,
             import_legacy_sdprofiles,

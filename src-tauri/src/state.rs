@@ -48,6 +48,30 @@ pub struct AppliedLayout {
     pub page: ProfilePage,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceStatus {
+    pub deck: DeckStatus,
+    pub applied: Option<AppliedPageStatus>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AppliedPageStatus {
+    pub profile_name: String,
+    pub page_name: String,
+    pub matches_editor: bool,
+    pub layout_ready: bool,
+}
+
+impl AppliedLayout {
+    fn matches_editor(&self, profile_id: &str, page: &ProfilePage) -> bool {
+        self.profile_id == profile_id
+            && serde_json::to_value(&self.page).ok().zip(serde_json::to_value(page).ok())
+                .is_some_and(|(applied, editor)| applied == editor)
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct SavedAppliedLayout {
     version: u32,
@@ -185,6 +209,17 @@ impl Default for ManagedAppState {
 }
 
 impl ManagedAppState {
+    pub(crate) fn applied_page_status(&self, device_id: &str, profile_id: &str, page: &ProfilePage) -> Option<AppliedPageStatus> {
+        let applied = self.applied_layout.as_ref()?;
+        Some(AppliedPageStatus {
+            profile_name: self.profiles.iter().find(|p| p.id == applied.profile_id)
+                .map(|p| p.name.clone()).unwrap_or_else(|| "Removed profile".into()),
+            page_name: applied.page.name.clone(),
+            matches_editor: self.playback_device_id == device_id && applied.matches_editor(profile_id, page),
+            layout_ready: self.layout_ready,
+        })
+    }
+
     pub(crate) fn persist_applied_layout(&self) -> Result<(), String> {
         match (&self.applied_layout_path, &self.applied_layout) {
             (Some(path), Some(layout)) => save_applied_layout(path, layout),
@@ -215,5 +250,36 @@ pub trait LockExt<T> {
 impl<T> LockExt<T> for Mutex<T> {
     fn lock_safe(&self) -> std::sync::MutexGuard<'_, T> {
         self.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}
+
+#[cfg(test)]
+mod applied_status_tests {
+    use super::*;
+
+    #[test]
+    fn applied_status_compares_content_not_just_page_ids() {
+        let profile = db::default_profiles().remove(0);
+        let page = profile.pages[0].clone();
+        let applied = AppliedLayout { profile_id: profile.id.clone(), page_index: 0, page: page.clone() };
+        assert!(applied.matches_editor(&profile.id, &page));
+        let mut draft = page.clone();
+        draft.keys[0].title = "Unsaved draft".into();
+        assert!(!applied.matches_editor(&profile.id, &draft));
+        // Saving the draft does not mutate the successfully applied snapshot.
+        let saved: ProfilePage = serde_json::from_str(&serde_json::to_string(&draft).unwrap()).unwrap();
+        assert!(!applied.matches_editor(&profile.id, &saved));
+        assert!(applied.matches_editor(&profile.id, &page)); // Undo restores equality.
+    }
+
+    #[test]
+    fn applied_status_requires_the_same_profile_and_page() {
+        let profile = db::default_profiles().remove(0);
+        let page = profile.pages[0].clone();
+        let applied = AppliedLayout { profile_id: profile.id.clone(), page_index: 0, page: page.clone() };
+        assert!(!applied.matches_editor("other-profile", &page));
+        let mut other_page = page.clone();
+        other_page.id = "other-page".into();
+        assert!(!applied.matches_editor(&profile.id, &other_page));
     }
 }

@@ -445,3 +445,10 @@ pub fn game_mode_arm_helper(app: tauri::AppHandle) -> Result<String, String> {
     });
     Ok("Starting the admin helper".to_string())
 }
+
+/// Compare the editor draft with the last successful transfer, never the saved draft.
+#[tauri::command]
+pub fn get_workspace_status(device_id: String, profile_id: String, page: ProfilePage, state: State<'_, SharedState>) -> WorkspaceStatus {
+    let applied = state.lock_safe().applied_page_status(&device_id, &profile_id, &page);
+    WorkspaceStatus { deck: deck_status(), applied }
+}

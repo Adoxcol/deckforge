@@ -1,13 +1,14 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import { RefreshCw } from "lucide-react";
-import { deckforgeApi } from "../bridge/tauriBridge";
+import { deckforgeApi, isTauriRuntime } from "../bridge/tauriBridge";
 import type { DeckStatus } from "../types/deckforge";
 
 interface Props {
+  status: DeckStatus | null;
+  onRefresh: () => void;
   onNotify: (text: string, kind?: "success" | "info" | "warning") => void;
 }
 
-const POLL_MS = 2000;
 
 function clock(ms: number | null): string {
   if (!ms) return "";
@@ -61,30 +62,9 @@ export function describeDeckStatus(status: DeckStatus | null): { text: string; c
   };
 }
 
-/**
- * Status line for the physical deck with a Re-send layout button. It polls the backend by
- * itself, so it can sit anywhere in the app.
- */
-export const DeckStatusBadge: React.FC<Props> = ({ onNotify }) => {
-  const [status, setStatus] = useState<DeckStatus | null>(null);
+export const DeckStatusBadge: React.FC<Props> = ({ onNotify, status, onRefresh }) => {
   const [sending, setSending] = useState(false);
   const [changingControl, setChangingControl] = useState(false);
-
-  useEffect(() => {
-    let alive = true;
-    const read = () => {
-      deckforgeApi
-        .getDeckStatus()
-        .then((next) => alive && setStatus(next))
-        .catch(() => {});
-    };
-    read();
-    const timer = window.setInterval(read, POLL_MS);
-    return () => {
-      alive = false;
-      window.clearInterval(timer);
-    };
-  }, []);
 
   const resend = useCallback(async () => {
     setSending(true);
@@ -94,9 +74,10 @@ export const DeckStatusBadge: React.FC<Props> = ({ onNotify }) => {
     } catch (err) {
       onNotify(typeof err === "string" ? err : "Could not ask the deck for the layout again", "warning");
     } finally {
-      window.setTimeout(() => setSending(false), 3000);
+      setSending(false);
+      onRefresh();
     }
-  }, [onNotify]);
+  }, [onNotify, onRefresh]);
 
   const view = describeDeckStatus(status);
   const suspended = status?.state === "paused" || status?.state === "conflict";
@@ -105,31 +86,31 @@ export const DeckStatusBadge: React.FC<Props> = ({ onNotify }) => {
     try {
       const message = suspended ? await deckforgeApi.takeOverFromOfficialApp() : await deckforgeApi.pauseDeckControl();
       onNotify(message, "info");
-      setStatus(await deckforgeApi.getDeckStatus());
+      onRefresh();
     } catch (error) {
       onNotify(typeof error === "string" ? error : "Could not change device control", "warning");
     } finally { setChangingControl(false); }
   };
 
   return (
-    <span className="flex items-center gap-2" title={view.detail || undefined}>
-      <span className="flex items-center gap-1.5" style={{ color: view.color }}>
-        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: view.color }} />
-        <span className="max-w-[360px] truncate">{view.text}</span>
+    <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2" title={view.detail || undefined}>
+      <span className="flex min-w-0 flex-1 items-center gap-2" style={{ color: view.color }}>
+        <span className="w-2 h-2 shrink-0 rounded-full" style={{ backgroundColor: view.color }} />
+        <span className="truncate" title={view.text}>{isTauriRuntime() ? view.text : `Browser preview · ${status?.state ?? "checking"}`}</span>
       </span>
       <button
         type="button"
         onClick={resend}
         disabled={sending || status?.state !== "connected"}
         title="Send every picture to the deck again, with the full connect sequence"
-        className="h-5 px-1.5 rounded border border-[#272D3D] bg-[#151925] text-[10.5px] text-[#A6AFC4] hover:text-white hover:border-[#8B5CF6] disabled:opacity-40 disabled:hover:border-[#272D3D] disabled:hover:text-[#A6AFC4] flex items-center gap-1 cursor-pointer disabled:cursor-default"
+        className="h-8 px-3 shrink-0 whitespace-nowrap rounded-md border border-[#272D3D] bg-[#151925] text-[11px] text-[#A6AFC4] hover:text-white hover:border-[#8B5CF6] disabled:opacity-40 disabled:hover:border-[#272D3D] disabled:hover:text-[#A6AFC4] flex items-center gap-1 cursor-pointer disabled:cursor-default"
       >
-        <RefreshCw size={10} className={sending ? "animate-spin" : ""} />
-        <span>Re-send layout</span>
+        <RefreshCw size={12} className={sending ? "animate-spin" : ""} />
+        <span>Resend layout</span>
       </button>
       <button type="button" onClick={changeControl}
         disabled={!status || changingControl || status.state === "pausing"}
-        className="h-5 px-1.5 rounded border border-[#272D3D] text-[10.5px] text-[#F4B860] disabled:opacity-40"
+        className="h-8 px-3 shrink-0 whitespace-nowrap rounded-md border border-[#272D3D] text-[11px] text-[#F4B860] disabled:opacity-40"
         title={suspended ? "Close AJAZZ first, then reconnect with DeckForge" : "Release the deck so you can use AJAZZ"}>
         {suspended ? "Use DeckForge" : "Pause DeckForge"}
       </button>

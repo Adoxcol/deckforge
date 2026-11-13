@@ -48,10 +48,10 @@ export const DeckStage: React.FC<DeckStageProps> = ({
   surfaceIndex,
 }) => {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center px-6 py-3 gap-3 overflow-y-auto">
+    <div className="min-h-0 flex-1 flex flex-col items-center justify-start px-6 py-3 gap-3 overflow-y-auto">
       <div
         style={{ transform: `scale(${canvasZoom / 100})` }}
-        className="bg-[#151925] border border-[#394158] rounded-2xl p-4 shadow-[0_24px_60px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.06)] transition-transform max-w-[650px] w-full flex flex-col gap-3"
+        className="shrink-0 origin-top bg-[#151925] border border-[#394158] rounded-2xl p-4 shadow-[0_24px_60px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.06)] transition-transform max-w-[650px] w-full flex flex-col gap-3"
       >
         {/* Dynamic Key Grid matching real hardware rows x cols */}
         <div

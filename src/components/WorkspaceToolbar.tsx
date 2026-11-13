@@ -30,15 +30,15 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
   setSurfaceIndex,
 }) => {
   return (
-    <div className="h-13 px-5 border-b border-[#272D3D] flex items-center justify-between gap-3 shrink-0">
+    <div className="min-h-13 px-4 py-3 border-b border-[#272D3D] flex items-center justify-between flex-wrap gap-3 shrink-0">
       <div className="flex items-center gap-2">
         <h1 className="text-[16px] font-bold text-[#F4F5FA]">{activeProfile.name}</h1>
         <Edit3 size={14} className="text-[#707B94]" />
       </div>
 
-      <div className="flex items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2">
         {/* Device Selector Pill */}
-        <div className="flex items-center gap-2 bg-[#111522] border border-[#272D3D] rounded-md px-2.5 h-9">
+        {connectedDevices.length > 1 && <div className="flex items-center gap-2 bg-[#111522] border border-[#272D3D] rounded-md px-2.5 h-9">
           <LayoutGrid size={14} className="text-[#A6AFC4]" />
           <span className="text-xs text-[#A6AFC4]">Device:</span>
           {connectedDevices.length > 1 ? (
@@ -63,7 +63,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
               {connectedDevices[0]?.modelName ?? "None connected"}
             </span>
           )}
-        </div>
+        </div>}
 
         {/* Zoom / Fit Controls */}
         <div className="flex items-center bg-[#111522] border border-[#272D3D] rounded-md p-0.5 h-9">
@@ -85,7 +85,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
         {/* Save Locally */}
         <button
           onClick={handleSaveLocally}
-          className="h-9 px-3 rounded-md bg-[#151925] border border-[#272D3D] hover:border-[#394158] text-xs font-medium text-[#F4F5FA] flex items-center gap-1.5 cursor-pointer"
+          className="h-9 shrink-0 whitespace-nowrap px-3 rounded-md bg-[#151925] border border-[#272D3D] hover:border-[#394158] text-xs font-medium text-[#F4F5FA] flex items-center gap-1.5 cursor-pointer"
         >
           <Save size={14} />
           <span>Save</span>
@@ -94,7 +94,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
         {/* Primary Violet CTA: Apply / Deploy to Device */}
         <button
           onClick={handleApplyToDevice}
-          className="h-9 px-4 rounded-md bg-[#8B5CF6] hover:bg-[#9D75F8] text-xs font-semibold text-white flex items-center gap-2 shadow-[0_0_20px_rgba(139,92,246,0.4)] cursor-pointer transition-all"
+          className="h-9 shrink-0 whitespace-nowrap px-4 rounded-md bg-[#8B5CF6] hover:bg-[#9D75F8] text-xs font-semibold text-white flex items-center gap-2 shadow-[0_0_20px_rgba(139,92,246,0.4)] cursor-pointer transition-all"
         >
           <Play size={13} fill="currentColor" />
           <span>Apply to Device</span>

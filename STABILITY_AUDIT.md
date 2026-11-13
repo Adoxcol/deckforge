@@ -180,3 +180,9 @@ Fix: derive dirty state from saved revisions; provide save/recovery behavior on 
 - Your actual AJAZZ profiles, shortcuts, encoder/touch bindings and required integrations pass a written comparison checklist on the physical AKP05E Pro.
 
 These are proposed release gates, not results already achieved by this audit.
+
+## Follow-up 4: workspace status and responsive chrome (2026-11-13)
+
+- Replaced the crowded 28px footer with two rows: editor/profile/page and saved state, then device connection and comfortably sized Resend/Pause controls. Removed CPU/RAM/version clutter. Header tabs and toolbar controls wrap without splitting labels; narrow workspace columns preserve the editor, and the deck canvas starts at its top so overflow remains scrollable.
+- Replaced the local `deviceSynced` flag with a backend comparison against the last successfully transferred page, including profile/device identity and readiness. Saving alone cannot claim an apply. Paused/disconnected/failed transfers cannot claim a matching active device. Polls are serialized, late responses for old drafts are ignored, and failed reads clear stale success. Browser simulation is explicitly labeled.
+- Validation: 99 Rust tests passed, 3 ignored; 8 frontend tests passed; production build and diff checks passed. Added regressions for changed draft contents, saving without applying, undo equality, and different profile/page IDs. Browser checks at 1280x720 and 1100x700 confirmed readable footer controls and edit/save/apply/pause/resume transitions. Physical hardware and packaged desktop smoke tests remain pending.

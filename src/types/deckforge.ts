@@ -463,3 +463,13 @@ export type NavScreenId =
 
 /** Which screen of the deck a picture or action is being edited for. */
 export type ScreenTarget = "key" | "zone" | "strip";
+
+export interface WorkspaceStatus {
+  deck: DeckStatus;
+  applied: {
+    profileName: string;
+    pageName: string;
+    matchesEditor: boolean;
+    layoutReady: boolean;
+  } | null;
+}

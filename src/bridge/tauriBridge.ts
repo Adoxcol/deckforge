@@ -24,6 +24,8 @@ import type {
   SyncKeyResult,
   SystemTelemetrySnapshot,
   DeckStatus,
+  ProfilePage,
+  WorkspaceStatus,
 } from "../types/deckforge";
 
 export const isTauriRuntime = (): boolean => {
@@ -630,6 +632,9 @@ const mockGameModeListeners = new Set<(status: GameModeStatus) => void>();
 const emitMockGameMode = () => mockGameModeListeners.forEach((fn) => fn({ ...mockGameModeStatus }));
 
 let mockDeckPaused = false;
+let mockSavedProfiles: Profile[] | null = null;
+let mockApplied: { deviceId: string; profileId: string; profileName: string; page: ProfilePage } | null = null;
+let mockAppliedAt: number | null = null;
 
 export const deckforgeApi = {
   async getInitialState(): Promise<FullBootstrapPayload> {
@@ -657,6 +662,12 @@ export const deckforgeApi = {
     if (isTauriRuntime()) {
       return await invoke<SyncKeyResult>("apply_profile_to_device", { deviceId, profileId, pageId });
     }
+    const profile = (mockSavedProfiles ?? fallbackBootstrap().profiles).find(p => p.id === profileId);
+    const page = profile?.pages.find(p => p.id === pageId);
+    if (!profile || !page) throw new Error("Preview page not found");
+    if (mockDeckPaused) throw new Error("Preview device control is paused");
+    mockApplied = structuredClone({ deviceId, profileId, profileName: profile.name, page });
+    mockAppliedAt = Date.now();
     return {
       deviceId,
       connectedPhysical: deviceId === "ajazz-akp05e-pro",
@@ -688,6 +699,7 @@ export const deckforgeApi = {
     if (isTauriRuntime()) {
       return await invoke<number>("save_profiles", { profiles });
     }
+    mockSavedProfiles = structuredClone(profiles);
     return Date.now();
   },
 
@@ -757,6 +769,19 @@ export const deckforgeApi = {
     return fallbackBootstrap().profiles;
   },
 
+  async getWorkspaceStatus(deviceId: string, profileId: string, page: ProfilePage): Promise<WorkspaceStatus> {
+    if (isTauriRuntime()) return invoke<WorkspaceStatus>("get_workspace_status", { deviceId, profileId, page });
+    return {
+      deck: await deckforgeApi.getDeckStatus(),
+      applied: mockApplied ? {
+        profileName: mockApplied.profileName, pageName: mockApplied.page.name,
+        matchesEditor: mockApplied.deviceId === deviceId && mockApplied.profileId === profileId
+          && JSON.stringify(mockApplied.page) === JSON.stringify(page),
+        layoutReady: true,
+      } : null,
+    };
+  },
+
   async getDeckStatus(): Promise<DeckStatus> {
     if (isTauriRuntime()) {
       return await invoke<DeckStatus>("get_deck_status");
@@ -764,8 +789,8 @@ export const deckforgeApi = {
     return {
       state: mockDeckPaused ? "paused" : "connected",
       openedAtMs: Date.now() - 60_000,
-      lastPushAtMs: Date.now() - 55_000,
-      lastPushOk: true,
+      lastPushAtMs: mockAppliedAt,
+      lastPushOk: mockAppliedAt ? true : null,
       lastError: null,
       reconnects: 0,
     };

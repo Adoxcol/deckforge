@@ -50,7 +50,7 @@ import { MacroStudio } from "./components/MacroStudio";
 import { PageTemplates } from "./components/PageTemplates";
 import { MediaConfigurator } from "./components/MediaConfigurator";
 import { ScreenFace } from "./components/ScreenFace";
-import { DeckStatusBadge } from "./components/DeckStatusBadge";
+import { WorkspaceStatusBar } from "./components/WorkspaceStatusBar";
 import { OnboardingModal } from "./components/OnboardingModal";
 import { WorkspaceToolbar } from "./components/WorkspaceToolbar";
 import { DeckStage } from "./components/DeckStage";
@@ -141,7 +141,7 @@ export const App: React.FC = () => {
       "OBS settings": createSaveQueue(deckforgeApi.saveObsSettings, status("OBS settings")),
     };
   });
-  const [deviceSynced, setDeviceSynced] = useState<boolean>(false);
+  const [appliedRefresh, setAppliedRefresh] = useState(0);
   const [undoStack, setUndoStack] = useState<Profile[][]>([]);
   const [redoStack, setRedoStack] = useState<Profile[][]>([]);
   const [toastMessage, setToastMessage] = useState<{ text: string; kind: "success" | "info" | "warning" } | null>(null);
@@ -275,11 +275,6 @@ export const App: React.FC = () => {
     } catch (error) { setQuitError(errorText(error)); }
     finally { setQuitting(false); }
   };
-
-  // Editor navigation does not apply anything to the physical deck.
-  useEffect(() => {
-    setDeviceSynced(false);
-  }, [selectedDeviceId, selectedProfileId, selectedPageIdx]);
 
   const handleRescanDevices = () => {
     deckforgeApi.refreshUsbDevices().then(setDevices);
@@ -509,7 +504,6 @@ export const App: React.FC = () => {
   const pushUndoSnapshot = () => {
     setUndoStack((prev) => [...prev.slice(-19), JSON.parse(JSON.stringify(profiles))]);
     setRedoStack([]);
-    setDeviceSynced(false);
   };
 
   const handleUndo = () => {
@@ -518,7 +512,6 @@ export const App: React.FC = () => {
     setRedoStack((r) => [...r, JSON.parse(JSON.stringify(profiles))]);
     setProfiles(previous);
     setUndoStack((u) => u.slice(0, -1));
-    setDeviceSynced(false);
     triggerToast("Undid last key edit", "info");
   };
 
@@ -528,7 +521,6 @@ export const App: React.FC = () => {
     setUndoStack((u) => [...u, JSON.parse(JSON.stringify(profiles))]);
     setProfiles(next);
     setRedoStack((r) => r.slice(0, -1));
-    setDeviceSynced(false);
     triggerToast("Redid key edit", "info");
   };
 
@@ -730,11 +722,11 @@ export const App: React.FC = () => {
         activePage.id
       );
     } catch (err) {
-      setDeviceSynced(false);
+      setAppliedRefresh(n => n + 1);
       triggerToast(`Could not send to the deck: ${errorText(err)}. Try Re-send layout in the status bar.`, "warning");
       return;
     }
-    setDeviceSynced(true);
+    setAppliedRefresh(n => n + 1);
     setFrameStats((prev) => ({
       ...prev,
       framesEvaluated: prev.framesEvaluated + res.keysEvaluated,
@@ -1015,7 +1007,7 @@ export const App: React.FC = () => {
       )}
 
       {/* 1. GLOBAL TOP NAVIGATION BAR (48px — Spec Section 3 & Reference Screenshot) */}
-      <header className="h-12 bg-[#10131D] border-b border-[#272D3D] px-4 flex items-center justify-between shrink-0">
+      <header className="min-h-14 bg-[#10131D] border-b border-[#272D3D] px-4 py-2 flex flex-wrap items-center justify-between gap-2 shrink-0">
         {/* Brand */}
         <div className="flex items-center gap-3">
           <div className="w-7 h-7 rounded-md bg-[#30244F] border border-[#8B5CF6] p-1 grid grid-cols-2 gap-0.5 shadow-[0_0_14px_rgba(139,92,246,0.35)]">
@@ -1026,16 +1018,16 @@ export const App: React.FC = () => {
           </div>
           <div>
             <div className="text-[14px] font-bold tracking-tight text-[#F4F5FA] leading-tight">
-              OpenStreamDeck <span className="text-[#8B5CF6] font-semibold text-xs">DeckForge</span>
+              DeckForge
             </div>
             <div className="text-[10.5px] text-[#707B94] leading-tight">
-              Open-source Stream Deck for All Devices
+              Your deck, your workflow
             </div>
           </div>
         </div>
 
         {/* Center Navigation Tabs */}
-        <nav className="flex items-center gap-1">
+        <nav className="order-3 flex w-full items-center gap-1 overflow-x-auto 2xl:order-none 2xl:w-auto">
           {(
             [
               { id: "workspace", label: "Profiles & Keys", icon: Layers },
@@ -1059,7 +1051,7 @@ export const App: React.FC = () => {
                     setSurfaceIndex(activeKey.index);
                   }
                 }}
-                className={`h-9 px-3.5 rounded-md text-[12.5px] font-medium flex items-center gap-2 transition-all cursor-pointer border ${
+                className={`h-9 px-3.5 shrink-0 whitespace-nowrap rounded-md text-[12.5px] font-medium flex items-center gap-2 transition-all cursor-pointer border ${
                   isActive
                     ? "bg-[#30244F] text-[#F4F5FA] border-[#8B5CF6]/50 shadow-[inset_0_-2px_0_#8B5CF6]"
                     : "bg-transparent text-[#A6AFC4] border-transparent hover:text-[#F4F5FA] hover:bg-[#151925]"
@@ -1115,7 +1107,7 @@ export const App: React.FC = () => {
 
       {/* 2. SCREEN 01: WORKSPACE / KEY EDITOR (Matches Reference Screenshot + Spec Section 4) */}
       {activeScreen === "workspace" && (
-        <div className="flex-1 grid grid-cols-[240px_1fr_320px] overflow-hidden">
+        <div className="flex-1 grid grid-cols-[210px_minmax(0,1fr)_280px] 2xl:grid-cols-[240px_minmax(0,1fr)_320px] overflow-hidden">
           {/* LEFT CONTEXTUAL SIDEBAR: Devices + Profiles */}
           <WorkspaceSidebar activeProfile={activeProfile} autoSwitchRules={autoSwitchRules} connectedDevices={connectedDevices} handleAddProfile={handleAddProfile} onExportProfile={handleExportProfile} onImportProfile={handleImportProfile} profiles={profiles} saveRules={saveRules} setDevices={setDevices} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSelectedProfileId={setSelectedProfileId} triggerToast={triggerToast} />
 
@@ -1222,45 +1214,12 @@ export const App: React.FC = () => {
         <OnboardingModal devices={devices} onClose={() => setShowOnboarding(false)} onOpenDevices={() => { setShowOnboarding(false); setActiveScreen("devices"); }} />
       )}
 
-      {/* 8. GLOBAL BOTTOM STATUS BAR (28px — Spec Section 3 & Reference Screenshot) */}
-      <footer className="h-7 bg-[#10131D] border-t border-[#272D3D] px-4 flex items-center justify-between text-[11px] text-[#A6AFC4] shrink-0">
-        <div className="flex items-center gap-4">
-          <span className="flex items-center gap-1.5">
-            <span
-              className={`w-2 h-2 rounded-full ${
-                connectedDevices.length > 0 ? "bg-[#35C98B]" : "bg-[#707B94]"
-              }`}
-            />
-            <strong className="text-[#F4F5FA]">
-              {connectedDevices.length > 0 ? activeDevice.modelName : "No device connected"}
-            </strong>
-            {connectedDevices.length > 0 && (
-              <>
-                <span>• Connected</span>
-                <span>• {activeDevice.keys.count} keys</span>
-              </>
-            )}
-          </span>
-          <DeckStatusBadge onNotify={triggerToast} />
-          <span>• Profile: {activeProfile.name}</span>
-          <span className={savedLocally && !Object.values(saveStatuses).some(s => s.pending) ? "text-[#35C98B]" : "text-[#F4B860]"}>
-            • {savedLocally && !Object.values(saveStatuses).some(s => s.pending) ? "Saved locally ✓" : "Unsaved local edits ●"}
-          </span>
-          <span className={deviceSynced ? "text-[#35C98B]" : "text-[#F4B860]"}>
-            • {deviceSynced ? "Device synced ✓" : "Pending Apply to Device ●"}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-4 font-mono text-[10.5px]">
-          {telemetry && (
-            <span className="text-[#707B94]">
-              Sys CPU: {telemetry.cpuUsagePercent}% • RAM: {telemetry.memoryUsedGb}/
-              {telemetry.memoryTotalGb}GB
-            </span>
-          )}
-          <span>v0.1.0 | Open Source (GPL)</span>
-        </div>
-      </footer>
+      <WorkspaceStatusBar
+        deviceId={activeDevice.id} deviceName={activeDevice.modelName}
+        profileId={activeProfile.id} profileName={activeProfile.name} page={activePage}
+        saved={savedLocally && !Object.values(saveStatuses).some(s => s.pending)}
+        refresh={appliedRefresh} onNotify={triggerToast}
+      />
     </div>
   );
 };
