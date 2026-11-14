@@ -549,3 +549,9 @@ pub fn plugin_open_page(url: String) -> Result<(), String> {
     }
     crate::actions::launch_app_or_url(&url).map(|_| ())
 }
+
+/// Sound outputs, for the "Switch sound output" key.
+#[tauri::command]
+pub async fn audio_outputs() -> Result<Vec<crate::actions::AudioOutput>, String> {
+    tauri::async_runtime::spawn_blocking(crate::actions::list_outputs).await.map_err(|e| e.to_string())?
+}

@@ -32,6 +32,7 @@ import type {
   PluginView,
   PluginInstalled,
   GithubPlugin,
+  AudioOutput,
 } from "../types/deckforge";
 
 /** A sample plugin so the browser preview has something to show. */
@@ -1059,6 +1060,14 @@ export const deckforgeApi = {
   async pluginGithubInstall(repo: string): Promise<PluginInstalled> {
     if (isTauriRuntime()) return await invoke<PluginInstalled>("plugin_github_install", { repo });
     throw new Error("Installing plugins needs the desktop app.");
+  },
+
+  async audioOutputs(): Promise<AudioOutput[]> {
+    if (isTauriRuntime()) return await invoke<AudioOutput[]>("audio_outputs");
+    return [
+      { id: "a", name: "Speakers (Realtek Audio)", isDefault: true },
+      { id: "b", name: "Headphones (USB Audio)", isDefault: false },
+    ];
   },
 
   async pluginOpenPage(url: string): Promise<void> {

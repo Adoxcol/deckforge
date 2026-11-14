@@ -85,7 +85,9 @@ import type {
   ScreenTarget,
   SystemTelemetrySnapshot,
   TouchZoneConfig,
+  AudioOutput,
 } from "./types/deckforge";
+import { outputParamOptions } from "./lib/audioOutputs";
 
 import { ACTION_CATALOG, type ActionTemplate } from "./data/actionCatalog";
 import { bytesToBase64, buildPulseFrames, errorText } from "./lib/format";
@@ -110,6 +112,15 @@ export const App: React.FC = () => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [autoSwitchRules, setAutoSwitchRules] = useState<AutoSwitchRule[]>([]);
   const [macros, setMacros] = useState<MacroSequence[]>([]);
+  const [audioOutputs, setAudioOutputs] = useState<AudioOutput[]>([]);
+
+  // Sound outputs come and go (headsets, docks), so look again whenever the window gets focus.
+  useEffect(() => {
+    const load = () => deckforgeApi.audioOutputs().then(setAudioOutputs).catch(() => undefined);
+    load();
+    window.addEventListener("focus", load);
+    return () => window.removeEventListener("focus", load);
+  }, []);
   const [diagnostics, setDiagnostics] = useState<DiagnosticEntry[]>([]);
   const [frameStats, setFrameStats] = useState<FrameCacheStats>({
     framesEvaluated: 0,
@@ -514,6 +525,9 @@ export const App: React.FC = () => {
     }
     if (actionId === "macro.run") {
       return macros.map((macro) => ({ value: macro.id, label: macro.name }));
+    }
+    if (actionId === "audio.cycle_output") {
+      return outputParamOptions(audioOutputs);
     }
     return undefined;
   };

@@ -24,7 +24,8 @@ export function actionNeedsParam(id: string): boolean {
     id === "obs.toggle_mute" ||
     id === "profile.switch_page" ||
     id === "profile.switch" ||
-    id === "macro.run"
+    id === "macro.run" ||
+    id === "audio.cycle_output"
   );
 }
 
@@ -50,6 +51,7 @@ function paramLabel(actionId: string): string {
   if (actionId === "profile.switch_page") return "Page";
   if (actionId === "profile.switch") return "Profile";
   if (actionId === "macro.run") return "Macro";
+  if (actionId === "audio.cycle_output") return "Outputs";
   if (actionId === "custom.hotkey" || actionId === "sys.hotkey") return "Shortcut";
   return "Parameter";
 }

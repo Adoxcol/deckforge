@@ -6,7 +6,7 @@ mod window;
 
 use crate::db::MacroSequence;
 use crate::drivers::hal::now_ms;
-pub use audio::{read_audio_face, toggle_microphone_mute, toggle_speaker_mute, AudioFace};
+pub use audio::{cycle_output, list_outputs, read_audio_face, toggle_microphone_mute, toggle_speaker_mute, AudioFace, AudioOutput};
 pub use obs::{run_obs_action, ObsSettings};
 pub use window::{foreground_window, ForegroundWindow};
 use serde::{Deserialize, Serialize};
@@ -701,6 +701,7 @@ pub fn execute_key_action_live(
             "audio.volume_down" => { send_vk_tap(VK_VOLUME_DOWN); Ok("Sent volume-down key".into()) },
             "audio.mute_mic" => toggle_microphone_mute(),
             "audio.volume_mute" => toggle_speaker_mute(),
+            "audio.cycle_output" => cycle_output(action_param),
             "obs.start_stream" | "obs.toggle_record" | "obs.save_replay" | "obs.next_scene"
             | "obs.prev_scene" | "obs.toggle_virtualcam" | "obs.toggle_replay" | "obs.pause_record"
             | "obs.studio_transition" | "obs.set_scene" | "obs.toggle_mute" => run_obs_action(obs, action_id, action_param),

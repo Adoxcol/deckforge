@@ -154,7 +154,8 @@ pub fn run() {
             commands::plugin_github_search,
             commands::plugin_github_install,
             commands::plugin_open_page,
-            updates::update_ready
+            updates::update_ready,
+            commands::audio_outputs
         ])
         .run(tauri::generate_context!())
         .expect("error while running DeckForge Tauri application");

@@ -1,0 +1,130 @@
+import React from "react";
+import { Search } from "lucide-react";
+import type { SimpleIcon } from "simple-icons";
+
+/** Shown before the user types anything. */
+const POPULAR = [
+  "spotify", "youtube", "twitch", "discord", "x", "instagram", "facebook", "tiktok", "reddit", "whatsapp",
+  "telegram", "snapchat", "pinterest", "threads", "bluesky", "mastodon", "kick", "steam", "epicgames", "battledotnet",
+  "riotgames", "valorant", "leagueoflegends", "counterstrike", "playstation", "obsstudio", "streamlabs", "googlechrome",
+  "firefoxbrowser", "brave", "github", "notion", "obsidian", "figma", "adobephotoshop", "adobepremierepro",
+  "davinciresolve", "blender", "applemusic", "soundcloud", "netflix", "primevideo", "googlemeet", "zoom", "gmail",
+  "googledrive", "dropbox", "elgato", "nvidia", "amd", "razer", "logitechg", "openai", "claude", "chatgpt", "vlcmediaplayer",
+];
+
+let loaded: Promise<SimpleIcon[]> | null = null;
+
+/** About 3,000 logos (5 MB), so they load only when the picker opens. */
+function loadIcons(): Promise<SimpleIcon[]> {
+  loaded ??= import("simple-icons").then((mod) =>
+    Object.values(mod).filter((v): v is SimpleIcon => typeof v === "object" && v !== null && "path" in v && "hex" in v)
+  );
+  return loaded;
+}
+
+function isLight(hex: string): boolean {
+  const n = parseInt(hex, 16);
+  const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  return 0.299 * r + 0.587 * g + 0.114 * b > 170;
+}
+
+type Look = "brand" | "dark";
+
+/** Draws a logo as a square PNG key image. */
+async function renderKeyImage(icon: SimpleIcon, look: Look): Promise<File> {
+  const size = 288;
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Could not draw the icon");
+  const brand = `#${icon.hex}`;
+  ctx.fillStyle = look === "brand" ? brand : "#12151F";
+  ctx.fillRect(0, 0, size, size);
+  const glyph = size * 0.56;
+  ctx.translate((size - glyph) / 2, (size - glyph) / 2);
+  ctx.scale(glyph / 24, glyph / 24);
+  // Brand look: white or black logo on the brand color. Dark look: the logo in its brand color,
+  // or white when that color would vanish on a dark key.
+  const darkBrand = parseInt(icon.hex, 16) < 0x333333;
+  ctx.fillStyle = look === "brand" ? (isLight(icon.hex) ? "#111111" : "#FFFFFF") : darkBrand ? "#FFFFFF" : brand;
+  ctx.fill(new Path2D(icon.path));
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+  if (!blob) throw new Error("Could not draw the icon");
+  return new File([blob], `${icon.slug}.png`, { type: "image/png" });
+}
+
+/** Search popular app and social media logos and put one on the key. */
+export const BrandIconPicker: React.FC<{ onPick: (file: File, icon: SimpleIcon) => void }> = ({ onPick }) => {
+  const [icons, setIcons] = React.useState<SimpleIcon[] | null>(null);
+  const [query, setQuery] = React.useState("");
+  const [look, setLook] = React.useState<Look>("brand");
+  const [failed, setFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    loadIcons().then(setIcons).catch(() => setFailed(true));
+  }, []);
+
+  const shown = React.useMemo(() => {
+    if (!icons) return [];
+    const q = query.trim().toLowerCase();
+    if (!q) {
+      const bySlug = new Map(icons.map((i) => [i.slug, i]));
+      return POPULAR.map((s) => bySlug.get(s)).filter((i): i is SimpleIcon => !!i);
+    }
+    const starts = icons.filter((i) => i.title.toLowerCase().startsWith(q));
+    const contains = icons.filter((i) => !i.title.toLowerCase().startsWith(q) && i.title.toLowerCase().includes(q));
+    return [...starts, ...contains].slice(0, 80);
+  }, [icons, query]);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-[var(--text-secondary)]">App and brand logos</span>
+        <div className="flex gap-1 text-[10.5px]">
+          {(["brand", "dark"] as const).map((l) => (
+            <button
+              key={l}
+              type="button"
+              onClick={() => setLook(l)}
+              aria-pressed={look === l}
+              className={`px-2 py-0.5 rounded cursor-pointer ${look === l ? "bg-[var(--accent-soft)] text-white" : "text-[var(--text-secondary)]"}`}
+            >
+              {l === "brand" ? "Brand color" : "Dark"}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex items-center gap-2 h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)]">
+        <Search size={13} className="text-[var(--text-muted)]" />
+        <input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search 3,000+ logos (Spotify, Discord…)"
+          className="flex-1 bg-transparent outline-none text-xs"
+        />
+      </div>
+      <div className="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto p-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-md">
+        {failed && <span className="col-span-5 text-[11px] text-[var(--status-warning)] p-2">Could not load the logos.</span>}
+        {!icons && !failed && <span className="col-span-5 text-[11px] text-[var(--text-muted)] p-2">Loading logos…</span>}
+        {icons && shown.length === 0 && <span className="col-span-5 text-[11px] text-[var(--text-muted)] p-2">No logo found.</span>}
+        {shown.map((icon) => (
+          <button
+            key={icon.slug}
+            type="button"
+            title={icon.title}
+            onClick={() => void renderKeyImage(icon, look).then((file) => onPick(file, icon))}
+            className="h-9 rounded flex items-center justify-center cursor-pointer hover:bg-[var(--bg-elevated)]"
+          >
+            <svg viewBox="0 0 24 24" width={16} height={16} fill={isLight(icon.hex) || icon.hex === "000000" ? "#E8EAF0" : `#${icon.hex}`} aria-hidden>
+              <path d={icon.path} />
+            </svg>
+          </button>
+        ))}
+      </div>
+      <p className="text-[10.5px] text-[var(--text-muted)] leading-snug">
+        Picking a logo sets it as the key&apos;s image. Logos come from Simple Icons and belong to their owners.
+      </p>
+    </div>
+  );
+};

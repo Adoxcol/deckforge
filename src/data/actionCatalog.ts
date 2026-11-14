@@ -195,6 +195,18 @@ const CORE_ACTIONS: ActionTemplate[] = [
     description: "Mute or unmute the microphone",
   },
   {
+    id: "audio.cycle_output",
+    title: "Sound Output",
+    subtitle: "OUTPUT",
+    category: "Media",
+    iconName: "Volume2",
+    actionLabel: "Audio: Switch sound output",
+    defaultParam: "",
+    accentColor: "#5EC8F2",
+    bgColor: "#132630",
+    description: "Move sound to the next output, such as from speakers to headphones",
+  },
+  {
     id: "audio.volume_mute",
     title: "Mute Sound",
     subtitle: "MUTE",

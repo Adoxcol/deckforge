@@ -1,6 +1,7 @@
 import React from "react";
 import { ScreenFace } from "./ScreenFace";
 import { AVAILABLE_ICON_NAMES, DeckIcon } from "./DeckIcon";
+import { BrandIconPicker } from "./BrandIconPicker";
 import { LevelMeter, liveKeyLook } from "./LiveFace";
 import { MediaConfigurator } from "./MediaConfigurator";
 import { ActionBinding, ObsConnection, actionNeedsParam, splitStoredBinding } from "./ActionBinding";
@@ -456,6 +457,12 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 </button>
               ))}
             </div>
+            <BrandIconPicker
+              onPick={(file, icon) => {
+                void ingestFile(file, "key", activeKey.index);
+                triggerToast(`Set the ${icon.title} logo on key #${activeKey.index + 1}`, "success");
+              }}
+            />
           </div>
         )}
 

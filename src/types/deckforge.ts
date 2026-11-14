@@ -374,6 +374,13 @@ export interface PluginInstalled {
 }
 
 /** An open-source plugin project on GitHub. */
+/** A sound output Windows can play to. */
+export interface AudioOutput {
+  id: string;
+  name: string;
+  isDefault: boolean;
+}
+
 export interface GithubPlugin {
   /** "owner/name". */
   repo: string;
