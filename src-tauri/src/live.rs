@@ -775,18 +775,43 @@ pub(crate) fn resolve_page_index(guard: &ManagedAppState, param: &str) -> Option
     })
 }
 
-pub(crate) fn sample_face(guard: &mut ManagedAppState) -> bool {
+/// Windows media/COM calls may block. Never hold app state while sampling them.
+pub(crate) fn sample_face(shared: &SharedState) -> bool {
+    sample_face_with(shared, read_face)
+}
+
+fn sample_face_with(
+    shared: &SharedState,
+    sample: impl FnOnce(&DeckFaceState) -> DeckFaceState,
+) -> bool {
+    let (previous, refresh_requested) = {
+        let mut guard = shared.lock_safe();
+        let refresh_requested = guard.sample_after_ms > 0;
+        guard.sample_after_ms = 0;
+        (guard.face.clone(), refresh_requested)
+    };
+    let next = sample(&previous);
+    let mut guard = shared.lock_safe();
+    let changed = next != guard.face;
+    if changed {
+        guard.face = next;
+    }
+    // Requests arriving during the OS query remain scheduled for the next pass.
+    changed || refresh_requested
+}
+
+fn read_face(previous: &DeckFaceState) -> DeckFaceState {
     let (playing, title) = read_media_face();
     let audio = read_audio_face();
     let stats = crate::actions::read_quick_stats();
-    let media_art = if guard.face.media_title == title && !guard.face.media_art.is_empty() {
-        guard.face.media_art.clone()
+    let media_art = if previous.media_title == title && !previous.media_art.is_empty() {
+        previous.media_art.clone()
     } else if playing.is_some() {
         crate::actions::read_media_art()
     } else {
         Vec::new()
     };
-    let next = DeckFaceState {
+    DeckFaceState {
         media_playing: playing,
         media_title: title,
         mic_muted: audio.mic_muted,
@@ -799,12 +824,6 @@ pub(crate) fn sample_face(guard: &mut ManagedAppState) -> bool {
         clock: stats.clock,
         media_art,
         plugin_keys: crate::plugins::current_faces(),
-    };
-    if next == guard.face {
-        false
-    } else {
-        guard.face = next;
-        true
     }
 }
 
@@ -1031,6 +1050,46 @@ mod live_tests {
             sample_after_ms: 0,
             auto_switch_hold_until_ms: 0,
         }))
+    }
+
+    #[test]
+    fn slow_face_sample_leaves_state_available_and_preserves_new_refresh() {
+        use std::sync::mpsc;
+        let shared = test_state();
+        let worker_state = Arc::clone(&shared);
+        let (started_tx, started_rx) = mpsc::channel();
+        let (resume_tx, resume_rx) = mpsc::channel();
+        let worker = std::thread::spawn(move || sample_face_with(&worker_state, |previous| {
+            started_tx.send(()).unwrap();
+            resume_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+            let mut next = previous.clone();
+            next.media_title = "New track".into();
+            next
+        }));
+        started_rx.recv_timeout(Duration::from_secs(5)).unwrap();
+        let accessible = if let Ok(mut guard) = shared.try_lock() {
+            guard.sample_after_ms = 123;
+            true
+        } else {
+            false
+        };
+        resume_tx.send(()).unwrap();
+        let changed = worker.join().unwrap();
+        assert!(accessible, "UI and key commands must access state while Windows is stalled");
+        assert!(changed);
+        let guard = shared.lock_safe();
+        assert_eq!(guard.sample_after_ms, 123);
+        assert_eq!(guard.face.media_title, "New track");
+    }
+
+    #[test]
+    fn unchanged_face_only_redraws_when_refresh_was_requested() {
+        let shared = test_state();
+        assert!(!sample_face_with(&shared, Clone::clone));
+        shared.lock_safe().sample_after_ms = 123;
+        assert!(sample_face_with(&shared, Clone::clone));
+        assert_eq!(shared.lock_safe().sample_after_ms, 0);
+        assert!(!sample_face_with(&shared, Clone::clone));
     }
 
     fn prepare_first(shared: &SharedState) -> PreparedLayout {
