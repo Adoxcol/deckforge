@@ -1240,8 +1240,41 @@ mod live_tests {
         assert!(unchanged.is_empty());
     }
 
+    static ANIMATION_TEST: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn animations_prioritize_overdue_slots_and_build_without_state_lock() {
+        let _test = ANIMATION_TEST.lock_safe();
+        let shared = test_state();
+        transmit_layout(&shared, prepare_first(&shared), |_, _| Ok(())).unwrap();
+        shared.lock_safe().playback_slots = (0..6).map(|index| PlaybackSlot {
+            slot_id: format!("key-{index}"), target: PlaybackTarget::Key(index),
+            jpegs: vec![vec![index, 1], vec![index, 2]], delays_ms: vec![80, 80],
+            loop_playback: true, frame_index: 0,
+            next_due_ms: if index < 3 { 1 } else { 0 },
+        }).collect();
+        for expected in [vec![3, 4, 5], vec![0, 1, 2]] {
+            let mut built = false;
+            workers::animation_tick_with(&shared, |dev, frames| {
+                built = true;
+                let guard = shared.try_lock().expect("packet assembly must leave UI state accessible");
+                assert!(guard.layout_ready);
+                drop(guard);
+                assert!(DISPLAY_WRITE.try_lock().is_err(), "display ordering must be retained");
+                let indices: Vec<_> = frames.iter().map(|(target, _)| match target {
+                    PlaybackTarget::Key(index) => *index,
+                    _ => panic!("unexpected target"),
+                }).collect();
+                assert_eq!(indices, expected);
+                workers::build_animation_bursts(dev, frames)
+            }, |_, bursts| { assert_eq!(bursts.len(), 3); Ok(()) }).unwrap();
+            assert!(built);
+        }
+    }
+
     #[test]
     fn non_looping_animation_retries_its_final_frame_after_write_failure() {
+        let _test = ANIMATION_TEST.lock_safe();
         let shared = test_state();
         let prepared = prepare_first(&shared);
         transmit_layout(&shared, prepared, |_, _| Ok(())).unwrap();

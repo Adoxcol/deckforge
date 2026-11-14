@@ -232,3 +232,10 @@ These are proposed release gates, not results already achieved by this audit.
 - Apply now runs on Tauri's blocking worker pool, including waiting for the display writer and USB transfer. Preparation captures the applied page, live face, media and frame cache under state, then renders/resizes/encodes all frames without holding SharedState.
 - MediaStore snapshots share immutable clips through Arc rather than copying decoded image buffers or temporarily removing the library. Concurrent editor/media changes remain available and cannot alter the captured layout. DISPLAY_WRITE continues to serialize the full operation; key dispatch stays disabled until successful transfer. Cache planning is published after rendering and delivery remains committed only on successful transfer.
 - Validation: 130 Rust library tests passed, 7 ignored, including a new state-access/snapshot regression and existing failed-transfer, reconnect, media-import and restart persistence regressions. Installed responsiveness has not yet been measured with these changes.
+
+
+## Performance follow-up 5: animation scheduling and packet assembly (2026-11-14)
+
+- Animation ticks still send at most three frames per batch, but now select the earliest due slots instead of always starting with the first slots. Later animations can no longer be repeatedly overtaken by the first three when transfers exceed frame delays.
+- HID packet assembly runs outside SharedState while DISPLAY_WRITE preserves batch ordering. Readiness/connectivity are rechecked after assembly. Frame-cache deduplication, successful-delivery accounting and failed-transfer playback rollback remain intact.
+- Validation: 131 Rust library tests passed, 7 ignored. A new six-slot regression verifies oldest-first selection across two batches, state access during packet assembly and continued display serialization. The existing non-looping final-frame failure/retry regression also passes. Physical animation smoothness and installed UI latency remain to be checked on an updated build.

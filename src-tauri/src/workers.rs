@@ -278,6 +278,14 @@ pub(crate) fn animation_tick(
     shared: &SharedState,
     write: impl FnOnce(&DeviceDescriptor, &[HidBurst]) -> Result<(), String>,
 ) -> Result<(), String> {
+    animation_tick_with(shared, build_animation_bursts, write)
+}
+
+pub(crate) fn animation_tick_with(
+    shared: &SharedState,
+    build: impl FnOnce(&DeviceDescriptor, Vec<(PlaybackTarget, Vec<u8>)>) -> Vec<HidBurst>,
+    write: impl FnOnce(&DeviceDescriptor, &[HidBurst]) -> Result<(), String>,
+) -> Result<(), String> {
     // A full layout owns the display until its bindings have been committed.
     let Ok(_display) = DISPLAY_WRITE.try_lock() else { return Ok(()); };
     let due = {
@@ -293,10 +301,14 @@ pub(crate) fn animation_tick(
         let previous_slots: Vec<_> = guard.playback_slots.iter()
             .map(|slot| (slot.frame_index, slot.next_due_ms)).collect();
         let mut pending = Vec::new();
-        for slot in guard.playback_slots.iter_mut() {
-            if pending.len() >= 3 || now < slot.next_due_ms || slot.jpegs.is_empty() {
-                continue;
-            }
+        // Serve the longest-waiting slots first. Always starting at index zero
+        // can starve later animations when a transfer exceeds the frame delay.
+        let mut due_slots: Vec<_> = guard.playback_slots.iter().enumerate()
+            .filter(|(_, slot)| now >= slot.next_due_ms && !slot.jpegs.is_empty())
+            .map(|(index, slot)| (slot.next_due_ms, index)).collect();
+        due_slots.sort_unstable();
+        for (_, index) in due_slots.into_iter().take(3) {
+            let slot = &mut guard.playback_slots[index];
             let idx = slot.frame_index.min(slot.jpegs.len() - 1);
             let jpeg = slot.jpegs[idx].clone();
             let delay = slot.delays_ms.get(idx).copied().unwrap_or(100).max(80);
@@ -317,37 +329,26 @@ pub(crate) fn animation_tick(
             }
             pending.push((slot_id, target, jpeg));
         }
-        let mut bursts = Vec::new();
+        let mut frames = Vec::new();
         for (slot_id, target, jpeg) in pending {
-            if guard
-                .frame_cache
-                .should_transmit(&dev.id, &slot_id, &jpeg)
-                .is_none()
-            {
-                continue;
+            if guard.frame_cache.should_transmit(&dev.id, &slot_id, &jpeg).is_some() {
+                frames.push((target, jpeg));
             }
-            let reports = match target {
-                PlaybackTarget::Key(index) => {
-                    build_key_image_packets(key_image_slot(&dev, index), &jpeg)
-                }
-                PlaybackTarget::TouchZone(index) => {
-                    build_key_image_packets(touch_zone_image_slot(&dev, index), &jpeg)
-                }
-                PlaybackTarget::Strip { width, height } => {
-                    build_touch_strip_packets(&jpeg, 0, 0, width, height)
-                }
-            };
-            bursts.push(HidBurst {
-                reports: reports.into_iter().map(|r| r.to_vec()).collect(),
-            });
         }
-        if bursts.is_empty() {
+        if frames.is_empty() {
             None
         } else {
-            Some((dev, bursts, previous_slots))
+            Some((dev, frames, previous_slots))
         }
     };
-    if let Some((dev, bursts, previous_slots)) = due {
+    if let Some((dev, frames, previous_slots)) = due {
+        let bursts = build(&dev, frames);
+        {
+            let guard = shared.lock_safe();
+            if !guard.layout_ready || !guard.devices.iter().any(|d| d.id == dev.id && d.connected) {
+                return Ok(());
+            }
+        }
         if let Err(err) = transmit_cached_frames(shared, &dev, &bursts, write) {
             let mut guard = shared.lock_safe();
             let retry_at = now_ms().saturating_add(250);
@@ -359,4 +360,25 @@ pub(crate) fn animation_tick(
         }
     }
     Ok(())
+}
+
+pub(crate) fn build_animation_bursts(dev: &DeviceDescriptor, frames: Vec<(PlaybackTarget, Vec<u8>)>) -> Vec<HidBurst> {
+    let mut bursts = Vec::new();
+    for (target, jpeg) in frames {
+        let reports = match target {
+            PlaybackTarget::Key(index) => {
+                build_key_image_packets(key_image_slot(&dev, index), &jpeg)
+            }
+            PlaybackTarget::TouchZone(index) => {
+                build_key_image_packets(touch_zone_image_slot(&dev, index), &jpeg)
+            }
+            PlaybackTarget::Strip { width, height } => {
+                build_touch_strip_packets(&jpeg, 0, 0, width, height)
+            }
+        };
+        bursts.push(HidBurst {
+            reports: reports.into_iter().map(|r| r.to_vec()).collect(),
+        });
+    }
+    bursts
 }
