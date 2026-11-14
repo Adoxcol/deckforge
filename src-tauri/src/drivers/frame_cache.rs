@@ -15,7 +15,7 @@ pub struct FrameCacheStats {
 
 /// Prevents the official Stream Dock AJAZZ app's 1-3s redraw flood (`sigTooMuchDataWaitingToBeSent`)
 /// by storing per-device, per-slot SHA-256 digests of the last transmitted JPEG frame.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct AntiFreezeFrameCache {
     slot_hashes: HashMap<String, String>,
     pending_hashes: HashMap<String, String>,

@@ -225,3 +225,10 @@ These are proposed release gates, not results already achieved by this audit.
 - DISPLAY_WRITE still spans snapshot, rendering, cache planning and transmission, so other display writes cannot replace the applied page or mix cache batches. Layout readiness and device connectivity are checked again before staging rendered frames. Failed writes retain the existing invalidation/retry behavior.
 - Validation: Rust library suite 129 passed, 7 ignored. A new regression acquires state from inside the renderer and simulates a layout becoming unavailable, verifying obsolete frames never reach cache planning. Existing tests still verify rendering from the applied page after editor changes, successful-frame deduplication and retry after failed transfers.
 - Scope: periodic live face redraws. Full layout preparation and animation packet planning remain separate performance candidates. No claim of measured installed-app latency improvement until a new build is installed and exercised.
+
+
+## Performance follow-up 4: full-layout preparation (2026-11-14)
+
+- Apply now runs on Tauri's blocking worker pool, including waiting for the display writer and USB transfer. Preparation captures the applied page, live face, media and frame cache under state, then renders/resizes/encodes all frames without holding SharedState.
+- MediaStore snapshots share immutable clips through Arc rather than copying decoded image buffers or temporarily removing the library. Concurrent editor/media changes remain available and cannot alter the captured layout. DISPLAY_WRITE continues to serialize the full operation; key dispatch stays disabled until successful transfer. Cache planning is published after rendering and delivery remains committed only on successful transfer.
+- Validation: 130 Rust library tests passed, 7 ignored, including a new state-access/snapshot regression and existing failed-transfer, reconnect, media-import and restart persistence regressions. Installed responsiveness has not yet been measured with these changes.

@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::io::Cursor;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 const MAX_BYTES: usize = 8 * 1024 * 1024;
 const MAX_EDGE: u32 = 1600;
@@ -59,9 +60,9 @@ pub struct ZonePaint<'a> {
     pub loop_playback: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MediaStore {
-    clips: HashMap<String, StagedClip>,
+    clips: HashMap<String, Arc<StagedClip>>,
     directory: PathBuf,
 }
 
@@ -118,7 +119,7 @@ impl MediaStore {
             let bin_path = dir.join(data_file);
             let Ok(bytes) = fs::read(&bin_path) else { continue };
             if let Ok(clip) = decode_into_clip(&id, &meta.file_name, &bytes, &meta.kind, meta.delay_ms) {
-                store.clips.insert(id, clip);
+                store.clips.insert(id, Arc::new(clip));
             }
         }
         store
@@ -192,7 +193,7 @@ impl MediaStore {
         let mut previews = Vec::new();
         for (id, clip, _, _) in prepared {
             previews.push(clip.preview.clone());
-            self.clips.insert(id, clip);
+            self.clips.insert(id, Arc::new(clip));
         }
         Ok((remap, previews))
     }
@@ -212,7 +213,7 @@ impl MediaStore {
         let preview = clip.preview.clone();
         persist_clip(&self.directory, &id, file_name, "file", clip.preview.frame_delay_ms, bytes)
             .map_err(|err| format!("Media was not saved: {err}"))?;
-        self.clips.insert(id, clip);
+        self.clips.insert(id, Arc::new(clip));
         Ok(preview)
     }
 
@@ -246,7 +247,7 @@ impl MediaStore {
         let preview = clip.preview.clone();
         persist_clip(&self.directory, &id, file_name, "sequence", delay_ms, &packed)
             .map_err(|err| format!("Animation was not saved: {err}"))?;
-        self.clips.insert(id, clip);
+        self.clips.insert(id, Arc::new(clip));
         Ok(preview)
     }
 

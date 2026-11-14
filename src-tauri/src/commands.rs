@@ -94,25 +94,29 @@ pub fn set_device_brightness(
 }
 
 #[tauri::command]
-pub fn apply_profile_to_device(
+pub async fn apply_profile_to_device(
     device_id: String,
     profile_id: String,
     page_id: String,
     state: State<'_, SharedState>,
 ) -> Result<SyncKeyResult, String> {
 
-    let _display = DISPLAY_WRITE.lock_safe();
-    let prepared = {
-        let mut guard = state.lock_safe();
-        let dev = guard.devices.iter().find(|d| d.id == device_id)
-            .cloned().ok_or_else(|| format!("Device {device_id} not found"))?;
-        let page_index = guard.profiles.iter().find(|p| p.id == profile_id)
-            .ok_or_else(|| format!("Profile {profile_id} not found"))?
-            .pages.iter().position(|p| p.id == page_id)
-            .ok_or_else(|| format!("Page {page_id} not found"))?;
-        prepare_layout(&mut guard, dev, &profile_id, page_index, true)?
-    };
-    transmit_layout(state.inner(), prepared, write_hid_bursts)
+    let shared = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _display = DISPLAY_WRITE.lock_safe();
+        let prepared = {
+            let mut guard = shared.lock_safe();
+            let dev = guard.devices.iter().find(|d| d.id == device_id)
+                .cloned().ok_or_else(|| format!("Device {device_id} not found"))?;
+            let page_index = guard.profiles.iter().find(|p| p.id == profile_id)
+                .ok_or_else(|| format!("Profile {profile_id} not found"))?
+                .pages.iter().position(|p| p.id == page_id)
+                .ok_or_else(|| format!("Page {page_id} not found"))?;
+            prepare_layout(&mut guard, dev, &profile_id, page_index, true)?
+        };
+        transmit_layout(&shared, prepared, write_hid_bursts)
+    }).await.map_err(|err| err.to_string())?
+
 }
 
 #[tauri::command]

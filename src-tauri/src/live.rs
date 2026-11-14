@@ -491,7 +491,9 @@ pub(crate) fn push_active_layout_locked(shared: &SharedState, handshake: bool) -
 pub(crate) struct PreparedLayout {
     dev: DeviceDescriptor,
     applied: AppliedLayout,
-    outcome: drivers::hal::PublishOutcome,
+    face: DeckFaceState,
+    media: MediaStore,
+    frame_cache: AntiFreezeFrameCache,
 }
 
 /// Callers hold DISPLAY_WRITE until transmit_layout finishes.
@@ -534,42 +536,54 @@ fn prepare_snapshot(
     // Do not resolve physical presses until the entire layout succeeds.
     guard.layout_ready = false;
     guard.playback_slots.clear();
-    let (jobs, zones, strip) = plan_screens(&dev, &applied.page, &guard.face);
-    let media = std::mem::take(&mut guard.media);
-    let mut diags = Vec::new();
-    let outcome = publish_screens(
-        &dev,
-        &jobs,
-        &zones,
-        strip.as_ref(),
-        &media,
-        &mut guard.frame_cache,
-        &mut diags,
-    );
-    guard.media = media;
-    guard.diagnostics.extend(diags);
-    if guard.diagnostics.len() > 80 {
-        let extra = guard.diagnostics.len() - 80;
-        guard.diagnostics.drain(0..extra);
-    }
     Ok(PreparedLayout {
         dev,
         applied,
-        outcome,
+        face: guard.face.clone(),
+        // Media clips are immutable Arc snapshots: no image buffers are copied
+        // and the library stays available to readers/imports during rendering.
+        media: guard.media.clone(),
+        frame_cache: guard.frame_cache.clone(),
     })
+}
+
+/// DISPLAY_WRITE protects this private cache snapshot until it is published.
+fn render_layout_frames(prepared: &mut PreparedLayout) -> (drivers::hal::PublishOutcome, Vec<DiagnosticEntry>) {
+    let (jobs, zones, strip) = plan_screens(&prepared.dev, &prepared.applied.page, &prepared.face);
+    let mut diags = Vec::new();
+    let outcome = publish_screens(
+        &prepared.dev, &jobs, &zones, strip.as_ref(), &prepared.media,
+        &mut prepared.frame_cache, &mut diags,
+    );
+    (outcome, diags)
+}
+
+fn render_layout_with(
+    shared: &SharedState,
+    prepared: &mut PreparedLayout,
+    render: impl FnOnce(&mut PreparedLayout) -> (drivers::hal::PublishOutcome, Vec<DiagnosticEntry>),
+) -> drivers::hal::PublishOutcome {
+    let (outcome, diags) = render(prepared);
+    let mut guard = shared.lock_safe();
+    guard.frame_cache = std::mem::take(&mut prepared.frame_cache);
+    guard.diagnostics.extend(diags);
+    let excess = guard.diagnostics.len().saturating_sub(80);
+    guard.diagnostics.drain(..excess);
+    outcome
 }
 
 pub(crate) fn transmit_layout(
     shared: &SharedState,
-    prepared: PreparedLayout,
+    mut prepared: PreparedLayout,
     write: impl FnOnce(&DeviceDescriptor, &[HidBurst]) -> Result<(), String>,
 ) -> Result<SyncKeyResult, String> {
+    let outcome = render_layout_with(shared, &mut prepared, render_layout_frames);
     let started = std::time::Instant::now();
-    let result = write(&prepared.dev, &prepared.outcome.bursts);
+    let result = write(&prepared.dev, &outcome.bursts);
     let elapsed_ms = started.elapsed().as_millis() as u64;
     let mut guard = shared.lock_safe();
     guard.frame_cache.finish_transfer(&prepared.dev.id, result.is_ok(),
-        prepared.outcome.result.bytes_transmitted as u64, elapsed_ms);
+        outcome.result.bytes_transmitted as u64, elapsed_ms);
     if let Err(err) = result {
         guard.frame_cache.invalidate_device(&prepared.dev.id);
         guard.layout_ready = false;
@@ -586,10 +600,10 @@ pub(crate) fn transmit_layout(
     guard.active_page_index = prepared.applied.page_index;
     guard.applied_layout = Some(prepared.applied);
     guard.layout_ready = true;
-    guard.playback_slots = prepared.outcome.playback;
+    guard.playback_slots = outcome.playback;
     guard.playback_device_id = prepared.dev.id;
     guard.applied_to_device_at_ms = Some(now_ms());
-    let mut result = prepared.outcome.result;
+    let mut result = outcome.result;
     result.elapsed_ms = elapsed_ms;
     result.status_message = format!("Sent layout to {} in {elapsed_ms}ms", prepared.dev.model_name);
     if let Err(err) = guard.persist_applied_layout() {
@@ -1177,9 +1191,13 @@ mod live_tests {
         assert!(transmit_layout(&shared, prepared, |_, _| Err("partial write".into())).is_err());
         assert_eq!(shared.lock_safe().frame_cache.stats.bytes_transmitted, 0);
         let prepared = prepare_first(&shared);
-        let bytes = prepared.outcome.result.bytes_transmitted as u64;
-        let count = prepared.outcome.bursts.len() as u64;
-        transmit_layout(&shared, prepared, |_, _| Ok(())).unwrap();
+        let mut bytes = 0;
+        let mut count = 0;
+        transmit_layout(&shared, prepared, |_, bursts| {
+            bytes = bursts.iter().flat_map(|b| &b.reports).map(|r| r.len() as u64).sum();
+            count = bursts.len() as u64;
+            Ok(())
+        }).unwrap();
         let guard = shared.lock_safe();
         assert_eq!(guard.frame_cache.stats.bytes_transmitted, bytes);
         assert_eq!(guard.frame_cache.stats.frames_transmitted, count);
@@ -1459,6 +1477,27 @@ mod live_tests {
             Ok(())
         }).unwrap();
         assert_eq!(action_for_event(&shared.lock_safe(), &event).unwrap().action_id, "custom.hotkey");
+    }
+
+    #[test]
+    fn full_layout_render_keeps_state_accessible_and_uses_its_snapshot() {
+        let shared = test_state();
+        let mut prepared = prepare_first(&shared);
+        let title = prepared.applied.page.keys[0].title.clone();
+        let outcome = render_layout_with(&shared, &mut prepared, |plan| {
+            {
+                let mut guard = shared.try_lock().expect("full rendering must not lock UI state");
+                assert!(!guard.layout_ready, "key dispatch stays disabled until transfer succeeds");
+                guard.profiles[0].pages[0].keys[0].title = "Edited during rendering".into();
+            }
+            assert_eq!(plan.applied.page.keys[0].title, title);
+            render_layout_frames(plan)
+        });
+        assert!(!outcome.bursts.is_empty());
+        let guard = shared.lock_safe();
+        assert_eq!(guard.profiles[0].pages[0].keys[0].title, "Edited during rendering");
+        assert!(!guard.layout_ready);
+        assert_eq!(guard.frame_cache.stats.frames_transmitted, 0);
     }
 
     #[test]
