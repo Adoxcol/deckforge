@@ -1,6 +1,7 @@
 import React from "react";
 import type { ObsSettings } from "../types/deckforge";
 import { ActionPicker } from "./ActionPicker";
+import { joinOutputPair, splitOutputPair } from "../lib/audioOutputs";
 
 export interface ActionChoice {
   id: string;
@@ -56,6 +57,42 @@ function paramLabel(actionId: string): string {
   return "Parameter";
 }
 
+/** Two pickers: the outputs a key flips between. Both blank goes through every output. */
+const OutputPair: React.FC<{ value: string; options: { value: string; label: string }[]; onChange: (value: string) => void }> = ({ value, options, onChange }) => {
+  const [a, b] = splitOutputPair(value);
+  const select = (current: string, set: (next: string) => void, label: string) => (
+    <label className="flex flex-col gap-1">
+      <span className="text-[10.5px] text-[var(--text-secondary)]">{label}</span>
+      <select
+        value={current}
+        onChange={(event) => set(event.target.value)}
+        className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
+      >
+        <option value="">Not set</option>
+        {current && !options.some((o) => o.value === current) && <option value={current}>{current} (not plugged in)</option>}
+        {options.map((o) => (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+  return (
+    <div className="flex flex-col gap-2">
+      {select(a, (next) => onChange(joinOutputPair(next, b)), "Switch between")}
+      {select(b, (next) => onChange(joinOutputPair(a, next)), "and")}
+      <span className="text-[10.5px] text-[var(--text-muted)] leading-snug">
+        {!a && !b
+          ? "Leave both empty to go through every output in turn."
+          : a && b
+          ? "Each press moves sound to the other one."
+          : "Pick a second output, or the key always uses this one."}
+      </span>
+    </div>
+  );
+};
+
 export const ActionBinding: React.FC<{
   label: string;
   actionId: string;
@@ -80,7 +117,9 @@ export const ActionBinding: React.FC<{
           onChange(next, actionNeedsParam(next) ? choice?.defaultParam ?? "" : "");
         }}
       />
-      {showParam && paramOptions && paramOptions.length > 0 ? (
+      {actionId === "audio.cycle_output" ? (
+        <OutputPair value={actionParam} options={paramOptions ?? []} onChange={(next) => onChange(actionId, next)} />
+      ) : showParam && paramOptions && paramOptions.length > 0 ? (
         <select
           value={actionParam}
           onChange={(event) => onChange(actionId, event.target.value)}

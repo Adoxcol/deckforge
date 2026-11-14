@@ -290,19 +290,55 @@ pub fn read_quick_stats() -> QuickStats {
         std::sync::Mutex::new(System::new_with_specifics(
             RefreshKind::nothing()
                 .with_memory(sysinfo::MemoryRefreshKind::everything())
-                .with_cpu(sysinfo::CpuRefreshKind::nothing().with_cpu_usage()),
         ))
     });
     let mut sys = slot.lock().unwrap_or_else(|e| e.into_inner());
     sys.refresh_memory();
-    sys.refresh_cpu_usage();
-    let cpu = sys.global_cpu_usage();
     let total = sys.total_memory();
     QuickStats {
-        cpu_percent: Some(cpu.round().clamp(0.0, 100.0) as u8),
+        cpu_percent: {
+            static LAST: CpuSample = std::sync::Mutex::new(None);
+            cpu_percent_since(&LAST)
+        },
         ram_percent: (total > 0).then(|| ((sys.used_memory() as f64 / total as f64) * 100.0).round().clamp(0.0, 100.0) as u8),
         clock: local_clock(),
     }
+}
+
+type CpuSample = std::sync::Mutex<Option<(u64, u64)>>;
+
+/// CPU use since the previous call with the same `last`, from the system's idle and busy time.
+/// Reads the kernel directly: sysinfo goes through Windows performance counters, which are
+/// broken on some PCs and then report 0% forever. None on the first call.
+fn cpu_percent_since(last: &CpuSample) -> Option<u8> {
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::Foundation::FILETIME;
+        let (mut idle, mut kernel, mut user) = (FILETIME::default(), FILETIME::default(), FILETIME::default());
+        unsafe { windows::Win32::System::Threading::GetSystemTimes(Some(&mut idle), Some(&mut kernel), Some(&mut user)) }.ok()?;
+        let ticks = |t: FILETIME| ((t.dwHighDateTime as u64) << 32) | t.dwLowDateTime as u64;
+        // Kernel time includes idle time.
+        let (idle, total) = (ticks(idle), ticks(kernel) + ticks(user));
+        let mut last = last.lock().unwrap_or_else(|e| e.into_inner());
+        let prev = last.replace((idle, total))?;
+        cpu_busy_percent(prev, (idle, total))
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = last;
+        None
+    }
+}
+
+/// Busy share between two (idle, total) time readings.
+fn cpu_busy_percent(prev: (u64, u64), now: (u64, u64)) -> Option<u8> {
+    let total = now.1.checked_sub(prev.1)?;
+    let idle = now.0.checked_sub(prev.0)?;
+    if total == 0 {
+        return None;
+    }
+    let busy = total.saturating_sub(idle) as f64 / total as f64;
+    Some((busy * 100.0).round().clamp(0.0, 100.0) as u8)
 }
 
 fn local_clock() -> String {
@@ -633,20 +669,19 @@ pub fn collect_system_telemetry() -> SystemTelemetrySnapshot {
         std::sync::Mutex::new(System::new_with_specifics(
             RefreshKind::nothing()
                 .with_memory(sysinfo::MemoryRefreshKind::everything())
-                .with_cpu(sysinfo::CpuRefreshKind::everything())
                 .with_processes(ProcessRefreshKind::nothing()),
         ))
     });
     let mut sys = slot.lock().unwrap_or_else(|e| e.into_inner());
     sys.refresh_memory();
-    sys.refresh_cpu_usage();
     sys.refresh_processes_specifics(
         ProcessesToUpdate::All,
         true,
         ProcessRefreshKind::nothing(),
     );
 
-    let cpu_usage_percent = sys.global_cpu_usage();
+    static LAST: CpuSample = std::sync::Mutex::new(None);
+    let cpu_usage_percent = cpu_percent_since(&LAST).unwrap_or(0) as f32;
     let total_mem = sys.total_memory() as f64 / (1024.0 * 1024.0 * 1024.0);
     let used_mem = sys.used_memory() as f64 / (1024.0 * 1024.0 * 1024.0);
     let mem_pct = if total_mem > 0.0 {
@@ -856,5 +891,27 @@ mod tests {
         assert_eq!(macro_delay_ms("500"), 500);
         assert_eq!(macro_delay_ms("9000"), 3_000);
         assert_eq!(macro_delay_ms("nope"), 100);
+    }
+}
+
+#[cfg(test)]
+mod quick_stats_live_tests {
+    /// Prints CPU and memory use as the deck shows them. `cargo test --lib quick_stats_live -- --ignored --nocapture`
+    #[test]
+    #[ignore = "reads this PC's CPU and memory use"]
+    fn quick_stats_live() {
+        super::read_quick_stats();
+        for _ in 0..3 {
+            std::thread::sleep(std::time::Duration::from_secs(2));
+            let s = super::read_quick_stats();
+            println!("cpu={:?}% ram={:?}%", s.cpu_percent, s.ram_percent);
+        }
+    }
+
+    #[test]
+    fn busy_share_comes_from_idle_and_total_time() {
+        assert_eq!(super::cpu_busy_percent((100, 1000), (175, 1100)), Some(25));
+        assert_eq!(super::cpu_busy_percent((100, 1000), (100, 1000)), None);
+        assert_eq!(super::cpu_busy_percent((100, 1000), (50, 900)), None);
     }
 }

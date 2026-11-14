@@ -21,11 +21,9 @@ pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
                     guard.sample_after_ms = 0;
                     sample_face(&mut guard) || refresh_requested
                 };
+                // Only tell the window when something changed: each update redraws the editor.
                 if changed {
                     push_face_deltas(&shared, &app);
-                } else {
-                    let guard = shared.lock().unwrap_or_else(|e| e.into_inner());
-                    let _ = app.emit("deck-face", &guard.face);
                 }
             }
             if let Some(window) = foreground_window() {

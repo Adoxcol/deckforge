@@ -7,13 +7,11 @@ import type { EncoderConfig, KeyConfig, TouchZoneConfig } from "../types/deckfor
 
 interface ActionDrawerProps {
   actionCategoryFilter: string;
-  actionSearch: string;
   activeEncoder: EncoderConfig | null;
   activeKey: KeyConfig;
   activeZone: TouchZoneConfig | null;
-  filteredActions: ActionTemplate[];
+  actions: ActionTemplate[];
   setActionCategoryFilter: React.Dispatch<React.SetStateAction<string>>;
-  setActionSearch: React.Dispatch<React.SetStateAction<string>>;
   surface: "key" | "zone" | "strip" | "encoder";
   triggerToast: (text: string, kind?: "success" | "info" | "warning") => void;
   updateSelectedEncoder: (index: number, patch: Partial<EncoderConfig>) => void;
@@ -56,21 +54,40 @@ export const encoderPatchForAction = (act: ActionTemplate, part: KnobPart = "pus
   return { label: act.title, pushAction: act.id, pushParam: param };
 };
 
-export const ActionDrawer: React.FC<ActionDrawerProps> = ({
+/** Actions in a category whose name, label or description contains the search. */
+function filterActions(actions: ActionTemplate[], category: string, search: string): ActionTemplate[] {
+  const q = search.trim().toLowerCase();
+  return actions.filter(
+    (a) =>
+      (category === "All" || a.category.toLowerCase() === category.toLowerCase()) &&
+      (!q || a.title.toLowerCase().includes(q) || a.description.toLowerCase().includes(q) || a.actionLabel.toLowerCase().includes(q))
+  );
+}
+
+/**
+ * The action list under the deck. Memoized, with its own search state, so typing in the search box
+ * and the deck's live updates don't redraw the whole editor (or this list) on every change.
+ * App must pass stable callbacks.
+ */
+export const ActionDrawer = React.memo(function ActionDrawer({
   actionCategoryFilter,
-  actionSearch,
   activeEncoder,
   activeKey,
   activeZone,
-  filteredActions,
+  actions,
   setActionCategoryFilter,
-  setActionSearch,
   surface,
   triggerToast,
   updateSelectedEncoder,
   updateSelectedKey,
   updateSelectedZone,
-}) => {
+}: ActionDrawerProps) {
+  const [actionSearch, setActionSearch] = React.useState("");
+  const deferredSearch = React.useDeferredValue(actionSearch);
+  const filteredActions = React.useMemo(
+    () => filterActions(actions, actionCategoryFilter, deferredSearch),
+    [actions, actionCategoryFilter, deferredSearch]
+  );
   return (
     <div className="h-[205px] bg-[var(--bg-sidebar)] border-t border-[var(--border-subtle)] grid grid-cols-[165px_1fr] p-3 gap-4 shrink-0">
       {/* Left Category Filter Rail */}
@@ -138,7 +155,7 @@ export const ActionDrawer: React.FC<ActionDrawerProps> = ({
                   "info"
                 );
               }}
-              className="p-2 rounded-[var(--radius-md)] border border-transparent hover:border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] flex items-center justify-between gap-2.5 cursor-grab active:cursor-grabbing transition-colors"
+              className="p-2 rounded-[var(--radius-md)] border border-transparent hover:border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] flex items-center justify-between gap-2.5 cursor-grab active:cursor-grabbing"
             >
               <div className="flex items-center gap-2.5 min-w-0">
                 <div
@@ -161,4 +178,4 @@ export const ActionDrawer: React.FC<ActionDrawerProps> = ({
       </div>
     </div>
   );
-};
+});

@@ -143,7 +143,6 @@ export const App: React.FC = () => {
   const fileRef = useRef<HTMLInputElement>(null);
   const [inspectorTab, setInspectorTab] = useState<"Action" | "Appearance" | "Behavior">("Action");
   const [actionCategoryFilter, setActionCategoryFilter] = useState<string>("All");
-  const [actionSearch, setActionSearch] = useState<string>("");
   const [canvasZoom, setCanvasZoom] = useState<number>(100);
   const [clipboardKey, setClipboardKey] = useState<KeyConfig | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState<boolean>(false);
@@ -1153,19 +1152,19 @@ export const App: React.FC = () => {
     triggerToast("Applied current key's appearance style to all keys on this page ✓", "success");
   };
 
-  const filteredActions = useMemo(() => {
-    return allActionTemplates.filter((a) => {
-      const matchesCat =
-        actionCategoryFilter === "All" ||
-        a.category.toLowerCase() === actionCategoryFilter.toLowerCase();
-      const matchesSearch =
-        !actionSearch.trim() ||
-        a.title.toLowerCase().includes(actionSearch.toLowerCase()) ||
-        a.description.toLowerCase().includes(actionSearch.toLowerCase()) ||
-        a.actionLabel.toLowerCase().includes(actionSearch.toLowerCase());
-      return matchesCat && matchesSearch;
-    });
-  }, [allActionTemplates, actionCategoryFilter, actionSearch]);
+  // Stable wrappers that always call the latest version, so the memoized action list can skip
+  // the redraws the deck's live updates cause.
+  const latest = useRef({ triggerToast, updateSelectedKey, updateSelectedZone, updateSelectedEncoder });
+  latest.current = { triggerToast, updateSelectedKey, updateSelectedZone, updateSelectedEncoder };
+  const drawerCallbacks = useMemo(
+    () => ({
+      triggerToast: (...args: Parameters<typeof triggerToast>) => latest.current.triggerToast(...args),
+      updateSelectedKey: (patch: Partial<KeyConfig>) => latest.current.updateSelectedKey(patch),
+      updateSelectedZone: (index: number, patch: Partial<TouchZoneConfig>) => latest.current.updateSelectedZone(index, patch),
+      updateSelectedEncoder: (index: number, patch: Partial<EncoderConfig>) => latest.current.updateSelectedEncoder(index, patch),
+    }),
+    []
+  );
 
   const quitDialog = <QuitDialog open={quitOpen} busy={quitting} error={quitError}
     dirty={!savedLocally || !!recoveryDraft || !!recoveryError || Object.values(saveStatuses).some(s => s.pending)}
@@ -1377,7 +1376,7 @@ export const App: React.FC = () => {
             <DeckStage activeDevice={activeDevice} activeKey={activeKey} activePage={activePage} activeProfile={activeProfile} canvasZoom={canvasZoom} clipFor={clipFor} face={face} handleAddPage={handleAddPage} ingestFile={ingestFile} livePressedKeyIdx={livePressedKeyIdx} selectedPageIdx={selectedPageIdx} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} setTemplatesOpen={setTemplatesOpen} surface={surface} surfaceIndex={surfaceIndex} onDropAction={handleDropAction} onMoveKey={handleMoveKey} onMoveKeyToPage={handleMoveKeyToPage} autoSwitchRules={autoSwitchRules} saveRules={saveRules} />
 
             {/* BOTTOM ACTION LIBRARY DRAWER (Matches Reference Screenshot Bottom Panel) */}
-            <ActionDrawer actionCategoryFilter={actionCategoryFilter} actionSearch={actionSearch} activeEncoder={activeEncoder} activeKey={activeKey} activeZone={activeZone} filteredActions={filteredActions} setActionCategoryFilter={setActionCategoryFilter} setActionSearch={setActionSearch} surface={surface} triggerToast={triggerToast} updateSelectedEncoder={updateSelectedEncoder} updateSelectedKey={updateSelectedKey} updateSelectedZone={updateSelectedZone} />
+            <ActionDrawer actionCategoryFilter={actionCategoryFilter} activeEncoder={activeEncoder} activeKey={activeKey} activeZone={activeZone} actions={allActionTemplates} setActionCategoryFilter={setActionCategoryFilter} surface={surface} {...drawerCallbacks} />
           </main>
 
           {/* RIGHT INSPECTOR PANE (320px — Button Properties matching Reference Screenshot) */}
