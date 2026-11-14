@@ -829,15 +829,9 @@ fn read_face(previous: &DeckFaceState) -> DeckFaceState {
 
 pub(crate) fn push_face_deltas(shared: &SharedState, app: &tauri::AppHandle) {
     let _display = DISPLAY_WRITE.lock_safe();
-    let face = {
-        let guard = shared.lock().unwrap_or_else(|e| e.into_inner());
-        let _ = app.emit("deck-face", &guard.face);
-        guard.face.clone()
-    };
-    let prepared = {
-        let mut guard = shared.lock().unwrap_or_else(|e| e.into_inner());
-        face_delta_bursts(&mut guard, &face)
-    };
+    let face = shared.lock_safe().face.clone();
+    let _ = app.emit("deck-face", &face);
+    let prepared = face_delta_bursts(shared, &face);
     let Some((dev, bursts)) = prepared else {
         return;
     };
@@ -874,14 +868,51 @@ pub(crate) fn transmit_cached_frames(
     result
 }
 
-pub(crate) fn face_delta_bursts(guard: &mut ManagedAppState, face: &DeckFaceState) -> Option<(DeviceDescriptor, Vec<HidBurst>)> {
-    if !guard.layout_ready { return None; }
-    let dev = guard
-        .devices
-        .iter()
-        .find(|d| d.connected && d.protocol_family.starts_with("CRT"))
-        .cloned()?;
-    let page = guard.applied_layout.as_ref()?.page.clone();
+struct RenderedFaceFrame {
+    slot: String,
+    hash_payload: Vec<u8>,
+    jpeg: Vec<u8>,
+    image_slot: u8,
+}
+
+/// Caller holds DISPLAY_WRITE until transmission finishes, keeping the applied
+/// page and frame-cache batch stable while expensive rendering releases state.
+pub(crate) fn face_delta_bursts(shared: &SharedState, face: &DeckFaceState) -> Option<(DeviceDescriptor, Vec<HidBurst>)> {
+    face_delta_bursts_with(shared, face, render_face_frames)
+}
+
+fn face_delta_bursts_with(
+    shared: &SharedState,
+    face: &DeckFaceState,
+    render: impl FnOnce(&DeviceDescriptor, &ProfilePage, &DeckFaceState) -> Vec<RenderedFaceFrame>,
+) -> Option<(DeviceDescriptor, Vec<HidBurst>)> {
+    let (dev, page) = {
+        let guard = shared.lock_safe();
+        if !guard.layout_ready { return None; }
+        let dev = guard.devices.iter()
+            .find(|d| d.connected && d.protocol_family.starts_with("CRT"))?.clone();
+        (dev, guard.applied_layout.as_ref()?.page.clone())
+    };
+    let frames = render(&dev, &page, face);
+    let pending = {
+        let mut guard = shared.lock_safe();
+        // Pause/disconnect may happen while rendering even though layout writes
+        // are serialized by DISPLAY_WRITE. Do not stage those obsolete frames.
+        if !guard.layout_ready || !guard.devices.iter().any(|d| d.id == dev.id && d.connected) {
+            return None;
+        }
+        frames.into_iter().filter(|frame| {
+            guard.frame_cache.should_transmit(&dev.id, &frame.slot, &frame.hash_payload).is_some()
+        }).collect::<Vec<_>>()
+    };
+    let bursts = pending.into_iter().map(|frame| HidBurst {
+        reports: build_key_image_packets(frame.image_slot, &frame.jpeg)
+            .into_iter().map(|report| report.to_vec()).collect(),
+    }).collect();
+    Some((dev, bursts))
+}
+
+fn render_face_frames(dev: &DeviceDescriptor, page: &ProfilePage, face: &DeckFaceState) -> Vec<RenderedFaceFrame> {
     let strip_covers_zones = page.strip_media.is_some();
     let mut bursts = Vec::new();
     let key_count = dev.keys.count as usize;
@@ -919,14 +950,9 @@ pub(crate) fn face_delta_bursts(guard: &mut ManagedAppState, face: &DeckFaceStat
         hash.extend_from_slice(title.as_bytes());
         hash.extend_from_slice(icon.as_bytes());
         let slot = format!("key-{}", key.index);
-        if guard.frame_cache.should_transmit(&dev.id, &slot, &hash).is_none() {
-            continue;
-        }
-        bursts.push(HidBurst {
-            reports: build_key_image_packets(key_image_slot(&dev, key.index), &jpeg)
-                .into_iter()
-                .map(|report| report.to_vec())
-                .collect(),
+        bursts.push(RenderedFaceFrame {
+            slot, hash_payload: hash, jpeg,
+            image_slot: key_image_slot(dev, key.index),
         });
     }
     if device_uses_akp05e_face(&dev) && !strip_covers_zones {
@@ -945,18 +971,13 @@ pub(crate) fn face_delta_bursts(guard: &mut ManagedAppState, face: &DeckFaceStat
                 dev.keys.rotation,
             );
             let slot = format!("touch-zone-{}", zone.index);
-            if guard.frame_cache.should_transmit(&dev.id, &slot, &jpeg).is_none() {
-                continue;
-            }
-            bursts.push(HidBurst {
-                reports: build_key_image_packets(touch_zone_image_slot(&dev, zone.index), &jpeg)
-                    .into_iter()
-                    .map(|report| report.to_vec())
-                    .collect(),
+            bursts.push(RenderedFaceFrame {
+                slot, hash_payload: jpeg.clone(), jpeg,
+                image_slot: touch_zone_image_slot(dev, zone.index),
             });
         }
     }
-    Some((dev, bursts))
+    bursts
 }
 
 /// The profile and page to show for the app in front, or None to stay put.
@@ -1165,6 +1186,23 @@ mod live_tests {
     }
 
     #[test]
+    fn face_render_releases_state_and_discards_frames_after_pause() {
+        let shared = test_state();
+        let prepared = prepare_first(&shared);
+        transmit_layout(&shared, prepared, |_, _| Ok(())).unwrap();
+        let evaluated = shared.lock_safe().frame_cache.stats.frames_evaluated;
+        let result = face_delta_bursts_with(&shared, &DeckFaceState::default(), |_, _, _| {
+            let mut guard = shared.try_lock().expect("rendering must leave UI and key state accessible");
+            guard.layout_ready = false;
+            vec![RenderedFaceFrame {
+                slot: "key-0".into(), hash_payload: vec![1], jpeg: vec![1], image_slot: 1,
+            }]
+        });
+        assert!(result.is_none());
+        assert_eq!(shared.lock_safe().frame_cache.stats.frames_evaluated, evaluated);
+    }
+
+    #[test]
     fn unchanged_live_face_is_retryable_after_a_failed_redraw() {
         let shared = test_state();
         shared.lock_safe().profiles[0].pages[0].keys[0].action_id = "audio.volume_up".into();
@@ -1172,15 +1210,15 @@ mod live_tests {
         transmit_layout(&shared, prepared, |_, _| Ok(())).unwrap();
         let face = DeckFaceState { volume_percent: Some(73), ..Default::default() };
         let count = shared.lock_safe().frame_cache.stats.frames_transmitted;
-        let (dev, bursts) = face_delta_bursts(&mut shared.lock_safe(), &face).unwrap();
+        let (dev, bursts) = face_delta_bursts(&shared, &face).unwrap();
         assert!(!bursts.is_empty());
         assert!(transmit_cached_frames(&shared, &dev, &bursts, |_, _| Err("write failed".into())).is_err());
         assert_eq!(shared.lock_safe().frame_cache.stats.frames_transmitted, count);
         assert!(shared.lock_safe().sample_after_ms > 0);
-        let (dev, retry) = face_delta_bursts(&mut shared.lock_safe(), &face).unwrap();
+        let (dev, retry) = face_delta_bursts(&shared, &face).unwrap();
         assert!(!retry.is_empty());
         transmit_cached_frames(&shared, &dev, &retry, |_, _| Ok(())).unwrap();
-        let (_, unchanged) = face_delta_bursts(&mut shared.lock_safe(), &face).unwrap();
+        let (_, unchanged) = face_delta_bursts(&shared, &face).unwrap();
         assert!(unchanged.is_empty());
     }
 
@@ -1470,8 +1508,9 @@ mod live_tests {
         transmit_layout(&shared, prepared, |_, _| Ok(())).unwrap();
         let mut guard = shared.lock_safe();
         guard.profiles.clear();
+        drop(guard);
         let face = DeckFaceState { volume_percent: Some(37), ..Default::default() };
-        let (_, bursts) = face_delta_bursts(&mut guard, &face).unwrap();
+        let (_, bursts) = face_delta_bursts(&shared, &face).unwrap();
         assert!(!bursts.is_empty(), "live faces must still render from the applied snapshot");
     }
 

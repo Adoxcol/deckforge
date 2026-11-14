@@ -217,3 +217,11 @@ These are proposed release gates, not results already achieved by this audit.
 - get_telemetry now runs process enumeration and memory sampling on Tauri's blocking worker pool instead of the synchronous window command path. Join failures propagate through the existing IPC error path.
 - Frontend telemetry polls schedule five seconds after the previous request settles. Slow scans cannot accumulate overlapping requests; cleanup cancels future polls and suppresses stale in-flight results. Failures retain the previous reading and retry normally.
 - Validation: 20 frontend tests, production frontend build, and 128 Rust library tests passed (7 ignored). Polling regressions cover a request delayed across many intervals, result publication, disposal during a request, failure/retry and cancellation before the next read. Installed-app latency remains to be measured after installing a new build.
+
+
+## Performance follow-up 3: live image rendering outside shared state (2026-11-14)
+
+- Live face redraws now snapshot the applied page/device briefly, release SharedState for artwork decoding and JPEG encoding, reacquire it for cache planning, and build HID packets outside the lock. The deck-face UI event is also emitted after releasing state.
+- DISPLAY_WRITE still spans snapshot, rendering, cache planning and transmission, so other display writes cannot replace the applied page or mix cache batches. Layout readiness and device connectivity are checked again before staging rendered frames. Failed writes retain the existing invalidation/retry behavior.
+- Validation: Rust library suite 129 passed, 7 ignored. A new regression acquires state from inside the renderer and simulates a layout becoming unavailable, verifying obsolete frames never reach cache planning. Existing tests still verify rendering from the applied page after editor changes, successful-frame deduplication and retry after failed transfers.
+- Scope: periodic live face redraws. Full layout preparation and animation packet planning remain separate performance candidates. No claim of measured installed-app latency improvement until a new build is installed and exercised.
