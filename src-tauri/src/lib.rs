@@ -4,6 +4,7 @@ pub mod drivers;
 pub mod game_mode;
 pub mod media;
 pub mod plugins;
+pub mod updates;
 
 use actions::{
     collect_system_telemetry, execute_key_action_live, foreground_window, launch_app_or_url,
@@ -96,6 +97,7 @@ pub fn run() {
                 Arc::new(move || nudge_face_sample(&nudge_shared)),
             );
             plugins::start(handle.clone(), Arc::clone(&shared_for_setup));
+            updates::start(handle.clone());
             spawn_desktop_worker(handle, Arc::clone(&shared_for_setup));
             Ok(())
         })
@@ -151,7 +153,8 @@ pub fn run() {
             commands::plugin_install_file,
             commands::plugin_github_search,
             commands::plugin_github_install,
-            commands::plugin_open_page
+            commands::plugin_open_page,
+            updates::update_ready
         ])
         .run(tauri::generate_context!())
         .expect("error while running DeckForge Tauri application");

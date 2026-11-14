@@ -30,3 +30,20 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
     },
   };
 }
+
+/** Calls back once a new release has been downloaded and will install when DeckForge quits. */
+export function onUpdateReady(callback: (version: string) => void): () => void {
+  if (!isTauriRuntime()) return () => undefined;
+  let stop: (() => void) | null = null;
+  let disposed = false;
+  void import("@tauri-apps/api/event").then(({ listen }) =>
+    listen<string>("update-ready", (e) => callback(e.payload)).then((fn) => {
+      if (disposed) fn();
+      else stop = fn;
+    })
+  );
+  return () => {
+    disposed = true;
+    stop?.();
+  };
+}

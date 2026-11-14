@@ -30,7 +30,7 @@ pub async fn quit_application(app: tauri::AppHandle) -> Result<(), String> {
     crate::macro_run::cancel_running_macro();
     tauri::async_runtime::spawn_blocking(move || {
         for _ in 0..250 {
-            if !crate::macro_run::macro_is_running() { app.exit(0); return Ok(()); }
+            if !crate::macro_run::macro_is_running() { crate::updates::install_on_quit(); app.exit(0); return Ok(()); }
             std::thread::sleep(std::time::Duration::from_millis(20));
         }
         Err("A macro action is still finishing. Wait a moment and try quitting again.".into())

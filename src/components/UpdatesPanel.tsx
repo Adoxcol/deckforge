@@ -40,7 +40,7 @@ export const UpdatesPanel: React.FC<{ card: string }> = ({ card }) => {
     <section className={card} aria-labelledby="updates-heading">
       <div className="flex items-center gap-2 text-[var(--text-primary)]"><Download size={17} /><h2 id="updates-heading" className="font-semibold">Updates</h2></div>
       <p className="text-xs leading-relaxed">
-        DeckForge checks GitHub for a new version when it starts. Updates are signed, so only builds made from this project install.
+        DeckForge looks for a new version on GitHub while it runs, downloads it in the background, and installs it when you quit from the tray. You can also install one now. Updates are signed, so only builds made from this project install.
       </p>
       {state === "current" && <p className="text-xs text-[var(--status-success,#35C98B)]">You have the latest version.</p>}
       {state === "found" && update && (
