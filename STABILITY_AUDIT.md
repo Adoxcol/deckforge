@@ -210,3 +210,10 @@ These are proposed release gates, not results already achieved by this audit.
 - Sampling now snapshots the previous face and consumes the existing refresh request under a short lock, releases state for OS queries, then locks only to publish the result. Refresh requests arriving during sampling remain pending. Unchanged samples still avoid unnecessary redraws, except when an explicit refresh/retry was requested.
 - Validation: Rust library suite 128 passed, 7 ignored. A deterministic blocked-sampler regression proves another caller can acquire state while the query is waiting and schedule a refresh that survives publication. A second regression covers unchanged samples and explicit refreshes. No installed-app latency improvement has been measured yet; the running installed binary does not receive source changes automatically.
 - Next performance candidates: get_telemetry synchronously enumerates all processes, requested by the frontend every five seconds; face_delta_bursts performs rendering while holding state. These need separate investigation/fixes. This change removes OS polling from the shared lock, not every possible source of delay.
+
+
+## Performance follow-up 2: telemetry off the window thread (2026-11-14)
+
+- get_telemetry now runs process enumeration and memory sampling on Tauri's blocking worker pool instead of the synchronous window command path. Join failures propagate through the existing IPC error path.
+- Frontend telemetry polls schedule five seconds after the previous request settles. Slow scans cannot accumulate overlapping requests; cleanup cancels future polls and suppresses stale in-flight results. Failures retain the previous reading and retry normally.
+- Validation: 20 frontend tests, production frontend build, and 128 Rust library tests passed (7 ignored). Polling regressions cover a request delayed across many intervals, result publication, disposal during a request, failure/retry and cancellation before the next read. Installed-app latency remains to be measured after installing a new build.

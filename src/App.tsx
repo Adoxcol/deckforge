@@ -1,3 +1,4 @@
+import { startPolling } from "./lib/polling";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
@@ -266,12 +267,10 @@ export const App: React.FC = () => {
       if (disposed) fn(); else contextUnlisten = fn;
     });
 
-    const timer = window.setInterval(() => {
-      deckforgeApi.getTelemetry().then(setTelemetry).catch(() => {});
-    }, 5000);
+    const stopTelemetry = startPolling(() => deckforgeApi.getTelemetry(), setTelemetry, 5000);
     return () => {
       disposed = true;
-      window.clearInterval(timer);
+      stopTelemetry();
       if (unlistenFn) unlistenFn();
       if (faceUnlisten) faceUnlisten();
       if (contextUnlisten) contextUnlisten();

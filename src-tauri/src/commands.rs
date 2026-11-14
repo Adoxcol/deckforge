@@ -363,8 +363,11 @@ pub fn import_legacy_sdprofiles(state: State<'_, SharedState>) -> Result<Vec<Pro
 }
 
 #[tauri::command]
-pub fn get_telemetry() -> SystemTelemetrySnapshot {
-    collect_system_telemetry()
+pub async fn get_telemetry() -> Result<SystemTelemetrySnapshot, String> {
+    // Enumerating processes can be slow; never run it on the window thread.
+    tauri::async_runtime::spawn_blocking(collect_system_telemetry)
+        .await
+        .map_err(|err| err.to_string())
 }
 
 #[tauri::command]
