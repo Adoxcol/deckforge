@@ -48,6 +48,7 @@ import { createSaveQueue, savedStatus, type SaveStatus } from "./lib/saveQueue";
 import { AVAILABLE_ICON_NAMES, DeckIcon } from "./components/DeckIcon";
 import { ActionBinding, ObsConnection, actionNeedsParam, splitStoredBinding } from "./components/ActionBinding";
 import { IconStudio } from "./components/IconStudio";
+import { ThemesScreen, type KeyFrames } from "./screens/ThemesScreen";
 import { GameModeStudio } from "./components/GameModeStudio";
 import { MacroStudio } from "./components/MacroStudio";
 import { PageTemplates } from "./components/PageTemplates";
@@ -102,6 +103,7 @@ const NAV_ITEMS = [
     { id: "workspace", label: "Profiles and keys", icon: Layers },
     { id: "macros", label: "Macro studio", icon: Zap },
     { id: "icons", label: "Icon studio", icon: Palette },
+    { id: "themes", label: "Themes", icon: Sparkles },
     { id: "gamemode", label: "Game mode", icon: Gamepad2 },
     { id: "plugins", label: "Plugins", icon: Puzzle },
     { id: "devices", label: "Devices", icon: Usb },
@@ -829,6 +831,51 @@ export const App: React.FC = () => {
     }
   };
 
+  /** Stages animated frames for several keys and puts them on the page in one undo step. */
+  const applyKeyFrames = async (items: KeyFrames[], label: string) => {
+    if (!activeProfile || !activePage || items.length === 0) return;
+    const staged: Array<{ index: number; preview: MediaPreview }> = [];
+    try {
+      for (const item of items) {
+        const preview = await deckforgeApi.stageFrameSequence(`theme-${Date.now()}-${item.index}`, item.name, item.frames, item.delayMs);
+        staged.push({ index: item.index, preview });
+      }
+    } catch (err) {
+      triggerToast(errorText(err), "warning");
+      return;
+    }
+    setMediaLibrary((prev) => ({ ...prev, ...Object.fromEntries(staged.map((s) => [s.preview.id, s.preview])) }));
+    const byIndex = new Map(staged.map((s) => [s.index, s.preview.id]));
+    pushUndoSnapshot();
+    setProfiles((prev) =>
+      prev.map((prof) =>
+        prof.id !== activeProfile.id
+          ? prof
+          : {
+              ...prof,
+              lastModifiedMs: Date.now(),
+              pages: prof.pages.map((pg, pIdx) =>
+                pIdx !== selectedPageIdx
+                  ? pg
+                  : {
+                      ...pg,
+                      keys: pg.keys.map((key) => {
+                        const mediaId = byIndex.get(key.index);
+                        return mediaId
+                          ? { ...key, media: { mediaId, fit: "cover", loopPlayback: true, speed: 1 }, backgroundStyle: "Image" }
+                          : key;
+                      }),
+                    }
+              ),
+            }
+      )
+    );
+    triggerToast(`${label} added to ${staged.length} key${staged.length === 1 ? "" : "s"}. Apply to Device to see it.`, "success", {
+      label: "Apply now",
+      run: () => applyRef.current(),
+    });
+  };
+
   const useSampleAnimation = async (target: ScreenTarget, index: number) => {
     try {
       const frames = buildPulseFrames();
@@ -1453,6 +1500,20 @@ export const App: React.FC = () => {
           onPaintPage={handleBatchApplyStyleToPage}
           onApply={() => void handleApplyToDevice()}
           onDropFile={(file) => void ingestFile(file, "key", activeKey.index)}
+          onBrandPick={(file) => void ingestFile(file, "key", activeKey.index)}
+        />
+      )}
+
+      {activeScreen === "themes" && (
+        <ThemesScreen
+          keys={activePage.keys.slice(0, activeDevice.keys.count)}
+          columns={activeDevice.keys.cols}
+          rows={activeDevice.keys.rows}
+          pixelWidth={activeDevice.keys.pixelWidth}
+          pixelHeight={activeDevice.keys.pixelHeight}
+          selectedIndex={activeKey.index}
+          onApplyFrames={applyKeyFrames}
+          notify={triggerToast}
         />
       )}
 

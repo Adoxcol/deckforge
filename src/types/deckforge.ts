@@ -528,6 +528,7 @@ export type NavScreenId =
   | "plugins"
   | "macros"
   | "icons"
+  | "themes"
   | "gamemode"
   | "settings";
 

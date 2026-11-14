@@ -3,6 +3,7 @@ import { Eye, EyeOff, Film, ImagePlus, Trash2, Type, Upload } from "lucide-react
 import type { KeyConfig, MediaPreview, ScreenMediaConfig } from "../types/deckforge";
 import { AVAILABLE_ICON_NAMES, DeckIcon } from "./DeckIcon";
 import { ScreenFace } from "./ScreenFace";
+import { BrandIconPicker } from "./BrandIconPicker";
 
 type LayerId = "picture" | "title" | "icon" | "background";
 
@@ -102,6 +103,7 @@ export const IconStudio: React.FC<{
   onPaintPage: () => void;
   onApply: () => void;
   onDropFile: (file: File) => void;
+  onBrandPick: (file: File) => void;
 }> = ({
   keys,
   columns,
@@ -118,6 +120,7 @@ export const IconStudio: React.FC<{
   onPaintPage,
   onApply,
   onDropFile,
+  onBrandPick,
 }) => {
   const [layer, setLayer] = useState<LayerId>("icon");
   const face = keys.find((item) => item.index === selectedIndex) ?? keys[0];
@@ -351,6 +354,7 @@ export const IconStudio: React.FC<{
             ))}
           </div>
         )}
+        {layer === "icon" && <BrandIconPicker onPick={(file) => onBrandPick(file)} />}
 
         {layer === "background" && (
           <>
