@@ -549,6 +549,7 @@ fn prepare_snapshot(
 
 /// DISPLAY_WRITE protects this private cache snapshot until it is published.
 fn render_layout_frames(prepared: &mut PreparedLayout) -> (drivers::hal::PublishOutcome, Vec<DiagnosticEntry>) {
+    let _timing = performance::timer(performance::Stage::FullRender);
     let (jobs, zones, strip) = plan_screens(&prepared.dev, &prepared.applied.page, &prepared.face);
     let mut diags = Vec::new();
     let outcome = publish_screens(
@@ -815,6 +816,7 @@ fn sample_face_with(
 }
 
 fn read_face(previous: &DeckFaceState) -> DeckFaceState {
+    let _timing = performance::timer(performance::Stage::Media);
     let (playing, title) = read_media_face();
     let audio = read_audio_face();
     let stats = crate::actions::read_quick_stats();
@@ -927,6 +929,7 @@ fn face_delta_bursts_with(
 }
 
 fn render_face_frames(dev: &DeviceDescriptor, page: &ProfilePage, face: &DeckFaceState) -> Vec<RenderedFaceFrame> {
+    let _timing = performance::timer(performance::Stage::FaceRender);
     let strip_covers_zones = page.strip_media.is_some();
     let mut bursts = Vec::new();
     let key_count = dev.keys.count as usize;

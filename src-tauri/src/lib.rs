@@ -47,6 +47,7 @@ mod live;
 mod macro_run;
 mod state;
 mod workers;
+mod performance;
 mod instance;
 mod lifecycle;
 
@@ -136,6 +137,7 @@ pub fn run() {
             backup::restore_profiles_backup,
             import_legacy_sdprofiles,
             get_telemetry,
+            get_performance_snapshot,
             hold_auto_switch,
             save_auto_switch_rules,
             save_obs_settings,

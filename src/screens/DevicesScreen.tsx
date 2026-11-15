@@ -1,3 +1,4 @@
+import { PerformancePanel } from "../components/PerformancePanel";
 import React, { useState } from "react";
 import { RefreshCw, RotateCcw } from "lucide-react";
 import type { DeviceDescriptor, DiagnosticEntry, FrameCacheStats } from "../types/deckforge";
@@ -78,6 +79,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
       </aside>
 
       <main className="p-6 overflow-y-auto flex flex-col gap-5">
+        {(deviceDetailTab === "Diagnostics" || connectedDevices.length === 0) && <PerformancePanel />}
         {connectedDevices.length === 0 ? (
           <p className="text-sm text-[var(--text-secondary)]">
             Plug in a deck to see its driver, brightness, and diagnostics.

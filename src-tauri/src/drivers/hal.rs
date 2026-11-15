@@ -984,6 +984,7 @@ fn render_touch_window(
 // from several places at once is what made the firmware reset, drop icons, and
 // sleep the panel on a press.
 struct DeckJob {
+    queued_at: Instant,
     steps: Vec<IoStep>,
     reply: mpsc::Sender<Result<(), String>>,
     deadline: Instant,
@@ -1379,6 +1380,7 @@ fn run_debug_script(script: &str) {
     }
     let (reply, _) = mpsc::channel();
     let job = DeckJob {
+        queued_at: Instant::now(),
         steps, reply, deadline: Instant::now() + scheduler::JOB_TIMEOUT,
         cancelled: Arc::new(AtomicBool::new(false)),
         connection_epoch: CONNECTION_EPOCH.load(Ordering::SeqCst),
@@ -1529,6 +1531,7 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
         // all pauses and between packets, and checks heartbeat deadlines at safe boundaries.
         if !lost {
             if let Ok(job) = jobs.try_recv() {
+                crate::performance::record(crate::performance::Stage::UsbQueue, job.queued_at.elapsed());
                 let valid = job.validate(Instant::now(), CONNECTION_EPOCH.load(Ordering::SeqCst));
                 if let Err(err) = valid {
                     let _ = job.reply.send(Err(err));
@@ -1542,6 +1545,7 @@ fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
                         heartbeat_enabled: !debug_flag("no-heartbeat"), last_control_scan: &mut last_control_scan };
                     let result = scheduler::run_job(&mut transport, &job.steps, settle,
                         job.deadline, &job.cancelled, &mut last_heartbeat);
+                    crate::performance::record(crate::performance::Stage::UsbWrite, started.elapsed());
                     if job.steps.len() > 1 || result.is_err() {
                         deck_log(&format!("job packets={} took={}ms result={result:?}", job.steps.len(), started.elapsed().as_millis()));
                     }
@@ -1598,6 +1602,7 @@ fn deck_write_steps(steps: Vec<IoStep>) -> Result<(), String> {
     let deadline = Instant::now() + scheduler::JOB_TIMEOUT;
     let cancelled = Arc::new(AtomicBool::new(false));
     enqueue_job(&io.jobs, DeckJob {
+        queued_at: Instant::now(),
         steps, reply, deadline, cancelled: Arc::clone(&cancelled),
         connection_epoch: CONNECTION_EPOCH.load(Ordering::SeqCst),
     })?;
@@ -1647,7 +1652,7 @@ mod tests {
 
     fn queued_test_job(epoch: u64) -> (DeckJob, mpsc::Receiver<Result<(), String>>) {
         let (reply, wait) = mpsc::channel();
-        (DeckJob { steps: vec![IoStep::command(vec![0], 0)], reply,
+        (DeckJob { queued_at: Instant::now(), steps: vec![IoStep::command(vec![0], 0)], reply,
             deadline: Instant::now() + scheduler::JOB_TIMEOUT,
             cancelled: Arc::new(AtomicBool::new(false)), connection_epoch: epoch }, wait)
     }

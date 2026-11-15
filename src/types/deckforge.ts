@@ -556,3 +556,17 @@ export interface RecoveryDraft {
   savedProfilesChanged: boolean;
 }
 export interface DraftSnapshot { profiles: Profile[]; baseProfiles: Profile[] }
+
+export interface PerformanceSnapshot {
+  windowSize: number;
+  elapsedSeconds: number;
+  timings: Array<{
+    label: string;
+    count: number;
+    samples: number;
+    lastMs: number | null;
+    medianMs: number | null;
+    p95Ms: number | null;
+    maxMs: number | null;
+  }>;
+}

@@ -369,7 +369,10 @@ pub fn import_legacy_sdprofiles(state: State<'_, SharedState>) -> Result<Vec<Pro
 #[tauri::command]
 pub async fn get_telemetry() -> Result<SystemTelemetrySnapshot, String> {
     // Enumerating processes can be slow; never run it on the window thread.
-    tauri::async_runtime::spawn_blocking(collect_system_telemetry)
+    tauri::async_runtime::spawn_blocking(|| {
+        let _timing = performance::timer(performance::Stage::Telemetry);
+        collect_system_telemetry()
+    })
         .await
         .map_err(|err| err.to_string())
 }
@@ -561,4 +564,9 @@ pub fn plugin_open_page(url: String) -> Result<(), String> {
 #[tauri::command]
 pub async fn audio_outputs() -> Result<Vec<crate::actions::AudioOutput>, String> {
     tauri::async_runtime::spawn_blocking(crate::actions::list_outputs).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub(crate) fn get_performance_snapshot(reset: bool) -> performance::Snapshot {
+    performance::snapshot(reset)
 }

@@ -904,6 +904,11 @@ export const deckforgeApi = {
     return `Downloads\\${fileName}`;
   },
 
+  async getPerformanceSnapshot(reset = false): Promise<import("../types/deckforge").PerformanceSnapshot> {
+    if (!isTauriRuntime()) throw new Error("Performance measurements require the desktop app.");
+    return invoke("get_performance_snapshot", { reset });
+  },
+
   async getTelemetry(): Promise<SystemTelemetrySnapshot> {
     if (isTauriRuntime()) {
       return await invoke<SystemTelemetrySnapshot>("get_telemetry");

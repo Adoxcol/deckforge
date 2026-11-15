@@ -97,23 +97,26 @@ enum InputWork {
         action: Option<LiveAction>,
         ts: u64,
         raw_hex: String,
+        queued_at: std::time::Instant,
     },
 }
 
 fn run_input_work(app_handle: &tauri::AppHandle, shared: &SharedState, work: InputWork) {
-    let (action, ts, raw_hex) = match work {
+    let (action, ts, raw_hex, queued_at) = match work {
         InputWork::FullLayout(generation) => {
             // Several resend/reconnect requests may arrive while an action is
             // running. Only the newest generation should reset the panel.
             if generation == deck_generation() { push_connected_layout(shared); }
             return;
         }
-        InputWork::Press { action, ts, raw_hex } => (action, ts, raw_hex),
+        InputWork::Press { action, ts, raw_hex, queued_at } => (action, ts, raw_hex, queued_at),
     };
     // Presses suppressed during a layout transition must not queue extra wake
     // writes behind that transfer and delay the next valid action.
     let Some(action) = action else { return; };
     if !drivers::hal::deck_control_available() { return; }
+    performance::record(performance::Stage::ActionQueue, queued_at.elapsed());
+    let action_timing = performance::timer(performance::Stage::Action);
     let dev = shared
         .lock_safe()
         .devices
@@ -124,6 +127,7 @@ fn run_input_work(app_handle: &tauri::AppHandle, shared: &SharedState, work: Inp
         let _ = wake_panel(&dev);
     }
     let result = dispatch_live_action(app_handle, shared, &action);
+    drop(action_timing);
     let mut guard = shared.lock_safe();
     guard.diagnostics.push(DiagnosticEntry {
         id: format!("diag-hw-{}", ts),
@@ -256,6 +260,7 @@ pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: 
                                     action: pending,
                                     ts,
                                     raw_hex: evt.raw_hex.clone(),
+                                    queued_at: std::time::Instant::now(),
                                 });
                             }
                         }
@@ -363,6 +368,7 @@ pub(crate) fn animation_tick_with(
 }
 
 pub(crate) fn build_animation_bursts(dev: &DeviceDescriptor, frames: Vec<(PlaybackTarget, Vec<u8>)>) -> Vec<HidBurst> {
+    let _timing = performance::timer(performance::Stage::Animation);
     let mut bursts = Vec::new();
     for (target, jpeg) in frames {
         let reports = match target {
