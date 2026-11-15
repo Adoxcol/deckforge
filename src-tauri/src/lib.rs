@@ -41,6 +41,7 @@ use std::time::Duration;
 use tauri::{Emitter, State, Manager};
 
 mod commands;
+mod discovery;
 mod backup;
 mod draft;
 mod live;

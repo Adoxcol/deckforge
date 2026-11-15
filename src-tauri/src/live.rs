@@ -403,23 +403,14 @@ pub(crate) fn apply_brightness_action(
 /// be sent. So look again before the first push.
 fn ensure_deck_in_state(shared: &SharedState) -> bool {
     for attempt in 0..6u32 {
-        {
-            let mut guard = shared.lock().unwrap_or_else(|e| e.into_inner());
-            let known = |devices: &[DeviceDescriptor]| devices.iter().any(|d| d.connected && d.protocol_family.starts_with("CRT"));
-            if known(&guard.devices) {
-                return true;
-            }
-            let mut devices = guard.devices.clone();
-            let mut diagnostics = Vec::new();
-            scan_usb_devices(&mut devices, &mut diagnostics);
-            let found = known(&devices);
-            guard.devices = devices;
-            guard.diagnostics.extend(diagnostics);
-            if found {
-                drop(guard);
-                deck_note("deck was missing from the device list at start; found it on a later scan");
-                return true;
-            }
+        let known = |devices: &[DeviceDescriptor]| devices.iter().any(|d| d.connected && d.protocol_family.starts_with("CRT"));
+        if known(&shared.lock_safe().devices) {
+            return true;
+        }
+        let (devices, _) = discovery::refresh(shared);
+        if known(&devices) {
+            deck_note("deck was missing from the device list at start; found it on a later scan");
+            return true;
         }
         if attempt < 5 {
             std::thread::sleep(Duration::from_millis(700));
@@ -1534,6 +1525,37 @@ mod live_tests {
         assert_eq!(guard.profiles[0].pages[0].keys[0].title, "Edited during rendering");
         assert!(!guard.layout_ready);
         assert_eq!(guard.frame_cache.stats.frames_transmitted, 0);
+    }
+
+    #[test]
+    fn usb_scan_releases_state_and_preserves_concurrent_settings_and_diagnostics() {
+        let shared = test_state();
+        shared.lock_safe().devices[0].connected = false;
+        let (devices, newly_connected) = discovery::refresh_with(&shared, |devices, diagnostics| {
+            let mut guard = shared.try_lock().expect("USB enumeration must not hold app state");
+            guard.devices[0].brightness = 23;
+            guard.diagnostics.push(DiagnosticEntry {
+                id: "during-scan".into(), timestamp_ms: 1, level: "info".into(),
+                device_id: "system".into(), stage: "TEST".into(), message: "Concurrent event".into(), packet_hex: None,
+            });
+            devices[0].connected = true;
+            devices[0].hid_path = Some("discovered-path".into());
+            for index in 0..79 {
+                diagnostics.push(DiagnosticEntry {
+                    id: format!("scan-{index}"), timestamp_ms: 2, level: "info".into(),
+                    device_id: "system".into(), stage: "USB_SCAN".into(), message: "Scan event".into(), packet_hex: None,
+                });
+            }
+        });
+        assert!(newly_connected);
+        assert_eq!(devices[0].brightness, 23);
+        assert_eq!(devices[0].hid_path.as_deref(), Some("discovered-path"));
+        let guard = shared.lock_safe();
+        assert_eq!(guard.diagnostics.len(), 80);
+        assert!(guard.diagnostics.iter().any(|d| d.id == "during-scan"));
+        drop(guard);
+        let (_, newly_connected) = discovery::refresh_with(&shared, |_, _| {});
+        assert!(!newly_connected, "unchanged scans must not request another full layout");
     }
 
     #[test]

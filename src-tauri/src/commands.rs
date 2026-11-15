@@ -1,72 +1,48 @@
 use super::*;
 
 #[tauri::command]
-pub fn get_initial_state(state: State<'_, SharedState>) -> Result<FullBootstrapPayload, String> {
-    let (mut devices, mut diagnostics, profiles, auto_switch_rules, macros, saved_locally_at_ms, applied_to_device_at_ms, recent_input_events, media_library, face, obs) = {
-        let guard = state.lock_safe();
-        (
-            guard.devices.clone(),
-            guard.diagnostics.clone(),
-            guard.profiles.clone(),
-            guard.auto_switch_rules.clone(),
-            guard.macros.clone(),
-            guard.saved_locally_at_ms,
-            guard.applied_to_device_at_ms,
-            guard.recent_input_events.clone(),
-            guard.media.previews(),
-            guard.face.clone(),
-            guard.obs.clone(),
-        )
-    };
-    scan_usb_devices(&mut devices, &mut diagnostics);
-    if diagnostics.len() > 80 {
-        let extra = diagnostics.len() - 80;
-        diagnostics.drain(0..extra);
-    }
-    let telemetry = collect_system_telemetry();
-    let legacy_summary = scan_legacy_streamdock_environment();
-    let frame_cache_stats = {
-        let mut guard = state.lock_safe();
-        guard.devices = devices.clone();
-        guard.diagnostics = diagnostics.clone();
-        get_cache_stats(&guard.frame_cache)
-    };
-
-    Ok(FullBootstrapPayload {
-        applied_context: state.lock_safe().applied_editor_context(),
-        devices,
-        profiles,
-        auto_switch_rules,
-        macros,
-        diagnostics,
-        frame_cache_stats,
-        legacy_summary,
-        telemetry,
-        saved_locally_at_ms,
-        applied_to_device_at_ms,
-        recent_input_events,
-        media_library,
-        face,
-        obs,
-    })
+pub async fn get_initial_state(state: State<'_, SharedState>) -> Result<FullBootstrapPayload, String> {
+    let shared = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        discovery::refresh(&shared);
+        let telemetry = collect_system_telemetry();
+        let legacy_summary = scan_legacy_streamdock_environment();
+        // Capture editor context and data together after slow OS/file queries.
+        let (mut payload, media) = {
+            let guard = shared.lock_safe();
+            (FullBootstrapPayload {
+                applied_context: guard.applied_editor_context(),
+                devices: guard.devices.clone(),
+                profiles: guard.profiles.clone(),
+                auto_switch_rules: guard.auto_switch_rules.clone(),
+                macros: guard.macros.clone(),
+                diagnostics: guard.diagnostics.clone(),
+                frame_cache_stats: get_cache_stats(&guard.frame_cache),
+                legacy_summary,
+                telemetry,
+                saved_locally_at_ms: guard.saved_locally_at_ms,
+                applied_to_device_at_ms: guard.applied_to_device_at_ms,
+                recent_input_events: guard.recent_input_events.clone(),
+                media_library: Vec::new(),
+                face: guard.face.clone(),
+                obs: guard.obs.clone(),
+            }, guard.media.clone())
+        };
+        payload.media_library = media.previews();
+        payload
+    }).await.map_err(|err| err.to_string())
 }
 
 #[tauri::command]
-pub fn refresh_usb_devices(state: State<'_, SharedState>) -> Result<Vec<DeviceDescriptor>, String> {
-    let mut guard = state.lock_safe();
-    let mut devices = guard.devices.clone();
-    let mut diags = guard.diagnostics.clone();
-    let was_connected = devices.iter().any(|d| d.connected && d.protocol_family.starts_with("CRT"));
-    scan_usb_devices(&mut devices, &mut diags);
-    let now_connected = devices.iter().any(|d| d.connected && d.protocol_family.starts_with("CRT"));
-    guard.devices = devices.clone();
-    guard.diagnostics = diags;
-    drop(guard);
-    if now_connected && !was_connected {
-        // A deck that only now shows up has not had its pictures sent.
-        request_full_push("deck found by a rescan");
-    }
-    Ok(devices)
+pub async fn refresh_usb_devices(state: State<'_, SharedState>) -> Result<Vec<DeviceDescriptor>, String> {
+    let shared = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let (devices, newly_connected) = discovery::refresh(&shared);
+        if newly_connected {
+            request_full_push("deck found by a rescan");
+        }
+        devices
+    }).await.map_err(|err| err.to_string())
 }
 
 #[tauri::command]
