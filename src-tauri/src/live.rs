@@ -1559,6 +1559,50 @@ mod live_tests {
     }
 
     #[test]
+    fn profile_save_releases_state_and_only_publishes_successful_writes() {
+        let shared = test_state();
+        let before = serde_json::to_value(&shared.lock_safe().profiles).unwrap();
+        let mut profiles = shared.lock_safe().profiles.clone();
+        profiles[0].name = "Saved revision".into();
+        let failed = commands::save_profiles_with(&shared, profiles.clone(), |_| {
+            let guard = shared.try_lock().expect("disk writes must leave app state accessible");
+            assert_eq!(serde_json::to_value(&guard.profiles).unwrap(), before);
+            Err("disk full".into())
+        });
+        assert!(failed.is_err());
+        assert_eq!(serde_json::to_value(&shared.lock_safe().profiles).unwrap(), before);
+        assert_eq!(shared.lock_safe().saved_locally_at_ms, 0);
+        let saved_at = commands::save_profiles_with(&shared, profiles, |written| {
+            let guard = shared.try_lock().expect("disk writes must leave app state accessible");
+            assert_eq!(serde_json::to_value(&guard.profiles).unwrap(), before);
+            assert_eq!(written[0].name, "Saved revision");
+            Ok(())
+        }).unwrap();
+        let guard = shared.lock_safe();
+        assert_eq!(guard.profiles[0].name, "Saved revision");
+        assert_eq!(guard.saved_locally_at_ms, saved_at);
+    }
+
+    #[test]
+    fn legacy_parsing_releases_state_and_returns_only_unsaved_candidates() {
+        let shared = test_state();
+        let mut candidates = db::default_profiles();
+        candidates.truncate(1);
+        candidates[0].id = "imported-candidate".into();
+        let result = commands::import_legacy_with(&shared, || {
+            let mut guard = shared.try_lock().expect("legacy file parsing must not lock app state");
+            guard.profiles[0].name = "Newer saved edit".into();
+            candidates
+        });
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].id, "imported-candidate");
+        let guard = shared.lock_safe();
+        assert_eq!(guard.profiles[0].name, "Newer saved edit");
+        assert!(!guard.profiles.iter().any(|p| p.id == "imported-candidate"));
+        assert_eq!(guard.saved_locally_at_ms, 0);
+    }
+
+    #[test]
     fn invalid_apply_does_not_disable_a_working_layout() {
         let shared = test_state();
         let prepared = prepare_first(&shared);

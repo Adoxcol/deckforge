@@ -96,10 +96,25 @@ pub async fn apply_profile_to_device(
 }
 
 #[tauri::command]
-pub fn save_profiles(profiles: Vec<Profile>, state: State<'_, SharedState>) -> Result<u64, String> {
-    let mut guard = state.lock_safe();
+pub async fn save_profiles(profiles: Vec<Profile>, state: State<'_, SharedState>) -> Result<u64, String> {
+    let shared = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || save_profiles_with(&shared, profiles, write_saved_profiles))
+        .await.map_err(|err| err.to_string())?
+}
+
+// The frontend orders revisions. Keep disk replacement and state publication
+// serialized too, without holding shared app state across filesystem work.
+static PROFILE_WRITE: Mutex<()> = Mutex::new(());
+
+pub(crate) fn save_profiles_with(
+    shared: &SharedState,
+    profiles: Vec<Profile>,
+    write: impl FnOnce(&[Profile]) -> Result<(), String>,
+) -> Result<u64, String> {
+    let _write = PROFILE_WRITE.lock_safe();
+    write(&profiles)?;
     let ts = now_ms();
-    write_saved_profiles(&profiles)?;
+    let mut guard = shared.lock_safe();
     guard.profiles = profiles;
     guard.saved_locally_at_ms = ts;
     Ok(ts)
@@ -317,29 +332,32 @@ pub fn pause_deck_control() -> String {
 }
 
 #[tauri::command]
-pub fn import_legacy_sdprofiles(state: State<'_, SharedState>) -> Result<Vec<Profile>, String> {
-    let mut guard = state.lock_safe();
-    let imported = parse_all_legacy_sdprofiles();
-    let mut count = 0usize;
-    for imp in imported {
-        if !guard.profiles.iter().any(|p| p.id == imp.id) {
-            guard.profiles.push(imp);
-            count += 1;
-        }
-    }
+pub async fn import_legacy_sdprofiles(state: State<'_, SharedState>) -> Result<Vec<Profile>, String> {
+    let shared = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || import_legacy_with(&shared, parse_all_legacy_sdprofiles))
+        .await.map_err(|err| err.to_string())
+}
+
+pub(crate) fn import_legacy_with(
+    shared: &SharedState,
+    parse: impl FnOnce() -> Vec<Profile>,
+) -> Vec<Profile> {
+    let imported = parse();
+    let mut guard = shared.lock_safe();
     guard.diagnostics.push(DiagnosticEntry {
         id: format!("diag-import-{}", now_ms()),
         timestamp_ms: now_ms(),
-        level: "success".to_string(),
+        level: "info".to_string(),
         device_id: "profile-store".to_string(),
         stage: "SDPROFILE_IMPORT".to_string(),
-        message: format!(
-            "Parsed & imported {} legacy .sdProfile configurations with Win32 hotkey mappings",
-            count
-        ),
+        message: format!("Parsed {} legacy .sdProfile configurations for editor import; save to keep them", imported.len()),
         packet_hex: None,
     });
-    Ok(guard.profiles.clone())
+    let excess = guard.diagnostics.len().saturating_sub(80);
+    guard.diagnostics.drain(..excess);
+    // Import is an editor draft. Never replace or extend the saved backend
+    // snapshot; the frontend merges these candidates into its latest edits.
+    imported
 }
 
 #[tauri::command]
