@@ -158,6 +158,7 @@ pub fn run() {
             commands::plugin_github_install,
             commands::plugin_open_page,
             updates::update_ready,
+            commands::audio_apps,
             commands::audio_outputs
         ])
         .run(tauri::generate_context!())

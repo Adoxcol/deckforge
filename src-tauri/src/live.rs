@@ -110,6 +110,9 @@ pub(crate) fn known_action(binding: &str) -> bool {
             | "audio.volume_down"
             | "audio.volume_mute"
             | "audio.mute_mic"
+            | "audio.app_volume_up"
+            | "audio.app_volume_down"
+            | "audio.app_mute"
             | "audio.open_mixer"
             | "sys.show_desktop"
             | "sys.screenshot"
@@ -1600,6 +1603,14 @@ mod live_tests {
         assert_eq!(guard.profiles[0].name, "Newer saved edit");
         assert!(!guard.profiles.iter().any(|p| p.id == "imported-candidate"));
         assert_eq!(guard.saved_locally_at_ms, 0);
+    }
+
+    #[test]
+    fn per_app_audio_actions_are_valid_knob_bindings_and_require_a_target() {
+        for id in ["audio.app_volume_up", "audio.app_volume_down", "audio.app_mute"] {
+            assert!(known_action(id));
+            assert!(actions::app_audio::execute(id, "").is_err());
+        }
     }
 
     #[test]

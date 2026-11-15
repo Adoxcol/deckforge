@@ -1,3 +1,4 @@
+import { AppAudioTarget } from "./AppAudioTarget";
 import React from "react";
 import type { ObsSettings } from "../types/deckforge";
 import { ActionPicker } from "./ActionPicker";
@@ -26,6 +27,7 @@ export function actionNeedsParam(id: string): boolean {
     id === "profile.switch_page" ||
     id === "profile.switch" ||
     id === "macro.run" ||
+    id.startsWith("audio.app_") ||
     id === "audio.cycle_output"
   );
 }
@@ -114,10 +116,13 @@ export const ActionBinding: React.FC<{
         choices={choices}
         onChange={(next) => {
           const choice = choices.find((item) => item.id === next);
-          onChange(next, actionNeedsParam(next) ? choice?.defaultParam ?? "" : "");
+          onChange(next, next.startsWith("audio.app_") && actionId.startsWith("audio.app_")
+            ? actionParam : actionNeedsParam(next) ? choice?.defaultParam ?? "" : "");
         }}
       />
-      {actionId === "audio.cycle_output" ? (
+      {actionId.startsWith("audio.app_") ? (
+        <AppAudioTarget value={actionParam} onChange={next => onChange(actionId, next)} />
+      ) : actionId === "audio.cycle_output" ? (
         <OutputPair value={actionParam} options={paramOptions ?? []} onChange={(next) => onChange(actionId, next)} />
       ) : showParam && paramOptions && paramOptions.length > 0 ? (
         <select

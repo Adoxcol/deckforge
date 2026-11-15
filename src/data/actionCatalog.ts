@@ -195,6 +195,24 @@ const CORE_ACTIONS: ActionTemplate[] = [
     description: "Mute or unmute the microphone",
   },
   {
+    id: "audio.app_volume_up", title: "App Volume Up", subtitle: "APP +",
+    category: "Media", iconName: "Volume2", actionLabel: "Audio: App Volume Up",
+    defaultParam: "", accentColor: "#5EC8F2", bgColor: "#132630",
+    description: "Raise one application’s volume by 2 percentage points without changing master volume",
+  },
+  {
+    id: "audio.app_volume_down", title: "App Volume Down", subtitle: "APP −",
+    category: "Media", iconName: "Volume2", actionLabel: "Audio: App Volume Down",
+    defaultParam: "", accentColor: "#5EC8F2", bgColor: "#132630",
+    description: "Lower one application’s volume by 2 percentage points without changing master volume",
+  },
+  {
+    id: "audio.app_mute", title: "Mute App", subtitle: "APP MUTE",
+    category: "Media", iconName: "Volume2", actionLabel: "Audio: Mute App",
+    defaultParam: "", accentColor: "#5EC8F2", bgColor: "#132630",
+    description: "Mute or unmute all audio sessions for one application",
+  },
+  {
     id: "audio.cycle_output",
     title: "Sound Output",
     subtitle: "OUTPUT",

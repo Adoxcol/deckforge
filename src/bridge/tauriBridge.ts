@@ -909,6 +909,11 @@ export const deckforgeApi = {
     return invoke("get_performance_snapshot", { reset });
   },
 
+  async audioApps(): Promise<{ exe: string; sessions: number }[]> {
+    if (!isTauriRuntime()) throw new Error("Audio app discovery requires the Windows desktop app.");
+    return invoke("audio_apps");
+  },
+
   async getTelemetry(): Promise<SystemTelemetrySnapshot> {
     if (isTauriRuntime()) {
       return await invoke<SystemTelemetrySnapshot>("get_telemetry");

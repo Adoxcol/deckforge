@@ -564,3 +564,8 @@ pub async fn audio_outputs() -> Result<Vec<crate::actions::AudioOutput>, String>
 pub(crate) fn get_performance_snapshot(reset: bool) -> performance::Snapshot {
     performance::snapshot(reset)
 }
+
+#[tauri::command]
+pub async fn audio_apps() -> Result<Vec<actions::app_audio::AudioApp>, String> {
+    tauri::async_runtime::spawn_blocking(actions::app_audio::list).await.map_err(|e| e.to_string())?
+}

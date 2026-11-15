@@ -1,3 +1,4 @@
+pub mod app_audio;
 mod app_icon;
 mod audio;
 pub use app_icon::app_icon_data_url;
@@ -737,6 +738,7 @@ pub fn execute_key_action_live(
             "audio.mute_mic" => toggle_microphone_mute(),
             "audio.volume_mute" => toggle_speaker_mute(),
             "audio.cycle_output" => cycle_output(action_param),
+            "audio.app_volume_up" | "audio.app_volume_down" | "audio.app_mute" => app_audio::execute(action_id, action_param),
             "obs.start_stream" | "obs.toggle_record" | "obs.save_replay" | "obs.next_scene"
             | "obs.prev_scene" | "obs.toggle_virtualcam" | "obs.toggle_replay" | "obs.pause_record"
             | "obs.studio_transition" | "obs.set_scene" | "obs.toggle_mute" => run_obs_action(obs, action_id, action_param),

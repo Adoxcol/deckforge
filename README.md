@@ -19,6 +19,14 @@ Open-source universal Stream Deck & Stream Dock desktop controller built with **
 - **Game Mode**: build your own modes from what is actually running on your PC (open apps, background processes, services), optionally switch to one of the power plans installed on it, and have everything put back afterwards. Nothing is closed until you pick it, and anti-cheat, drivers, audio, security software and DeckForge itself are never offered.
 - **Deck reliability**: heartbeat that keeps the firmware awake, automatic reconnect and re-send after a USB drop, a status badge with a **Re-send layout** button, and explicit **Pause DeckForge / Use DeckForge** controls. If AJAZZ is detected, DeckForge releases the device and waits for you to close AJAZZ and choose **Use DeckForge**. It never terminates the vendor app. A Windows session mutex prevents a second DeckForge instance from starting device workers.
 
+## Per-app audio controls
+
+In the action picker, choose **App Volume Up**, **App Volume Down**, or **Mute App**. Select an app with an existing audio session, or enter its executable name (for example, `spotify.exe`). Use **Refresh apps** after starting audio playback.
+
+For a mixer knob, assign Volume Up to clockwise, Volume Down to counterclockwise, and Mute App to push, using the same executable for all three. Steps are two percentage points, clamped to 0–100%. All accessible sessions for that executable across active playback outputs are targeted. Mixed mute states become all-muted on the next press; an all-muted app becomes unmuted. Assignments survive PID changes. Browser tabs can share the browser executable; individual tabs are not separate targets.
+
+Missing sessions report an error without falling back to master volume. Partial write failures report how many sessions changed. This first version does not display live per-app meters or target the foreground application.
+
 ## Development
 
 ```powershell
