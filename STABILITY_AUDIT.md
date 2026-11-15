@@ -261,3 +261,10 @@ These are proposed release gates, not results already achieved by this audit.
 - Profile save commands now run on the blocking pool. A dedicated writer mutex spans disk replacement and saved-state publication, while SharedState is acquired only after a successful write. The existing frontend persistence queue continues ordering revisions and waiting for pending saves at quit. Failed writes leave saved profiles and their timestamp unchanged.
 - Legacy profile parsing also runs on the blocking pool without app state. Imports return only parsed candidates for the editor's existing merge into its latest draft; they no longer mutate the backend saved profile list or return stale saved profiles that could resurrect unrelated deleted drafts. Import diagnostics explicitly describe unsaved candidates and are bounded to 80 entries.
 - Validation: 136 Rust tests passed (7 ignored), plus all 20 frontend tests including save ordering, failure/retry and quit-flush coverage. New regressions verify state access during disk write/parsing, publication only on successful writes, and preservation of newer saved data while imports remain unsaved. Native installed-app latency remains unmeasured for this change.
+
+
+## Performance follow-up 9: avoid repeated editor serialization (2026-11-15)
+
+- Memoized the saved-profile comparison by profiles and savedSnapshot. Unrelated telemetry, live face, selection and toast renders no longer serialize the full profile library and compare its JSON again.
+- Memoized the workspace status request key by device/profile/page and refresh revisions. Live updates and status responses no longer serialize the unchanged page. The full draft remains part of the key, retaining stale-response protection when content changes.
+- Validation: all 20 frontend tests and the production TypeScript/Vite build passed. Existing persistence coverage includes undo/redo dirty detection, edits during saves, failure/retry and shutdown flushing. This is a small memoization change relying on the editor's immutable profile/page updates; no native latency measurement or speedup percentage is claimed.

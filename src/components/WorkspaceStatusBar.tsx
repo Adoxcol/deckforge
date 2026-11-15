@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Check, HardDrive, Layers } from "lucide-react";
 import { deckforgeApi } from "../bridge/tauriBridge";
 import type { ProfilePage, WorkspaceStatus } from "../types/deckforge";
@@ -20,7 +20,10 @@ export function WorkspaceStatusBar({ deviceId, deviceName, profileId, profileNam
   const [result, setResult] = useState<{ key: string; status: WorkspaceStatus } | null>(null);
   const [failed, setFailed] = useState(false);
   // Include the full draft so a late response can never label newer edits as applied.
-  const key = JSON.stringify([deviceId, profileId, page, refresh, revision]);
+  const key = useMemo(
+    () => JSON.stringify([deviceId, profileId, page, refresh, revision]),
+    [deviceId, profileId, page, refresh, revision]
+  );
   useEffect(() => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout>;

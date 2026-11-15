@@ -152,7 +152,12 @@ export const App: React.FC = () => {
 
   // Sync & Persistence States (Spec Section 1 & 14: Distinguish Saved Locally vs Applied to Device)
   const [savedSnapshot, setSavedSnapshot] = useState("[]");
-  const savedLocally = profileSnapshot(profiles) === savedSnapshot;
+  // Live face/telemetry ticks do not change profiles. Avoid serializing the
+  // entire library and comparing large strings on each unrelated render.
+  const savedLocally = useMemo(
+    () => profileSnapshot(profiles) === savedSnapshot,
+    [profiles, savedSnapshot]
+  );
   const [profilePersistence] = useState(() => createProfilePersistence<Profile[]>(deckforgeApi.saveProfiles, setSavedSnapshot));
   const [recoveryChecked, setRecoveryChecked] = useState(false);
   const [recoveryDraft, setRecoveryDraft] = useState<RecoveryDraft | null>(null);
