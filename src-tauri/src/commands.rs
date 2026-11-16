@@ -395,29 +395,46 @@ pub fn save_obs_settings(settings: ObsSettings, state: State<'_, SharedState>) -
 }
 
 #[tauri::command]
-pub fn stage_screen_media(
+pub async fn stage_screen_media(
     id: String,
     file_name: String,
     data_base64: String,
     state: State<'_, SharedState>,
 ) -> Result<MediaPreview, String> {
-    let bytes = decode_b64(&data_base64)?;
-    let mut guard = state.lock_safe();
-    guard.media.stage_bytes(&id, &file_name, &bytes)
+    let shared = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || stage_media_with(&shared, |staged| {
+        let bytes = decode_b64(&data_base64)?;
+        staged.stage_bytes(&id, &file_name, &bytes)
+    })).await.map_err(|err| err.to_string())?
 }
 
 #[tauri::command]
-pub fn stage_frame_sequence(
+pub async fn stage_frame_sequence(
     id: String,
     file_name: String,
     frames_base64: Vec<String>,
     delay_ms: u32,
     state: State<'_, SharedState>,
 ) -> Result<MediaPreview, String> {
-    let mut guard = state.lock_safe();
-    guard
-        .media
-        .stage_sequence(&id, &file_name, &frames_base64, delay_ms)
+    let shared = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || stage_media_with(&shared, |staged| {
+        staged.stage_sequence(&id, &file_name, &frames_base64, delay_ms)
+    })).await.map_err(|err| err.to_string())?
+}
+
+// Protect same-ID uploads and their atomic temporary files while leaving
+// SharedState available to device actions, rendering and library readers.
+static MEDIA_STAGE: Mutex<()> = Mutex::new(());
+
+pub(crate) fn stage_media_with(
+    shared: &SharedState,
+    stage: impl FnOnce(&mut MediaStore) -> Result<MediaPreview, String>,
+) -> Result<MediaPreview, String> {
+    let _staging = MEDIA_STAGE.lock_safe();
+    let mut staged = shared.lock_safe().media.staging_store();
+    let preview = stage(&mut staged)?;
+    shared.lock_safe().media.merge_restored(staged);
+    Ok(preview)
 }
 
 #[tauri::command]

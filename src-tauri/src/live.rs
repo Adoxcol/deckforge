@@ -1670,6 +1670,40 @@ mod live_tests {
     }
 
     #[test]
+    fn media_staging_releases_state_and_merges_only_successful_new_clips() {
+        let fixture = TestLayoutStore::new();
+        let dir = fixture.0.parent().unwrap().join("media");
+        std::fs::create_dir(&dir).unwrap();
+        let shared = test_state();
+        shared.lock_safe().media = MediaStore::load_from(dir.clone());
+        let mut png = std::io::Cursor::new(Vec::new());
+        image::DynamicImage::new_rgba8(2, 2).write_to(&mut png, image::ImageFormat::Png).unwrap();
+        let bytes = png.into_inner();
+        let preview = commands::stage_media_with(&shared, |staged| {
+            assert!(staged.previews().is_empty());
+            {
+                let mut guard = shared.try_lock().expect("media decoding/writes must not lock app state");
+                guard.media.stage_bytes("concurrent", "other.png", &bytes)?;
+            }
+            staged.stage_bytes("upload", "upload.png", &bytes)
+        }).unwrap();
+        assert_eq!(preview.id, "upload");
+        assert_eq!(shared.lock_safe().media.previews().len(), 2);
+        let failed = commands::stage_media_with(&shared, |staged| {
+            assert!(shared.try_lock().is_ok());
+            staged.stage_bytes("upload", "broken.png", b"invalid image")
+        });
+        assert!(failed.is_err());
+        let library = shared.lock_safe().media.previews();
+        assert_eq!(library.len(), 2);
+        assert_eq!(library.iter().find(|p| p.id == "upload").unwrap().file_name, "upload.png");
+        assert_eq!(MediaStore::load_from(dir.clone()).previews().len(), 2);
+        // This dedicated fixture contains only files written by this test.
+        for file in std::fs::read_dir(&dir).unwrap() { std::fs::remove_file(file.unwrap().path()).unwrap(); }
+        std::fs::remove_dir(&dir).unwrap();
+    }
+
+    #[test]
     fn invalid_apply_does_not_disable_a_working_layout() {
         let shared = test_state();
         let prepared = prepare_first(&shared);

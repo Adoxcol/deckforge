@@ -204,6 +204,12 @@ impl MediaStore {
         items
     }
 
+    /// Stage only new/replaced clips without cloning or temporarily removing
+    /// the live library. Publication merges these clips after successful writes.
+    pub(crate) fn staging_store(&self) -> Self {
+        Self { clips: HashMap::new(), directory: self.directory.clone() }
+    }
+
     pub fn stage_bytes(&mut self, id: &str, file_name: &str, bytes: &[u8]) -> Result<MediaPreview, String> {
         if bytes.len() > MAX_BYTES {
             return Err("File is larger than 8 MB. Export a smaller GIF or image.".into());

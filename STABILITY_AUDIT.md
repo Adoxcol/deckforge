@@ -292,3 +292,10 @@ These are proposed release gates, not results already achieved by this audit.
 - Encoder preview now shows Multiple targets without a single level meter when app and master audio bindings coexist. App-only, master-only and multiple-app displays retain their existing behavior; action dispatch is unchanged.
 - Regression failed before the fix (20% app meter instead of Multiple targets) and passed afterwards. Coverage checks all three master action IDs across clockwise/counterclockwise/push combinations, with and without a live face. All 24 frontend tests and the production build passed; diff whitespace checks passed. No performance-speedup claim or live device/audio changes.
 - Remaining review areas: repeated audio-app picker discovery across multiple bindings, synchronous media staging/settings commands, and hardware smoke testing. No release published by this maintenance run.
+
+
+## Performance follow-up: background media staging (2026-11-16)
+
+- Image/GIF and generated-frame staging commands now perform base64 decoding, image decoding, preview generation and persistence on the blocking pool without holding SharedState. A dedicated staging mutex serializes uploads, including replacement of the same media ID and its temporary files.
+- Each operation uses an empty staging store with the live store's directory. Only successfully written clips are merged into the current library, preserving concurrent additions and avoiding a full library clone or temporary removal. Existing rendering snapshots continue using immutable clips.
+- Validation: 142 Rust tests passed (8 ignored). A new integration regression uses an isolated media directory to verify state access during staging, preservation of a concurrent clip, failed replacement retaining the previous clip, and successful reload from disk. Existing GIF/sequence and persistence-failure tests also pass. No installed-app latency improvement has been measured yet.
