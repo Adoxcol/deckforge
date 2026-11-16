@@ -1,8 +1,8 @@
 {
   "name": "deckforge",
   "private": true,
-  "version": "0.4.6",
-  "description": "DeckForge (OpenStreamDeck) — Universal Open-Source Stream Deck & Stream Dock Controller built with Tauri v2, Rust & React",
+  "version": "0.4.7",
+  "description": "DeckForge (OpenStreamDeck) â€” Universal Open-Source Stream Deck & Stream Dock Controller built with Tauri v2, Rust & React",
   "type": "module",
   "scripts": {
     "dev": "vite",

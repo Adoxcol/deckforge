@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "DeckForge",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "identifier": "org.deckforge.studio",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "DeckForge — Universal Open-Source Stream Deck Controller",
+        "title": "DeckForge â€” Universal Open-Source Stream Deck Controller",
         "width": 1440,
         "height": 900,
         "minWidth": 1100,
