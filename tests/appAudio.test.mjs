@@ -25,3 +25,16 @@ test("empty targets, unavailable sampling and missing sessions are distinct", ()
   assert.equal(appAudioLook("spotify.exe", { appAudio: {} }).title, "No session");
   assert.equal(appAudioLook("spotify.exe", { appAudio: null }).level, null);
 });
+
+test("knobs mixing app and master audio do not present a single app meter", () => {
+  for (const master of ["audio.volume_up", "audio.volume_down", "audio.volume_mute"]) {
+    for (const mixed of [
+      { cwAction: "audio.app_volume_up", cwParam: "spotify.exe", ccwAction: master },
+      { cwAction: master, pushAction: "audio.app_mute", pushParam: "spotify.exe" },
+      { ccwAction: "audio.app_volume_down", ccwParam: "spotify.exe", pushAction: master },
+    ]) {
+      assert.deepEqual(encoderAudioLook(mixed, face), { title: "Multiple targets", level: null, muted: false });
+      assert.deepEqual(encoderAudioLook(mixed, null), { title: "Multiple targets", level: null, muted: false });
+    }
+  }
+});

@@ -284,3 +284,11 @@ These are proposed release gates, not results already achieved by this audit.
 - App-audio keys and touch zones show percentages, ranges, Muted, MIX, No session or Unavailable on the deck and in the editor. Uniform volumes get a level meter; mixed values do not. Encoder preview now uses exact app targets rather than mistakenly showing master volume for every action containing the word volume. Knobs targeting different apps display Multiple apps.
 - The app picker refreshes its reading every two seconds while mounted, without overlapping its own requests or publishing results after unmount. Unsaved new assignments can read status in the picker before being included in saved-profile background sampling. Custom key/zone media retains its existing appearance priority.
 - Validation: 141 Rust tests passed (8 ignored), 23 frontend tests and the production frontend build passed. Read-only native session enumeration/state reads passed separately. Regressions cover mixed mute/volume ranges, app-vs-master routing, multiple knob targets and clearing absent/unavailable values. Physical-deck visual and audio-write smoke tests remain pending; no user audio was changed.
+
+
+## Daily maintenance: mixed app/master knob feedback (2026-11-16)
+
+- Reviewed release 0.4.6 and recent CI (all successful). Reproduced a correctness regression: a knob with Spotify volume on one direction and master volume/mute on another displayed only Spotify's meter, suggesting a single audio target.
+- Encoder preview now shows Multiple targets without a single level meter when app and master audio bindings coexist. App-only, master-only and multiple-app displays retain their existing behavior; action dispatch is unchanged.
+- Regression failed before the fix (20% app meter instead of Multiple targets) and passed afterwards. Coverage checks all three master action IDs across clockwise/counterclockwise/push combinations, with and without a live face. All 24 frontend tests and the production build passed; diff whitespace checks passed. No performance-speedup claim or live device/audio changes.
+- Remaining review areas: repeated audio-app picker discovery across multiple bindings, synchronous media staging/settings commands, and hardware smoke testing. No release published by this maintenance run.
