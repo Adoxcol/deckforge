@@ -152,11 +152,12 @@ pub async fn test_key_action(
     Ok(res)
 }
 #[tauri::command]
-pub fn save_macros(macros: Vec<db::MacroSequence>, state: State<'_, SharedState>) -> Result<(), String> {
-    let mut guard = state.lock_safe();
-    write_saved_macros(&macros)?;
-    guard.macros = macros;
-    Ok(())
+pub async fn save_macros(macros: Vec<db::MacroSequence>, state: State<'_, SharedState>) -> Result<(), String> {
+    let shared = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || save_setting_with(&shared, || {
+        write_saved_macros(&macros)?;
+        Ok(macros)
+    }, |guard, value| guard.macros = value)).await.map_err(|err| err.to_string())?
 }
 
 #[tauri::command]
@@ -379,19 +380,21 @@ pub fn hold_auto_switch(state: State<'_, SharedState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn save_auto_switch_rules(rules: Vec<AutoSwitchRule>, state: State<'_, SharedState>) -> Result<(), String> {
-    let mut guard = state.lock_safe();
-    write_auto_switch_rules(&rules)?;
-    guard.auto_switch_rules = rules;
-    Ok(())
+pub async fn save_auto_switch_rules(rules: Vec<AutoSwitchRule>, state: State<'_, SharedState>) -> Result<(), String> {
+    let shared = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || save_setting_with(&shared, || {
+        write_auto_switch_rules(&rules)?;
+        Ok(rules)
+    }, |guard, value| guard.auto_switch_rules = value)).await.map_err(|err| err.to_string())?
 }
 
 #[tauri::command]
-pub fn save_obs_settings(settings: ObsSettings, state: State<'_, SharedState>) -> Result<(), String> {
-    let mut guard = state.lock_safe();
-    settings.save()?;
-    guard.obs = settings;
-    Ok(())
+pub async fn save_obs_settings(settings: ObsSettings, state: State<'_, SharedState>) -> Result<(), String> {
+    let shared = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || save_setting_with(&shared, || {
+        settings.save()?;
+        Ok(settings)
+    }, |guard, value| guard.obs = value)).await.map_err(|err| err.to_string())?
 }
 
 #[tauri::command]
@@ -585,4 +588,19 @@ pub(crate) fn get_performance_snapshot(reset: bool) -> performance::Snapshot {
 #[tauri::command]
 pub async fn audio_apps() -> Result<Vec<actions::app_audio::AudioApp>, String> {
     tauri::async_runtime::spawn_blocking(actions::app_audio::list).await.map_err(|e| e.to_string())?
+}
+
+// Frontend queues retain per-setting revision order; serialize file writes and
+// publication here as well, without blocking device state during disk I/O.
+static SETTINGS_WRITE: Mutex<()> = Mutex::new(());
+
+pub(crate) fn save_setting_with<T>(
+    shared: &SharedState,
+    write: impl FnOnce() -> Result<T, String>,
+    publish: impl FnOnce(&mut ManagedAppState, T),
+) -> Result<(), String> {
+    let _write = SETTINGS_WRITE.lock_safe();
+    let value = write()?;
+    publish(&mut shared.lock_safe(), value);
+    Ok(())
 }

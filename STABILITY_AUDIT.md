@@ -306,3 +306,9 @@ These are proposed release gates, not results already achieved by this audit.
 - Audio-app picker requests now share one in-flight IPC scan and reuse successful readings for 500 ms. Three picker reads issued together result in one scan instead of three. Their existing two-second poll cadence is unchanged, and manual refresh bypasses completed cached results while joining an already-running scan.
 - Failed scans clear the cached reading and permit retry; no timers or background work run in the shared reader itself. Hardware/background face sampling is unchanged.
 - Validation: all 26 frontend tests and production build passed. Deterministic tests measure one read for three concurrent requests and cover completion-based expiry, manual refresh, empty results, failure invalidation and retry. This is a reduction in scan count, not a measured installed latency claim.
+
+
+## Performance follow-up: background settings saves (2026-11-16)
+
+- Macro, auto-switch rule and OBS settings saves now run on the blocking pool. A dedicated writer mutex serializes persistence and publication; SharedState is acquired only to publish a successful write. Existing frontend per-setting queues preserve revision ordering and quit flushing.
+- Validation: 143 Rust tests passed (8 ignored), including a new regression proving state access during a settings write, no publication on failure, successful retry and preservation of unrelated concurrent state changes. The 26 frontend tests, including save-queue ordering and failure/quit behavior, passed during this maintenance pass. No native latency claim is made.

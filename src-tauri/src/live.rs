@@ -1704,6 +1704,27 @@ mod live_tests {
     }
 
     #[test]
+    fn settings_write_does_not_lock_state_or_publish_failures() {
+        let shared = test_state();
+        let original = shared.lock_safe().obs.url.clone();
+        let failed = commands::save_setting_with::<ObsSettings>(&shared, || {
+            assert!(shared.try_lock().is_ok(), "settings disk I/O must release state");
+            Err("disk full".into())
+        }, |_, _| panic!("failed write must not publish"));
+        assert!(failed.is_err());
+        assert_eq!(shared.lock_safe().obs.url, original);
+        commands::save_setting_with(&shared, || {
+            let mut guard = shared.try_lock().expect("settings disk I/O must release state");
+            assert_eq!(guard.obs.url, original);
+            guard.devices[0].brightness = 37;
+            Ok(ObsSettings { url: "ws://localhost:4456".into(), ..Default::default() })
+        }, |guard, value| guard.obs = value).unwrap();
+        let guard = shared.lock_safe();
+        assert_eq!(guard.obs.url, "ws://localhost:4456");
+        assert_eq!(guard.devices[0].brightness, 37);
+    }
+
+    #[test]
     fn invalid_apply_does_not_disable_a_working_layout() {
         let shared = test_state();
         let prepared = prepare_first(&shared);
