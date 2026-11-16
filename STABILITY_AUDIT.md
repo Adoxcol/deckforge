@@ -299,3 +299,10 @@ These are proposed release gates, not results already achieved by this audit.
 - Image/GIF and generated-frame staging commands now perform base64 decoding, image decoding, preview generation and persistence on the blocking pool without holding SharedState. A dedicated staging mutex serializes uploads, including replacement of the same media ID and its temporary files.
 - Each operation uses an empty staging store with the live store's directory. Only successfully written clips are merged into the current library, preserving concurrent additions and avoiding a full library clone or temporary removal. Existing rendering snapshots continue using immutable clips.
 - Validation: 142 Rust tests passed (8 ignored). A new integration regression uses an isolated media directory to verify state access during staging, preservation of a concurrent clip, failed replacement retaining the previous clip, and successful reload from disk. Existing GIF/sequence and persistence-failure tests also pass. No installed-app latency improvement has been measured yet.
+
+
+## Performance follow-up: shared audio picker discovery (2026-11-16)
+
+- Audio-app picker requests now share one in-flight IPC scan and reuse successful readings for 500 ms. Three picker reads issued together result in one scan instead of three. Their existing two-second poll cadence is unchanged, and manual refresh bypasses completed cached results while joining an already-running scan.
+- Failed scans clear the cached reading and permit retry; no timers or background work run in the shared reader itself. Hardware/background face sampling is unchanged.
+- Validation: all 26 frontend tests and production build passed. Deterministic tests measure one read for three concurrent requests and cover completion-based expiry, manual refresh, empty results, failure invalidation and retry. This is a reduction in scan count, not a measured installed latency claim.

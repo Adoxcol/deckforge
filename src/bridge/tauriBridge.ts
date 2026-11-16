@@ -1,3 +1,4 @@
+import { createSharedRead } from "../lib/sharedRead";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
@@ -662,6 +663,12 @@ let mockSavedProfiles: Profile[] | null = null;
 let mockApplied: { deviceId: string; profileId: string; profileName: string; page: ProfilePage } | null = null;
 let mockAppliedAt: number | null = null;
 
+// A knob can mount three app pickers at once. Coalesce their OS scans while
+// retaining the existing two-second polling cadence and manual refresh.
+const readAudioApps = createSharedRead(
+  () => invoke<import("../types/deckforge").AudioAppState[]>("audio_apps"), 500
+);
+
 export const deckforgeApi = {
   async getProfileDraft(): Promise<RecoveryDraft | null> {
     if (isTauriRuntime()) return invoke<RecoveryDraft | null>("get_profile_draft");
@@ -909,9 +916,9 @@ export const deckforgeApi = {
     return invoke("get_performance_snapshot", { reset });
   },
 
-  async audioApps(): Promise<import("../types/deckforge").AudioAppState[]> {
+  async audioApps(force = false): Promise<import("../types/deckforge").AudioAppState[]> {
     if (!isTauriRuntime()) throw new Error("Audio app discovery requires the Windows desktop app.");
-    return invoke("audio_apps");
+    return readAudioApps(force);
   },
 
   async getTelemetry(): Promise<SystemTelemetrySnapshot> {

@@ -10,14 +10,14 @@ export function AppAudioTarget({ value, onChange }: { value: string; onChange: (
   const request = useRef(0);
   const inFlight = useRef(false);
   const id = useId();
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (force = false) => {
     if (inFlight.current) return;
     inFlight.current = true;
     const current = ++request.current;
     setBusy(true);
     setError("");
     try {
-      const next = await deckforgeApi.audioApps();
+      const next = await deckforgeApi.audioApps(force);
       if (request.current === current) setApps(next);
     } catch (err) {
       if (request.current === current) setError(String(err));
@@ -37,7 +37,7 @@ export function AppAudioTarget({ value, onChange }: { value: string; onChange: (
   return <div className="flex flex-col gap-2">
     <div className="flex items-center justify-between gap-2">
       <label htmlFor={id} className="text-[11px] text-[var(--text-secondary)]">Audio application</label>
-      <button type="button" disabled={busy} onClick={() => void refresh()} className="text-[11px] text-[var(--accent-primary)] disabled:opacity-50">{busy ? "Scanning…" : "Refresh apps"}</button>
+      <button type="button" disabled={busy} onClick={() => void refresh(true)} className="text-[11px] text-[var(--accent-primary)] disabled:opacity-50">{busy ? "Scanning…" : "Refresh apps"}</button>
     </div>
     <select aria-label="Choose an app with an audio session" value={apps.some(app => app.exe === value) ? value : ""}
       onChange={event => { if (event.target.value) onChange(event.target.value); }}
