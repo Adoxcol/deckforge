@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "DeckForge â€” Universal Open-Source Stream Deck Controller",
+        "title": "DeckForge — Universal Open-Source Stream Deck Controller",
         "width": 1440,
         "height": 900,
         "minWidth": 1100,
