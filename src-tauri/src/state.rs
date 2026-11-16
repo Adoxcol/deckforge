@@ -28,6 +28,8 @@ pub struct DeckFaceState {
     pub mic_muted: Option<bool>,
     pub speaker_muted: Option<bool>,
     pub volume_percent: Option<u8>,
+    #[serde(default)]
+    pub app_audio: Option<std::collections::BTreeMap<String, actions::app_audio::AudioApp>>,
     pub game_mode: Option<bool>,
     pub game_mode_busy: bool,
     #[serde(default)]

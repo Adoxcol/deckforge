@@ -176,7 +176,7 @@ pub(crate) fn binding_action(binding: &str, param: &str, label: &str, note: Stri
 }
 
 pub(crate) fn face_changes(action_id: &str) -> bool {
-    matches!(
+    action_id.starts_with("audio.app_") || matches!(
         action_id,
         "media.play_pause"
             | "media.now_playing"
@@ -207,6 +207,22 @@ pub(crate) fn lcd_title(raw: &str) -> String {
     compact
 }
 
+fn app_audio_label(param: &str, face: &DeckFaceState) -> String {
+    if param.trim().is_empty() { return "Choose app".into(); }
+    match &face.app_audio {
+        None => "Unavailable".into(),
+        Some(apps) => apps.get(&param.trim().to_lowercase()).map(|app| app.label()).unwrap_or_else(|| "No session".into()),
+    }
+}
+
+fn key_level_for(key: &KeyConfig, face: &DeckFaceState) -> Option<u8> {
+    if key.action_id.starts_with("audio.app_") {
+        let app = face.app_audio.as_ref()?.get(&key.action_param.trim().to_lowercase())?;
+        return if app.muted { Some(0) } else if app.min_volume == app.max_volume && !app.mixed_mute { Some(app.min_volume) } else { None };
+    }
+    key_level(&key.action_id, face)
+}
+
 pub(crate) fn key_level(action_id: &str, face: &DeckFaceState) -> Option<u8> {
     match action_id {
         "audio.volume_up" | "audio.volume_down" | "audio.volume_mute" => face.volume_percent,
@@ -230,6 +246,9 @@ pub(crate) fn key_art<'a>(key: &KeyConfig, face: &'a DeckFaceState) -> Option<&'
 pub(crate) fn styled_key(key: &KeyConfig, face: &DeckFaceState) -> (String, String) {
     if key.media.is_some() {
         return (key.title.clone(), key.icon_name.clone());
+    }
+    if key.action_id.starts_with("audio.app_") {
+        return (app_audio_label(&key.action_param, face), key.icon_name.clone());
     }
     if key.action_id.starts_with(crate::plugins::ACTION_PREFIX) {
         let title = face.plugin_keys.get(&key.index).and_then(|f| f.title.clone());
@@ -291,6 +310,9 @@ pub(crate) fn styled_zone_value(zone: &TouchZoneConfig, face: &DeckFaceState) ->
     if zone.media.is_some() {
         return zone.value_text.clone();
     }
+    if zone.tap_action_id.starts_with("audio.app_") {
+        return app_audio_label(&zone.tap_action_param, face);
+    }
     match zone.tap_action_id.as_str() {
         "media.play_pause" => match face.media_playing {
             Some(true) => {
@@ -341,7 +363,7 @@ pub(crate) fn plan_screens(dev: &DeviceDescriptor, page: &ProfilePage, face: &De
                 fit: key.media.as_ref().map(|m| m.fit.clone()).unwrap_or_else(|| "cover".into()),
                 speed: key.media.as_ref().map(|m| m.speed).unwrap_or(1.0),
                 loop_playback: key.media.as_ref().map(|m| m.loop_playback).unwrap_or(true),
-                level: if key.media.is_some() { None } else { key_level(&key.action_id, face) },
+                level: if key.media.is_some() { None } else { key_level_for(key, face) },
                 art: key_art(key, face).map(|bytes| bytes.to_vec()),
             }
         })
@@ -786,7 +808,17 @@ pub(crate) fn resolve_page_index(guard: &ManagedAppState, param: &str) -> Option
 
 /// Windows media/COM calls may block. Never hold app state while sampling them.
 pub(crate) fn sample_face(shared: &SharedState) -> bool {
-    sample_face_with(shared, read_face)
+    let needs_apps = {
+        let guard = shared.lock_safe();
+        let uses = |page: &ProfilePage| {
+            page.keys.iter().any(|k| k.action_id.starts_with("audio.app_"))
+                || page.touch_zones.iter().any(|z| z.tap_action_id.starts_with("audio.app_"))
+                || page.encoders.iter().any(|e| [&e.cw_action, &e.ccw_action, &e.push_action].iter().any(|a| a.starts_with("audio.app_")))
+        };
+        guard.profiles.iter().flat_map(|p| &p.pages).any(uses)
+            || guard.applied_layout.as_ref().is_some_and(|a| uses(&a.page))
+    };
+    sample_face_with(shared, |previous| read_face(previous, needs_apps))
 }
 
 fn sample_face_with(
@@ -809,7 +841,7 @@ fn sample_face_with(
     changed || refresh_requested
 }
 
-fn read_face(previous: &DeckFaceState) -> DeckFaceState {
+fn read_face(previous: &DeckFaceState, needs_apps: bool) -> DeckFaceState {
     let _timing = performance::timer(performance::Stage::Media);
     let (playing, title) = read_media_face();
     let audio = read_audio_face();
@@ -827,6 +859,7 @@ fn read_face(previous: &DeckFaceState) -> DeckFaceState {
         mic_muted: audio.mic_muted,
         speaker_muted: audio.speaker_muted,
         volume_percent: audio.volume_percent,
+        app_audio: if needs_apps { actions::app_audio::list().ok().map(|apps| apps.into_iter().map(|app| (app.exe.clone(), app)).collect()) } else { None },
         game_mode: Some(game_mode::is_active()),
         game_mode_busy: game_mode::is_busy(),
         cpu_percent: stats.cpu_percent,
@@ -931,7 +964,7 @@ fn render_face_frames(dev: &DeviceDescriptor, page: &ProfilePage, face: &DeckFac
         if key.media.is_some() {
             continue;
         }
-        let level = key_level(&key.action_id, face);
+        let level = key_level_for(key, face);
         let (title, icon) = styled_key(key, face);
         let art = key_art(key, face);
         if title == key.title && icon == key.icon_name && level.is_none() && art.is_none() {
@@ -1611,6 +1644,29 @@ mod live_tests {
             assert!(known_action(id));
             assert!(actions::app_audio::execute(id, "").is_err());
         }
+    }
+
+    #[test]
+    fn app_audio_faces_use_the_target_session_and_clear_missing_values() {
+        let shared = test_state();
+        let mut key = shared.lock_safe().profiles[0].pages[0].keys[0].clone();
+        key.action_id = "audio.app_volume_up".into();
+        key.action_param = " Spotify.EXE ".into();
+        key.media = None;
+        let app = actions::app_audio::AudioApp {
+            exe: "spotify.exe".into(), sessions: 1, min_volume: 25, max_volume: 25, muted: false, mixed_mute: false,
+        };
+        let mut face = DeckFaceState {
+            volume_percent: Some(99), app_audio: Some([(app.exe.clone(), app)].into_iter().collect()), ..Default::default()
+        };
+        assert_eq!(styled_key(&key, &face).0, "25%");
+        assert_eq!(key_level_for(&key, &face), Some(25));
+        face.app_audio.as_mut().unwrap().clear();
+        assert_eq!(styled_key(&key, &face).0, "No session");
+        assert_eq!(key_level_for(&key, &face), None);
+        face.app_audio = None;
+        assert_eq!(styled_key(&key, &face).0, "Unavailable");
+        assert!(face_changes(&key.action_id));
     }
 
     #[test]

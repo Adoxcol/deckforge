@@ -1,7 +1,27 @@
 //! App volume targets use executable names, never saved process IDs.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct AudioApp { pub exe: String, pub sessions: usize }
+pub struct AudioApp {
+    pub exe: String, pub sessions: usize,
+    pub min_volume: u8, pub max_volume: u8,
+    pub muted: bool, pub mixed_mute: bool,
+}
+impl AudioApp {
+    pub(crate) fn label(&self) -> String {
+        if self.muted { return "Muted".into(); }
+        let volume = if self.min_volume == self.max_volume { format!("{}%", self.min_volume) }
+            else { format!("{}-{}%", self.min_volume, self.max_volume) };
+        if self.mixed_mute { format!("{volume} MIX") } else { volume }
+    }
+}
+fn aggregate(exe: String, states: &[(u8, bool)]) -> AudioApp {
+    AudioApp { exe, sessions: states.len(),
+        min_volume: states.iter().map(|s| s.0).min().unwrap_or(0),
+        max_volume: states.iter().map(|s| s.0).max().unwrap_or(0),
+        muted: states.iter().all(|s| s.1),
+        mixed_mute: states.iter().any(|s| s.1) && states.iter().any(|s| !s.1),
+    }
+}
 
 fn target(raw: &str) -> Result<String, String> {
     let name = raw.trim().to_lowercase();
@@ -17,9 +37,13 @@ pub fn list() -> Result<Vec<AudioApp>, String> {
     #[cfg(target_os = "windows")]
     {
         let _com = native::Com::new()?;
-        let mut apps = std::collections::BTreeMap::<String, usize>::new();
-        for session in native::sessions()? { *apps.entry(session.exe).or_default() += 1; }
-        Ok(apps.into_iter().map(|(exe, sessions)| AudioApp { exe, sessions }).collect())
+        let mut apps = std::collections::BTreeMap::<String, Vec<(u8, bool)>>::new();
+        for session in native::sessions()? {
+            let volume = unsafe { session.volume.GetMasterVolume() }.map_err(|e| e.to_string())?;
+            let muted = unsafe { session.volume.GetMute() }.map_err(|e| e.to_string())?.as_bool();
+            apps.entry(session.exe).or_default().push(((volume.clamp(0.0, 1.0) * 100.0).round() as u8, muted));
+        }
+        Ok(apps.into_iter().map(|(exe, states)| aggregate(exe, &states)).collect())
     }
     #[cfg(not(target_os = "windows"))]
     { Err("App audio controls require Windows".into()) }
@@ -114,6 +138,14 @@ mod native {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn live_states_preserve_ranges_and_mixed_mute() {
+        let state = aggregate("app.exe".into(), &[(20, false), (80, true)]);
+        assert_eq!(state.label(), "20-80% MIX");
+        assert!(!state.muted);
+        assert_eq!(aggregate("app.exe".into(), &[(20, true), (80, true)]).label(), "Muted");
+        assert_eq!(aggregate("app.exe".into(), &[(50, false)]).label(), "50%");
+    }
     #[test]
     fn targets_are_exact_executable_names_not_paths_or_wildcards() {
         assert_eq!(target(" Spotify.EXE ").unwrap(), "spotify.exe");

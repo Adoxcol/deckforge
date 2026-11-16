@@ -1,3 +1,4 @@
+import { encoderAudioLook } from "../lib/appAudio";
 import React from "react";
 import { LevelMeter, liveKeyLook, liveZoneValue } from "./LiveFace";
 import { ScreenFace } from "./ScreenFace";
@@ -84,7 +85,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
             const isSelected = surface === "key" && k.index === activeKey.index;
             const isLivePressed = livePressedKeyIdx === k.index;
             const clip = clipFor(k.media);
-            const look = liveKeyLook(k.actionId, k.title, k.iconName, k.media ? null : face);
+            const look = liveKeyLook(k.actionId, k.title, k.iconName, k.media ? null : face, k.actionParam);
             return (
               <button
                 key={k.index}
@@ -213,7 +214,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
               {activePage.touchZones.slice(0, activeDevice.touchStrip.zones).map((tz) => {
                 const zoneClip = clipFor(tz.media);
                 const zoneSelected = surface === "zone" && surfaceIndex === tz.index;
-                const zoneValue = liveZoneValue(tz.tapActionId, tz.valueText, tz.media ? null : face);
+                const zoneValue = liveZoneValue(tz.tapActionId, tz.valueText, tz.media ? null : face, tz.tapActionParam);
                 return (
                   <div
                     key={tz.index}
@@ -281,13 +282,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
             }}
           >
             {activePage.encoders.slice(0, activeDevice.encoders.count).map((enc) => {
-              const volumeKnob = [enc.cwAction, enc.ccwAction, enc.pushAction].some((action) =>
-                action.includes("volume")
-              );
-              const knobValue =
-                volumeKnob && face?.volumePercent != null
-                  ? `${face.volumePercent}%${face.speakerMuted ? " muted" : ""}`
-                  : enc.valueText;
+              const knobValue = encoderAudioLook(enc, face);
               return (
               <div
                 key={enc.index}
@@ -361,10 +356,10 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                     {enc.label}
                   </div>
                   <div className="text-[9.5px] font-mono text-[var(--text-secondary)] truncate">
-                    {knobValue}
+                    {knobValue.title}
                   </div>
-                  {volumeKnob && face?.volumePercent != null && (
-                    <LevelMeter percent={face.volumePercent} accent="#35C98B" muted={face.speakerMuted === true} />
+                  {knobValue.level != null && (
+                    <LevelMeter percent={knobValue.level} accent="#35C98B" muted={knobValue.muted} />
                   )}
                 </div>
               </div>

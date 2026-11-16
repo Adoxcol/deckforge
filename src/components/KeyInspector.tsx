@@ -138,7 +138,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
               />
             ) : (
               <DeckIcon
-                name={liveKeyLook(activeKey.actionId, activeKey.title, activeKey.iconName, activeKey.media ? null : face).icon}
+                name={liveKeyLook(activeKey.actionId, activeKey.title, activeKey.iconName, activeKey.media ? null : face, activeKey.actionParam).icon}
                 size={26}
                 color={activeKey.accentColor}
               />
@@ -152,7 +152,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
               className="w-full h-9 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
             />
             {(() => {
-              const look = liveKeyLook(activeKey.actionId, activeKey.title, activeKey.iconName, activeKey.media ? null : face);
+              const look = liveKeyLook(activeKey.actionId, activeKey.title, activeKey.iconName, activeKey.media ? null : face, activeKey.actionParam);
               if (look.title === activeKey.title && look.level == null) return null;
               return (
                 <div className="mt-1.5 flex flex-col gap-1">

@@ -237,7 +237,17 @@ export interface HardwareInputEvent {
   timestampMs: number;
 }
 
+export interface AudioAppState {
+  exe: string;
+  sessions: number;
+  minVolume: number;
+  maxVolume: number;
+  muted: boolean;
+  mixedMute: boolean;
+}
+
 export interface DeckFaceState {
+  appAudio?: Record<string, AudioAppState> | null;
   mediaPlaying: boolean | null;
   mediaTitle: string;
   micMuted: boolean | null;

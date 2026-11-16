@@ -909,7 +909,7 @@ export const deckforgeApi = {
     return invoke("get_performance_snapshot", { reset });
   },
 
-  async audioApps(): Promise<{ exe: string; sessions: number }[]> {
+  async audioApps(): Promise<import("../types/deckforge").AudioAppState[]> {
     if (!isTauriRuntime()) throw new Error("Audio app discovery requires the Windows desktop app.");
     return invoke("audio_apps");
   },

@@ -1,11 +1,13 @@
+import { appAudioLook } from "../lib/appAudio";
 import React from "react";
 import type { DeckFaceState } from "../types/deckforge";
 
 /** What a key shows while the PC reports a live value (volume, mic, track). */
 export type LiveLook = { title: string; icon: string; level: number | null; muted: boolean };
 
-export function liveKeyLook(actionId: string, title: string, icon: string, face: DeckFaceState | null): LiveLook {
+export function liveKeyLook(actionId: string, title: string, icon: string, face: DeckFaceState | null, param = ""): LiveLook {
   const still = { title, icon, level: null, muted: false };
+  if (actionId.startsWith("audio.app_")) return { ...appAudioLook(param, face), icon };
   if (!face) return still;
   if (actionId === "sys.cpu" && face.cpuPercent != null) {
     return { title: `CPU ${face.cpuPercent}%`, icon, level: face.cpuPercent, muted: false };
@@ -54,7 +56,8 @@ export function LevelMeter({ percent, accent, muted }: { percent: number; accent
   );
 }
 
-export function liveZoneValue(actionId: string, value: string, face: DeckFaceState | null) {
+export function liveZoneValue(actionId: string, value: string, face: DeckFaceState | null, param = "") {
+  if (actionId.startsWith("audio.app_")) return appAudioLook(param, face).title;
   if (!face) return value;
   if (actionId === "media.play_pause" && face.mediaPlaying != null) {
     return face.mediaPlaying ? face.mediaTitle || "Playing" : "Paused";
