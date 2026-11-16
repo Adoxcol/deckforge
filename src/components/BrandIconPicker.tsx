@@ -2,6 +2,8 @@ import React from "react";
 import { Search } from "lucide-react";
 import type { SimpleIcon } from "simple-icons";
 
+type BrandIcon = Pick<SimpleIcon, "title" | "slug" | "hex" | "path">;
+
 /** Shown before the user types anything. */
 const POPULAR = [
   "spotify", "youtube", "twitch", "discord", "x", "instagram", "facebook", "tiktok", "reddit", "whatsapp",
@@ -12,13 +14,14 @@ const POPULAR = [
   "googledrive", "dropbox", "elgato", "nvidia", "amd", "razer", "logitechg", "openai", "claude", "chatgpt", "vlcmediaplayer",
 ];
 
-let loaded: Promise<SimpleIcon[]> | null = null;
+let loaded: Promise<BrandIcon[]> | null = null;
 
-/** About 3,000 logos (5 MB), so they load only when the picker opens. */
-function loadIcons(): Promise<SimpleIcon[]> {
-  loaded ??= import("simple-icons").then((mod) =>
-    Object.values(mod).filter((v): v is SimpleIcon => typeof v === "object" && v !== null && "path" in v && "hex" in v)
-  );
+/** The compact catalog stays lazy, so normal startup does not load logo paths. */
+function loadIcons(): Promise<BrandIcon[]> {
+  loaded ??= import("virtual:brand-icons").then((mod) => mod.default).catch((error) => {
+    loaded = null;
+    throw error;
+  });
   return loaded;
 }
 
@@ -31,7 +34,7 @@ function isLight(hex: string): boolean {
 type Look = "brand" | "dark";
 
 /** Draws a logo as a square PNG key image. */
-async function renderKeyImage(icon: SimpleIcon, look: Look): Promise<File> {
+async function renderKeyImage(icon: BrandIcon, look: Look): Promise<File> {
   const size = 288;
   const canvas = document.createElement("canvas");
   canvas.width = size;
@@ -55,8 +58,8 @@ async function renderKeyImage(icon: SimpleIcon, look: Look): Promise<File> {
 }
 
 /** Search popular app and social media logos and put one on the key. */
-export const BrandIconPicker: React.FC<{ onPick: (file: File, icon: SimpleIcon) => void }> = ({ onPick }) => {
-  const [icons, setIcons] = React.useState<SimpleIcon[] | null>(null);
+export const BrandIconPicker: React.FC<{ onPick: (file: File, icon: BrandIcon) => void }> = ({ onPick }) => {
+  const [icons, setIcons] = React.useState<BrandIcon[] | null>(null);
   const [query, setQuery] = React.useState("");
   const [look, setLook] = React.useState<Look>("brand");
   const [failed, setFailed] = React.useState(false);
@@ -70,7 +73,7 @@ export const BrandIconPicker: React.FC<{ onPick: (file: File, icon: SimpleIcon) 
     const q = query.trim().toLowerCase();
     if (!q) {
       const bySlug = new Map(icons.map((i) => [i.slug, i]));
-      return POPULAR.map((s) => bySlug.get(s)).filter((i): i is SimpleIcon => !!i);
+      return POPULAR.map((s) => bySlug.get(s)).filter((i): i is BrandIcon => !!i);
     }
     const starts = icons.filter((i) => i.title.toLowerCase().startsWith(q));
     const contains = icons.filter((i) => !i.title.toLowerCase().startsWith(q) && i.title.toLowerCase().includes(q));
@@ -100,13 +103,13 @@ export const BrandIconPicker: React.FC<{ onPick: (file: File, icon: SimpleIcon) 
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search 3,000+ logos (Spotify, Discord…)"
+          placeholder="Search 3,000+ logos (Spotify, Discordâ€¦)"
           className="flex-1 bg-transparent outline-none text-xs"
         />
       </div>
       <div className="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto p-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-md">
         {failed && <span className="col-span-5 text-[11px] text-[var(--status-warning)] p-2">Could not load the logos.</span>}
-        {!icons && !failed && <span className="col-span-5 text-[11px] text-[var(--text-muted)] p-2">Loading logos…</span>}
+        {!icons && !failed && <span className="col-span-5 text-[11px] text-[var(--text-muted)] p-2">Loading logosâ€¦</span>}
         {icons && shown.length === 0 && <span className="col-span-5 text-[11px] text-[var(--text-muted)] p-2">No logo found.</span>}
         {shown.map((icon) => (
           <button

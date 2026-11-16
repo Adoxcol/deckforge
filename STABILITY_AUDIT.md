@@ -312,3 +312,10 @@ These are proposed release gates, not results already achieved by this audit.
 
 - Macro, auto-switch rule and OBS settings saves now run on the blocking pool. A dedicated writer mutex serializes persistence and publication; SharedState is acquired only to publish a successful write. Existing frontend per-setting queues preserve revision ordering and quit flushing.
 - Validation: 143 Rust tests passed (8 ignored), including a new regression proving state access during a settings write, no publication on failure, successful retry and preservation of unrelated concurrent state changes. The 26 frontend tests, including save-queue ordering and failure/quit behavior, passed during this maintenance pass. No native latency claim is made.
+
+## Performance follow-up: compact lazy logo catalog (2026-11-16)
+
+- The picker previously loaded the full Simple Icons namespace, including unused SVG strings, source URLs, and metadata. A Vite virtual module now emits only title, slug, color, and path, retaining the entire catalog and loading it only when the picker opens. Failed loads may retry on reopening.
+- Measured production chunk: 5,288.01 kB before, 4,800.58 kB after (9.2% smaller); gzip 2,155.32 kB before, 1,995.57 kB after (7.4% smaller). This is a bundle-size improvement, not a measured startup or installed-app latency improvement.
+- Validation: all 27 frontend tests pass, including field-for-field preservation of all 3,470 logos; TypeScript and production build pass. Existing main-chunk size and Tauri event import warnings remain.
+- Remaining validation: installed-app reconnect, sleep/wake, knob responsiveness and failure recovery require hardware smoke testing. No live audio/device configuration was changed in this check.
