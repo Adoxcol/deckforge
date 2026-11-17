@@ -528,11 +528,17 @@ fn decode_into_clip(
 }
 
 fn decode_still(bytes: &[u8]) -> Result<(Vec<RgbaImage>, Vec<u32>, u32, u32, u32), String> {
-    let img = image::load_from_memory(bytes)
+    use image::ImageDecoder;
+    let decoder = image::ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format().map_err(|e| format!("Could not read image: {e}"))?
+        .into_decoder().map_err(|e| format!("Could not read image: {e}"))?;
+    let (w, h) = decoder.dimensions();
+    // Check header dimensions before allocating/decoding the full pixel buffer.
+    // Small compressed uploads can otherwise expand far beyond the screen limit.
+    ensure_bounds(w, h)?;
+    let img = image::DynamicImage::from_decoder(decoder)
         .map_err(|e| format!("Could not read image: {e}"))?
         .to_rgba8();
-    let (w, h) = img.dimensions();
-    ensure_bounds(w, h)?;
     let stored = limit_edge(img, storage_edge(w, h));
     Ok((vec![stored], vec![100], 1, w, h))
 }
@@ -899,6 +905,19 @@ fn persist_clip(dir: &std::path::Path, id: &str, file_name: &str, kind: &str, de
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn oversized_still_is_rejected_before_decoding_pixel_data() {
+        let image = image::DynamicImage::ImageRgba8(RgbaImage::new(MAX_EDGE + 1, 1));
+        let mut encoded = Cursor::new(Vec::new());
+        image.write_to(&mut encoded, image::ImageFormat::Png).unwrap();
+        let mut bytes = encoded.into_inner();
+        let idat = bytes.windows(4).position(|part| part == b"IDAT").unwrap();
+        // Keep the valid dimensions but break the compressed pixel stream.
+        bytes[idat + 4] = 0;
+        let error = decode_still(&bytes).unwrap_err();
+        assert!(error.contains("1601") && error.contains("1600px"), "{error}");
+    }
 
     struct TestMediaDir(PathBuf);
 
