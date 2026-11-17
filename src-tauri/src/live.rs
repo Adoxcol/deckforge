@@ -1077,11 +1077,17 @@ pub(crate) fn auto_switch_target(
         rule.target_page_id.is_empty() || rule.target_profile_id != active_profile_id,
         is_any_game(rule), rule.priority,
     ));
-    for rule in rules {
+    for rule in &rules {
         if rule.target_page_id.is_empty() {
             if rule.target_profile_id == active_profile_id { return None; }
-            if profiles.iter().any(|profile| profile.id == rule.target_profile_id) {
-                return Some((rule.target_profile_id.clone(), 0));
+            if let Some(profile) = profiles.iter().find(|profile| profile.id == rule.target_profile_id) {
+                // A matching page rule in the destination profile should be sent
+                // with the profile switch, avoiding a second full layout transfer.
+                let page_index = rules.iter()
+                    .filter(|local| local.target_profile_id == profile.id && !local.target_page_id.is_empty())
+                    .find_map(|local| profile.pages.iter().position(|page| page.id == local.target_page_id))
+                    .unwrap_or(0);
+                return Some((rule.target_profile_id.clone(), page_index));
             }
         } else if rule.target_profile_id == active_profile_id {
             if let Some(profile) = profiles.iter().find(|profile| profile.id == active_profile_id) {
@@ -1927,6 +1933,29 @@ mod auto_switch_tests {
     fn page_rule_in_another_profile_cannot_pull_the_current_profile_away() {
         let rules = [rule("spotify.exe", "stream", "scenes", 1)];
         assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "spotify.exe", "", false), None);
+    }
+
+    #[test]
+    fn profile_switch_opens_matching_local_page_in_one_step() {
+        let rules = [
+            rule("spotify.exe", "stream", "", 1),
+            rule("spotify.exe", "stream", "scenes", 2),
+        ];
+        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "spotify.exe", "", false), Some(("stream".into(), 1)));
+        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 1, "spotify.exe", "", false), None);
+    }
+
+    #[test]
+    fn spotify_page_rules_stay_local_to_each_profile() {
+        let profiles = [profile("stream", &["main", "music"]), profile("gaming", &["main", "music"]), profile("work", &["main"])];
+        let rules = [
+            rule("spotify.exe", "gaming", "", 1),
+            rule("spotify.exe", "stream", "music", 2),
+            rule("spotify.exe", "gaming", "music", 3),
+        ];
+        assert_eq!(auto_switch_target(&rules, &profiles, "stream", 0, "spotify.exe", "", false), Some(("stream".into(), 1)));
+        assert_eq!(auto_switch_target(&rules, &profiles, "gaming", 0, "spotify.exe", "", false), Some(("gaming".into(), 1)));
+        assert_eq!(auto_switch_target(&rules, &profiles, "work", 0, "spotify.exe", "", false), Some(("gaming".into(), 1)));
     }
 }
 
