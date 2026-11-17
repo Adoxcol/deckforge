@@ -153,6 +153,8 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
   const [addingAt, setAddingAt] = React.useState<string | null>(null);
   const [draft, setDraft] = React.useState("");
   const [dropAt, setDropAt] = React.useState<string | null>(null);
+  const [profileDraft, setProfileDraft] = React.useState("");
+  const [addingProfile, setAddingProfile] = React.useState<string | null>(null);
   const patch = (id: string, change: Partial<AutoSwitchRule>) =>
     saveRules(rules.map((r) => (r.id === id ? { ...r, ...change } : r)));
 
@@ -172,12 +174,19 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
     saveRules(assignUnrestrictedApp(rules, processName, profileId, pageId));
   };
 
+  const addProfileApp = (profileId: string) => {
+    const exe = profileDraft.trim();
+    if (!exe) return;
+    const processName = isAnyGame(exe) || /\.exe$/i.test(exe) ? exe : `${exe}.exe`;
+    saveRules(assignUnrestrictedApp(rules, processName, profileId, ""));
+    setProfileDraft(""); setAddingProfile(null);
+  };
   const selected = rules.find((r) => r.id === selectedId) ?? null;
   const shown = showProfileId ? profiles.filter((p) => p.id === showProfileId) : profiles;
   // Rules whose profile is gone would otherwise vanish from view while still saved.
   const homeless = rules.filter((r) => !profiles.some((p) => p.id === r.targetProfileId));
   const conflict = (r: AutoSwitchRule) => {
-    const winner = conflictingRule(rules, r);
+    const winner = conflictingRule(rules.filter(other => Boolean(other.targetPageId) === Boolean(r.targetPageId)), r);
     return winner && winner.id !== r.id ? winner : null;
   };
   const isStale = (r: AutoSwitchRule) =>
@@ -188,7 +197,7 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
       <div>
         <div className="text-[13px] font-semibold text-[var(--text-primary)]">App switching</div>
         <p className="text-[11.5px] leading-snug text-[var(--text-muted)] mt-0.5">
-          A page opens when one of its apps is in front. Each app should have one destination. Adding it elsewhere moves its rule.
+          Profile rules work anywhere. Page rules work only while that profile is active.
         </p>
       </div>
 
@@ -203,12 +212,23 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
 
       <div className="flex flex-col gap-3">
         {shown.map((prof) => (
-          <div key={prof.id} className="flex flex-col">
+          <div key={prof.id} className="flex flex-col gap-2">
             <div className="text-[11px] font-medium text-[var(--text-muted)] px-1 pb-1">{prof.name}</div>
+            <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2">
+              <div className="text-[11px] font-semibold text-[var(--text-primary)]">Switch to this profile</div>
+              <div className="text-[10px] text-[var(--text-muted)]">These apps switch profiles from anywhere.</div>
+              <div className="flex flex-wrap items-center gap-1 mt-1">
+                {rules.filter(r => r.targetProfileId === prof.id && !r.targetPageId).map(r => <button key={r.id} type="button" onClick={() => setSelectedId(selectedId === r.id ? null : r.id)} className="rounded bg-[var(--bg-input)] px-1.5 py-1 text-[11px]" title={`${appName(r.processName)}${r.enabled ? "" : " (off)"}`}>{appName(r.processName)}{r.enabled ? "" : " (off)"}</button>)}
+                <button type="button" onClick={() => setAddingProfile(addingProfile === prof.id ? null : prof.id)} className="rounded border border-dashed border-[var(--border-strong)] px-1.5 py-1 text-[11px]">+ App</button>
+              </div>
+              {addingProfile === prof.id && <div className="flex gap-1 mt-2"><input aria-label="App for profile switching" list="deckforge-known-apps" value={profileDraft} onChange={e => setProfileDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") addProfileApp(prof.id); }} placeholder="Program, e.g. spotify.exe" className={field}/><button type="button" onClick={() => addProfileApp(prof.id)} className="text-xs px-2">Add</button></div>}
+              {selected && selected.targetProfileId === prof.id && !selected.targetPageId && <div className="mt-2 flex items-center gap-2 text-xs"><span>{appName(selected.processName)}</span><Switch checked={selected.enabled} onChange={enabled => patch(selected.id, {enabled})} label={`Switch to ${prof.name} for ${appName(selected.processName)}`}/><input aria-label="Only when window title contains" value={selected.windowTitleContains} placeholder="Window title (optional)" onChange={e => patch(selected.id, {windowTitleContains:e.target.value})} className={field}/><button type="button" onClick={() => { saveRules(rules.filter(r => r.id !== selected.id)); setSelectedId(null); }} className="text-[var(--status-error)]">Remove</button></div>}
+            </div>
+            <div className="text-[11px] font-semibold text-[var(--text-primary)] px-1">Switch pages within {prof.name}</div>
             <div className="flex flex-col rounded-[var(--radius-md)] border border-[var(--border-subtle)] divide-y divide-[var(--border-subtle)]">
               {prof.pages.map((pg) => {
                 const key = `${prof.id}:${pg.id}`;
-                const apps = rules.filter((r) => r.targetProfileId === prof.id && pageOf(r)?.id === pg.id);
+                const apps = rules.filter((r) => r.targetProfileId === prof.id && !!r.targetPageId && pageOf(r)?.id === pg.id);
                 return (
                   <div
                     key={pg.id}
@@ -379,7 +399,7 @@ export const PageApps: React.FC<{
   if (!page) return null;
 
   const pageOf = (r: AutoSwitchRule) => profile.pages.find((pg) => pg.id === r.targetPageId) ?? profile.pages[0];
-  const apps = rules.filter((r) => r.targetProfileId === profile.id && pageOf(r)?.id === page.id);
+  const apps = rules.filter((r) => r.targetProfileId === profile.id && !!r.targetPageId && pageOf(r)?.id === page.id);
   const selected = apps.find((r) => r.id === open);
   const patch = (id: string, change: Partial<AutoSwitchRule>) =>
     saveRules(rules.map((r) => (r.id === id ? { ...r, ...change } : r)));

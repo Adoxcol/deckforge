@@ -1068,21 +1068,30 @@ pub(crate) fn auto_switch_target(
     title: &str,
     is_game: bool,
 ) -> Option<(String, usize)> {
-    let mut rules: Vec<&AutoSwitchRule> = rules.iter().collect();
-    // A rule for one particular app beats the catch-all game rule.
-    rules.sort_by_key(|rule| (is_any_game(rule), rule.priority));
-    let rule = rules.into_iter().find(|rule| rule_matches(rule, exe, title, is_game))?;
-    let profile = profiles.iter().find(|profile| profile.id == rule.target_profile_id)?;
-    let page = (!rule.target_page_id.is_empty())
-        .then(|| profile.pages.iter().position(|page| page.id == rule.target_page_id))
-        .flatten();
-    let same_profile = rule.target_profile_id == active_profile_id;
-    match page {
-        Some(index) if same_profile && index == active_page_index => None,
-        Some(index) => Some((rule.target_profile_id.clone(), index)),
-        None if same_profile => None,
-        None => Some((rule.target_profile_id.clone(), 0)),
+    let mut rules: Vec<&AutoSwitchRule> = rules.iter()
+        .filter(|rule| rule_matches(rule, exe, title, is_game))
+        .collect();
+    // A page rule is local to the active profile. If it matches, it wins over
+    // a global profile rule for the same app. A specific game beats @game.
+    rules.sort_by_key(|rule| (
+        rule.target_page_id.is_empty() || rule.target_profile_id != active_profile_id,
+        is_any_game(rule), rule.priority,
+    ));
+    for rule in rules {
+        if rule.target_page_id.is_empty() {
+            if rule.target_profile_id == active_profile_id { return None; }
+            if profiles.iter().any(|profile| profile.id == rule.target_profile_id) {
+                return Some((rule.target_profile_id.clone(), 0));
+            }
+        } else if rule.target_profile_id == active_profile_id {
+            if let Some(profile) = profiles.iter().find(|profile| profile.id == active_profile_id) {
+                if let Some(index) = profile.pages.iter().position(|page| page.id == rule.target_page_id) {
+                    return (index != active_page_index).then(|| (active_profile_id.to_string(), index));
+                }
+            }
+        }
     }
+    None
 }
 
 /// Process name of the rule that matches any full-screen game instead of one program.
@@ -1891,9 +1900,10 @@ mod auto_switch_tests {
     }
 
     #[test]
-    fn deleted_page_falls_back_to_page_one() {
+    fn deleted_page_rule_does_not_switch_profiles() {
         let rules = [rule("resolve.exe", "edit", "gone", 1)];
-        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 1, "resolve.exe", "", false), Some(("edit".into(), 0)));
+        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 1, "resolve.exe", "", false), None);
+        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "resolve.exe", "", false), None);
     }
 
     #[test]
@@ -1907,9 +1917,16 @@ mod auto_switch_tests {
     }
 
     #[test]
-    fn lowest_priority_number_wins() {
+    fn local_page_rule_and_global_profile_rule_have_separate_scopes() {
         let rules = [rule("obs64.exe", "edit", "", 2), rule("obs64", "stream", "scenes", 1)];
-        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "OBS64.EXE", "", false), Some(("stream".into(), 1)));
+        assert_eq!(auto_switch_target(&rules, &profiles(), "stream", 0, "OBS64.EXE", "", false), Some(("stream".into(), 1)));
+        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "OBS64.EXE", "", false), None);
+    }
+
+    #[test]
+    fn page_rule_in_another_profile_cannot_pull_the_current_profile_away() {
+        let rules = [rule("spotify.exe", "stream", "scenes", 1)];
+        assert_eq!(auto_switch_target(&rules, &profiles(), "edit", 0, "spotify.exe", "", false), None);
     }
 }
 

@@ -23,3 +23,12 @@ test("new app creates one enabled rule", () => {
   assert.equal(updated[1].processName, "Discord");
   assert.equal(updated[1].priority, 5);
 });
+
+test("profile and page rules for Spotify remain independent", () => {
+  const pageRule = rule("page", "spotify.exe", "gaming", 1);
+  const profileRule = { ...rule("profile", "spotify.exe", "streaming", 2), targetPageId: "" };
+  const result = assignUnrestrictedApp([pageRule, profileRule], "spotify.exe", "work", "");
+  assert.equal(result[0].targetProfileId, "gaming");
+  assert.equal(result[1].targetProfileId, "work");
+  assert.equal(result[1].targetPageId, "");
+});
