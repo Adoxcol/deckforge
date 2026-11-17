@@ -2,6 +2,7 @@ import React from "react";
 import { Gamepad2, Plus, Trash2 } from "lucide-react";
 import { deckforgeApi } from "../bridge/tauriBridge";
 import type { AutoSwitchRule, Profile } from "../types/deckforge";
+import { assignUnrestrictedApp, conflictingRule } from "../lib/appRuleConflicts";
 
 /** Friendly names for common apps, so a rule reads "OBS Studio" rather than "obs64.exe". */
 const KNOWN_APPS: Record<string, string> = {
@@ -168,24 +169,17 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
     setDraft("");
     if (!exe) return;
     const processName = isAnyGame(exe) || /\.exe$/i.test(exe) ? exe : `${exe}.exe`;
-    saveRules([
-      ...rules,
-      {
-        id: `rule-${Date.now()}`,
-        processName,
-        windowTitleContains: "",
-        targetProfileId: profileId,
-        targetPageId: pageId,
-        priority: rules.length + 1,
-        enabled: true,
-      },
-    ]);
+    saveRules(assignUnrestrictedApp(rules, processName, profileId, pageId));
   };
 
   const selected = rules.find((r) => r.id === selectedId) ?? null;
   const shown = showProfileId ? profiles.filter((p) => p.id === showProfileId) : profiles;
   // Rules whose profile is gone would otherwise vanish from view while still saved.
   const homeless = rules.filter((r) => !profiles.some((p) => p.id === r.targetProfileId));
+  const conflict = (r: AutoSwitchRule) => {
+    const winner = conflictingRule(rules, r);
+    return winner && winner.id !== r.id ? winner : null;
+  };
   const isStale = (r: AutoSwitchRule) =>
     !!r.targetPageId && !profiles.find((p) => p.id === r.targetProfileId)?.pages.some((pg) => pg.id === r.targetPageId);
 
@@ -194,7 +188,7 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
       <div>
         <div className="text-[13px] font-semibold text-[var(--text-primary)]">App switching</div>
         <p className="text-[11.5px] leading-snug text-[var(--text-muted)] mt-0.5">
-          A page opens when one of its apps is in front. Drag apps between pages.
+          A page opens when one of its apps is in front. Each app should have one destination. Adding it elsewhere moves its rule.
         </p>
       </div>
 
@@ -244,14 +238,14 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
                               e.dataTransfer.effectAllowed = "move";
                             }}
                             onClick={() => setSelectedId(selectedId === r.id ? null : r.id)}
-                            title={isStale(r) ? `${appName(r.processName)}: its page was deleted, so it opens page 1. Drag it to a page to fix.` : `${appName(r.processName)}${r.enabled ? "" : " (off)"}`}
+                            title={conflict(r) ? `${appName(r.processName)}: another enabled rule wins. Move this app to resolve the duplicate.` : isStale(r) ? `${appName(r.processName)}: its page was deleted, so it opens page 1. Drag it to a page to fix.` : `${appName(r.processName)}${r.enabled ? "" : " (off)"}`}
                             className={`rounded-[var(--radius-sm)] cursor-grab active:cursor-grabbing outline outline-2 outline-offset-1 ${
                               selectedId === r.id ? "outline-[var(--accent-primary)]" : "outline-transparent"
                             } ${r.enabled ? "" : "opacity-40 grayscale"}`}
                           >
                             <span className="relative block">
                               <AppIcon exe={r.processName} size={24} />
-                              {isStale(r) && (
+                              {(isStale(r) || conflict(r)) && (
                                 <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[var(--status-warning)] ring-2 ring-[var(--bg-sidebar)]" />
                               )}
                             </span>
@@ -306,6 +300,7 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
                           onChange={(e) => patch(selected.id, { windowTitleContains: e.target.value })}
                           className={field}
                         />}
+                        {conflict(selected) && <p role="status" className="text-[11px] text-[var(--status-warning)]">Another {appName(selected.processName)} rule has higher priority and opens {profiles.find(p => p.id === conflict(selected)?.targetProfileId)?.name ?? "another profile"}. Move this app here to resolve it.</p>}
                         <button
                           type="button"
                           onClick={() => {
@@ -396,18 +391,7 @@ export const PageApps: React.FC<{
     setOpen(null);
     if (!exe) return;
     const processName = isAnyGame(exe) || /\.exe$/i.test(exe) ? exe : `${exe}.exe`;
-    saveRules([
-      ...rules,
-      {
-        id: `rule-${Date.now()}`,
-        processName,
-        windowTitleContains: "",
-        targetProfileId: profile.id,
-        targetPageId: page.id,
-        priority: rules.length + 1,
-        enabled: true,
-      },
-    ]);
+    saveRules(assignUnrestrictedApp(rules, processName, profile.id, page.id));
   };
 
   return (
