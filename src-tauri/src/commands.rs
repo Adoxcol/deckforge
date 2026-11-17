@@ -1,6 +1,17 @@
 use super::*;
 
 #[tauri::command]
+pub async fn save_startup_profile(profile_id: Option<String>, state: State<'_, SharedState>) -> Result<(), String> {
+    if let Some(ref id) = profile_id {
+        if !state.lock_safe().profiles.iter().any(|p| &p.id == id) {
+            return Err("Choose an existing profile.".into());
+        }
+    }
+    tauri::async_runtime::spawn_blocking(move || startup_profile::save(profile_id.as_deref()))
+        .await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 pub async fn get_initial_state(state: State<'_, SharedState>) -> Result<FullBootstrapPayload, String> {
     let shared = state.inner().clone();
     tauri::async_runtime::spawn_blocking(move || {
@@ -12,6 +23,7 @@ pub async fn get_initial_state(state: State<'_, SharedState>) -> Result<FullBoot
             let guard = shared.lock_safe();
             (FullBootstrapPayload {
                 applied_context: guard.applied_editor_context(),
+                startup_profile_id: startup_profile::load().filter(|id| guard.profiles.iter().any(|p| &p.id == id)),
                 devices: guard.devices.clone(),
                 profiles: guard.profiles.clone(),
                 auto_switch_rules: guard.auto_switch_rules.clone(),

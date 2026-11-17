@@ -482,6 +482,7 @@ export interface DeckContextEvent {
 
 export interface FullBootstrapPayload {
   appliedContext?: DeckContextEvent | null;
+  startupProfileId?: string | null;
   devices: DeviceDescriptor[];
   profiles: Profile[];
   autoSwitchRules: AutoSwitchRule[];

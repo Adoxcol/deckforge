@@ -703,11 +703,17 @@ export const deckforgeApi = {
     return invoke<RestoredBackup>("restore_profiles_backup", { contents });
   },
 
+  async saveStartupProfile(profileId: string | null): Promise<void> {
+    if (isTauriRuntime()) return invoke<void>("save_startup_profile", { profileId });
+    if (profileId) localStorage.setItem("deckforge-preview-startup-profile", profileId);
+    else localStorage.removeItem("deckforge-preview-startup-profile");
+  },
+
   async getInitialState(): Promise<FullBootstrapPayload> {
     if (isTauriRuntime()) {
       return await invoke<FullBootstrapPayload>("get_initial_state");
     }
-    return fallbackBootstrap();
+    return { ...fallbackBootstrap(), startupProfileId: localStorage.getItem("deckforge-preview-startup-profile") };
   },
 
   async refreshUsbDevices(): Promise<DeviceDescriptor[]> {

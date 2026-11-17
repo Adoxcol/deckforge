@@ -18,6 +18,7 @@ pub struct FullBootstrapPayload {
     pub face: DeckFaceState,
     pub obs: ObsSettings,
     pub applied_context: Option<DeckContextEvent>,
+    pub startup_profile_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -185,7 +186,9 @@ impl Default for ManagedAppState {
             });
             None
         });
-        let active_profile_id = applied_layout.as_ref().map(|a| a.profile_id.clone())
+        let startup_profile_id = startup_profile::load().filter(|id| profiles.iter().any(|p| &p.id == id));
+        let applied_layout = if startup_profile_id.is_some() { None } else { applied_layout };
+        let active_profile_id = startup_profile_id.clone().or_else(|| applied_layout.as_ref().map(|a| a.profile_id.clone()))
             .or_else(|| profiles.first().map(|p| p.id.clone())).unwrap_or_default();
         let active_page_index = applied_layout.as_ref().map(|a| a.page_index).unwrap_or(0);
         let frame_cache = AntiFreezeFrameCache::new();

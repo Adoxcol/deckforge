@@ -48,6 +48,7 @@ mod draft;
 mod live;
 mod macro_run;
 mod state;
+mod startup_profile;
 mod workers;
 mod performance;
 mod instance;
@@ -117,6 +118,7 @@ pub fn run() {
             lifecycle::get_launch_at_login,
             lifecycle::set_launch_at_login,
             get_initial_state,
+            save_startup_profile,
             draft::get_profile_draft,
             draft::save_profile_draft,
             draft::discard_profile_draft,

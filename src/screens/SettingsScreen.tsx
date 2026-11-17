@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { ArrowUpRight, BookOpen, Database, Info, Monitor, Power, Usb } from "lucide-react";
 import { deckforgeApi, isTauriRuntime } from "../bridge/tauriBridge";
-import type { NavScreenId } from "../types/deckforge";
+import type { NavScreenId, Profile } from "../types/deckforge";
 import { BackupPanel } from "../components/BackupPanel";
 import { UpdatesPanel } from "../components/UpdatesPanel";
 import packageInfo from "../../package.json";
@@ -16,9 +16,10 @@ type Section = typeof sections[number]["id"];
 const card = "rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-5 space-y-3";
 const action = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-sidebar)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]";
 
-export const SettingsScreen: React.FC<{ onNavigate: (screen: NavScreenId) => void; onOpenGuide: () => void; onBackup: () => Promise<string>; onRestore: (contents: string) => Promise<number> }> = ({ onNavigate, onOpenGuide, onBackup, onRestore }) => {
+export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: string | null; onStartupProfileChange: (id: string | null) => Promise<void>; onNavigate: (screen: NavScreenId) => void; onOpenGuide: () => void; onBackup: () => Promise<string>; onRestore: (contents: string) => Promise<number> }> = ({ profiles, startupProfileId, onStartupProfileChange, onNavigate, onOpenGuide, onBackup, onRestore }) => {
   const [section, setSection] = useState<Section>("general");
   const [launchAtLogin, setLaunchAtLogin] = useState(false);
+  const [startupProfileError, setStartupProfileError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const desktop = isTauriRuntime();
@@ -63,6 +64,19 @@ export const SettingsScreen: React.FC<{ onNavigate: (screen: NavScreenId) => voi
             <p id="startup-help" className="text-xs leading-relaxed">{desktop ? "Uses this executable path. Enable from the installed app; if you move it, enable this setting again." : "This preference is available in the Windows desktop app. Browser preview does not change Windows settings."}</p>
             {loading && desktop && <p role="status" className="text-xs">Checking startup preference…</p>}
             {error && <p role="alert" className="text-xs text-[var(--status-error)]">{error}</p>}
+          </section>
+          <section className={card} aria-labelledby="default-profile-heading">
+            <h2 id="default-profile-heading" className="font-semibold text-[var(--text-primary)]">Default profile on launch</h2>
+            <select aria-label="Default profile on launch" className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2 text-sm text-[var(--text-primary)]" value={startupProfileId ?? ""} onChange={async e => {
+              const id = e.target.value || null;
+              try { await onStartupProfileChange(id); setStartupProfileError(null); }
+              catch (err) { setStartupProfileError(String(err)); }
+            }}>
+              <option value="">Last applied profile</option>
+              {profiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+            </select>
+            <p className="text-xs">On the next launch, DeckForge opens this profile on page 1 and sends it when the deck connects. App switching rules may change it afterward.</p>
+            {startupProfileError && <p role="alert" className="text-xs text-[var(--status-error)]">{startupProfileError}</p>}
           </section>
           <section className={card}><h2 className="font-semibold text-[var(--text-primary)]">Close the editor, keep the deck running</h2>
             <p className="leading-relaxed">Closing the window hides DeckForge to the system tray. Use <strong className="text-[var(--text-primary)]">Open DeckForge</strong> to return, or <strong className="text-[var(--text-primary)]">Quit DeckForge</strong> to stop device control.</p>

@@ -140,6 +140,7 @@ export const App: React.FC = () => {
 
   const [selectedDeviceId, setSelectedDeviceId] = useState<string>("ajazz-akp05e-pro");
   const [selectedProfileId, setSelectedProfileId] = useState<string>("profile-streaming");
+  const [startupProfileId, setStartupProfileId] = useState<string | null>(null);
   const [selectedPageIdx, setSelectedPageIdx] = useState<number>(0);
   const [selectedKeyIdx, setSelectedKeyIdx] = useState<number>(0);
   const [surface, setSurface] = useState<"key" | "zone" | "strip" | "encoder">("key");
@@ -226,7 +227,11 @@ export const App: React.FC = () => {
       setProfiles(data.profiles);
       setSavedSnapshot(profileSnapshot(data.profiles));
       setBootstrapReady(true);
-      if (data.appliedContext) {
+      setStartupProfileId(data.startupProfileId ?? null);
+      if (data.startupProfileId && data.profiles.some(p => p.id === data.startupProfileId)) {
+        setSelectedProfileId(data.startupProfileId);
+        setSelectedPageIdx(0);
+      } else if (data.appliedContext) {
         setSelectedProfileId(data.appliedContext.profileId);
         setSelectedPageIdx(data.appliedContext.pageIndex);
       }
@@ -1665,7 +1670,7 @@ export const App: React.FC = () => {
 
       {/* 7. SCREEN 07: SETTINGS (Spec Section 10) */}
       {activeScreen === "settings" && (
-        <SettingsScreen onBackup={handleBackup} onRestore={handleRestoreBackup} onNavigate={setActiveScreen} onOpenGuide={() => setShowOnboarding(true)} />
+        <SettingsScreen profiles={profiles} startupProfileId={startupProfileId} onStartupProfileChange={async id => { await deckforgeApi.saveStartupProfile(id); setStartupProfileId(id); }} onBackup={handleBackup} onRestore={handleRestoreBackup} onNavigate={setActiveScreen} onOpenGuide={() => setShowOnboarding(true)} />
       )}
 
       </div>
