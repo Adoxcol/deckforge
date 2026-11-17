@@ -39,3 +39,11 @@ npm run tauri dev
 cd src-tauri
 cargo test --ignore-rust-version -- --nocapture
 ```
+
+### Media library
+
+Select a key, touch zone, or strip and choose **Browse media library**. The library includes four original CC0 starter animations, search over saved media, favorites, and recent selections. Preview an item, then choose **Use on screen**; adjust fit, speed, and looping in the editor and choose **Apply to Device** when ready.
+
+Upload a local image/GIF or paste a direct HTTPS media URL (up to 8 MB). Link imports run in the desktop app, use bounded downloads, and validate the actual image before saving. Imported media is saved locally for offline reuse. Favorites and recent selections stay in this installation's local browser storage; they are not included in profile backups. The library does not currently search a third-party GIF service.
+
+The procedural starter artwork in `src/lib/starterMedia.ts` is dedicated to the public domain under [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/). This dedication applies to the artwork; the application's code retains its repository license.

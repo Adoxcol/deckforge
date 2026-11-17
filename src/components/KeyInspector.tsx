@@ -1,4 +1,5 @@
 import React from "react";
+import { MediaLibrary } from "./MediaLibrary";
 import { ScreenFace } from "./ScreenFace";
 import { AVAILABLE_ICON_NAMES, DeckIcon } from "./DeckIcon";
 import { BrandIconPicker } from "./BrandIconPicker";
@@ -10,6 +11,8 @@ import { Copy, Play, Plus, Trash2 } from "lucide-react";
 import type { DeckFaceState, DeviceDescriptor, EncoderConfig, KeyConfig, MacroSequence, MediaPreview, ObsSettings, ScreenMediaConfig, ScreenTarget, TouchZoneConfig } from "../types/deckforge";
 
 interface KeyInspectorProps {
+  mediaLibrary: Record<string, MediaPreview>;
+  onMediaStored: (clip: MediaPreview) => void;
   activeDevice: DeviceDescriptor;
   activeEncoder: EncoderConfig | null;
   activeKey: KeyConfig;
@@ -46,6 +49,8 @@ interface KeyInspectorProps {
 }
 
 export const KeyInspector: React.FC<KeyInspectorProps> = ({
+  mediaLibrary,
+  onMediaStored,
   activeDevice,
   activeEncoder,
   activeKey,
@@ -80,8 +85,10 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
   updateSelectedZone,
   useSampleAnimation,
 }) => {
+  const [library, setLibrary] = React.useState<{ use: (clip: MediaPreview) => void } | null>(null);
   return (
     <aside className="bg-[var(--bg-sidebar)] border-l border-[var(--border-subtle)] p-4 flex flex-col justify-between overflow-y-auto">
+      {library && <MediaLibrary clips={mediaLibrary} onStored={onMediaStored} onUse={library.use} onClose={() => setLibrary(null)} />}
       <div className="flex flex-col gap-3.5">
         <div className="flex items-center justify-between">
           <h2 className="text-[14px] font-bold text-[var(--text-primary)]">
@@ -181,6 +188,11 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
             }
             config={currentMedia()}
             clip={clipFor(currentMedia())}
+            onBrowse={() => {
+              const target: ScreenTarget = surface === "zone" || surface === "strip" ? surface : "key";
+              const index = target === "key" ? activeKey.index : surfaceIndex;
+              setLibrary({ use: clip => assignMedia(target, index, { mediaId: clip.id, fit: "cover", loopPlayback: true, speed: 1 }) });
+            }}
             onUpload={() => fileRef.current?.click()}
             onSample={() => {
               const target: ScreenTarget = surface === "zone" || surface === "strip" ? surface : "key";

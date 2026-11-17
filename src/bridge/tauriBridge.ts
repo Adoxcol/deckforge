@@ -960,6 +960,11 @@ export const deckforgeApi = {
     return () => {};
   },
 
+  async importMediaUrl(url: string): Promise<MediaPreview> {
+    if (!isTauriRuntime()) throw new Error("Link imports are available in the desktop app. You can still upload local files here.");
+    return invoke<MediaPreview>("import_media_url", { id: `media-${crypto.randomUUID()}`, url });
+  },
+
   async stageScreenMedia(id: string, fileName: string, dataBase64: string): Promise<MediaPreview> {
     if (isTauriRuntime()) {
       return await invoke<MediaPreview>("stage_screen_media", { id, fileName, dataBase64 });

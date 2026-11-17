@@ -412,6 +412,15 @@ pub async fn stage_screen_media(
 }
 
 #[tauri::command]
+pub async fn import_media_url(id: String, url: String, state: State<'_, SharedState>) -> Result<MediaPreview, String> {
+    let shared = state.inner().clone();
+    let (name, bytes) = crate::media_download::download(&url).await?;
+    tauri::async_runtime::spawn_blocking(move || stage_media_with(&shared, |staged| {
+        staged.stage_bytes(&id, &name, &bytes)
+    })).await.map_err(|err| err.to_string())?
+}
+
+#[tauri::command]
 pub async fn stage_frame_sequence(
     id: String,
     file_name: String,

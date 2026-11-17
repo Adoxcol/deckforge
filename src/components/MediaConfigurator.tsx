@@ -8,6 +8,7 @@ interface MediaConfiguratorProps {
   config: ScreenMediaConfig | null;
   clip: MediaPreview | null;
   onUpload: () => void;
+  onBrowse: () => void;
   onSample: () => void;
   onChange: (patch: Partial<ScreenMediaConfig>) => void;
   onClear: () => void;
@@ -19,6 +20,7 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
   config,
   clip,
   onUpload,
+  onBrowse,
   onSample,
   onChange,
   onClear,
@@ -38,6 +40,7 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
         ) : null}
       </div>
 
+      <button type="button" onClick={onBrowse} className="h-9 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/50 text-xs font-semibold text-[var(--accent-text)] cursor-pointer">Browse media library</button>
       <div className="flex gap-1.5">
         <button
           onClick={onUpload}

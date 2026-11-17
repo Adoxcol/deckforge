@@ -319,3 +319,11 @@ These are proposed release gates, not results already achieved by this audit.
 - Measured production chunk: 5,288.01 kB before, 4,800.58 kB after (9.2% smaller); gzip 2,155.32 kB before, 1,995.57 kB after (7.4% smaller). This is a bundle-size improvement, not a measured startup or installed-app latency improvement.
 - Validation: all 27 frontend tests pass, including field-for-field preservation of all 3,470 logos; TypeScript and production build pass. Existing main-chunk size and Tauri event import warnings remain.
 - Remaining validation: installed-app reconnect, sleep/wake, knob responsiveness and failure recovery require hardware smoke testing. No live audio/device configuration was changed in this check.
+
+## Media library (2026-11-17)
+
+- Added a key/zone/strip media picker with four original CC0 animations, searchable saved media, favorites, recent selections, local uploads, and direct HTTPS link import. Imports persist through the existing media store and do not assign a screen until explicitly selected.
+- Downloads have a 30-second timeout, five-redirect limit, HTTPS-only transport, and an 8 MB limit enforced even without Content-Length. Image decoding and persistence run in the existing background staging worker. Credentials embedded in the initial URL are rejected.
+- Workspace shortcuts are suspended while a native dialog is open, preventing Apply/page switching behind the picker. The picker captures its assignment target when opened.
+- Validation on an isolated staged snapshot: 29 frontend tests; TypeScript/production build; 145 Rust tests passed, 8 ignored. New tests cover preference sanitization, search/filter ordering and missing references, URL validation, and streamed download limits. Browser checks covered preview, favorite persistence on reopening, recent selections, empty search and starter assignment with Unsaved/No layout applied status.
+- Limits: no third-party GIF search provider; direct-link imports were not exercised end-to-end in an installed native build. No physical device or live audio configuration was changed. Concurrent knob LED and workspace UI work was excluded from this commit and preserved.

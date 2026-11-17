@@ -3,6 +3,7 @@ pub mod db;
 pub mod drivers;
 pub mod game_mode;
 pub mod media;
+mod media_download;
 pub mod plugins;
 pub mod updates;
 
@@ -143,6 +144,7 @@ pub fn run() {
             save_auto_switch_rules,
             save_obs_settings,
             stage_screen_media,
+            import_media_url,
             stage_frame_sequence,
             game_mode_scan,
             game_mode_get_config,
