@@ -53,7 +53,7 @@ const ThemePreview: React.FC<{ theme: ThemeId; icons: string[] }> = ({ theme, ic
   return (
     <div className="flex gap-2">
       {icons.map((name, i) => (
-        <canvas key={name} ref={(el) => { refs.current[i] = el; }} width={112} height={112} className="w-16 h-16 rounded-lg" />
+        <canvas key={name} ref={(el) => { refs.current[i] = el; }} width={112} height={112} className="w-16 h-16 rounded-lg border border-[var(--border-subtle)] bg-[#0B0D14]" />
       ))}
     </div>
   );
@@ -171,7 +171,7 @@ export const ThemesScreen: React.FC<{
         </p>
       </div>
 
-      <section className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex items-center justify-between gap-4">
+      <section className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="font-bold text-sm flex items-center gap-2"><Wand2 size={15} /> Full-deck wallpaper</div>
           <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-xl">
@@ -202,11 +202,11 @@ export const ThemesScreen: React.FC<{
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
         {KEY_THEMES.map((theme) => (
-          <div key={theme.id} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-3">
+          <div key={theme.id} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors flex flex-col gap-3">
             <ThemePreview theme={theme.id} icons={previewIcons} />
             <div>
               <div className="font-bold text-sm">{theme.name}</div>
-              <div className="text-xs text-[var(--text-secondary)]">{theme.description}</div>
+              <div className="text-xs text-[var(--text-secondary)] mt-0.5">{theme.description}</div>
             </div>
             <div className="flex gap-2 mt-auto">
               <button
@@ -221,7 +221,7 @@ export const ThemesScreen: React.FC<{
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void applyTheme(theme.id, true)}
-                className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs cursor-pointer disabled:opacity-50"
+                className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs cursor-pointer disabled:opacity-50"
               >
                 {busy === `${theme.id}:true` ? "Drawing…" : `Key ${selectedIndex + 1} only`}
               </button>

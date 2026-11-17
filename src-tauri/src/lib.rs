@@ -28,7 +28,7 @@ use drivers::frame_cache::{AntiFreezeFrameCache, FrameCacheStats};
 use drivers::hal::{
     builtin_device_catalog, deck_generation, deck_next_report, deck_status, DeckStatus,
     device_uses_akp05e_face, get_cache_stats, key_image_slot, now_ms, publish_screens,
-    scan_usb_devices, send_hardware_brightness,
+    reset_hardware_knob_leds, scan_usb_devices, send_hardware_brightness, send_hardware_knob_leds,
     touch_zone_image_slot, write_animation_frames, write_hid_bursts,
     write_panel_brightness, wake_panel, deck_note, request_full_push, DeviceDescriptor, DiagnosticEntry,
     HidBurst, PlaybackSlot,
@@ -122,6 +122,8 @@ pub fn run() {
             draft::discard_profile_draft,
             refresh_usb_devices,
             set_device_brightness,
+            set_knob_leds,
+            reset_knob_leds,
             apply_profile_to_device,
             save_profiles,
             save_macros,

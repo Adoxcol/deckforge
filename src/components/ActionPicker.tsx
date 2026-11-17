@@ -123,7 +123,7 @@ export const ActionPicker: React.FC<{
           <>
             <div className="fixed inset-0 z-[90]" onMouseDown={() => setOpen(false)} />
             <div
-              className="fixed z-[91] flex flex-col rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] shadow-2xl overflow-hidden"
+              className="fixed z-[91] flex flex-col rounded-lg border border-[var(--border-strong)] bg-[var(--bg-panel)] shadow-2xl overflow-hidden animate-pop-in"
               style={{ left: Math.min(rect.left, window.innerWidth - rect.width - 8), top: rect.top, width: rect.width, maxHeight: PANEL_HEIGHT }}
               onKeyDown={onKey}
             >

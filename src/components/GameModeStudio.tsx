@@ -480,7 +480,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
         </div>
 
         {/* Live numbers */}
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
           <Stat
             label="Free memory"
             value={`${formatMemory(scan.ramFreeMb)} of ${formatMemory(scan.ramTotalMb)}`}

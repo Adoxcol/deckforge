@@ -4,7 +4,7 @@ import { checkForUpdate, type UpdateInfo } from "../lib/updates";
 import { isTauriRuntime } from "../bridge/tauriBridge";
 import { errorText } from "../lib/format";
 
-const action = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] disabled:opacity-50 disabled:cursor-not-allowed";
+const action = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-sidebar)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-[var(--border-strong)] disabled:hover:bg-[var(--bg-sidebar)] cursor-pointer transition-colors";
 
 export const UpdatesPanel: React.FC<{ card: string }> = ({ card }) => {
   const [state, setState] = useState<"idle" | "checking" | "current" | "found" | "installing" | "error">("idle");

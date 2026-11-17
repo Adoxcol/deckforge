@@ -161,7 +161,7 @@ export const ActionBinding: React.FC<{
             value={actionParam}
             onChange={(event) => onChange(actionId, event.target.value)}
             placeholder="Ctrl+Shift+M, notepad.exe, https://..."
-            className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] outline-none"
+            className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
           />
           {showPresets && (
             <div className="flex flex-wrap gap-1">
@@ -170,7 +170,7 @@ export const ActionBinding: React.FC<{
                   key={preset}
                   type="button"
                   onClick={() => onChange(actionId === "sys.hotkey" ? "sys.hotkey" : "custom.hotkey", preset)}
-                  className="px-1.5 py-0.5 rounded bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] text-[10px] font-mono text-[var(--text-secondary)] cursor-pointer"
+                  className="px-1.5 py-0.5 rounded bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] text-[10px] font-mono text-[var(--text-secondary)] cursor-pointer transition-colors"
                 >
                   {preset}
                 </button>
@@ -195,14 +195,16 @@ export const ObsConnection: React.FC<{
     <input
       value={obsSettings.url}
       onChange={(event) => onSave({ ...obsSettings, url: event.target.value })}
-      className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] outline-none"
+      aria-label="OBS WebSocket URL"
+      className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none"
     />
     <input
       type="password"
       value={obsSettings.password}
       placeholder="Password, if OBS has one"
+      aria-label="OBS WebSocket password"
       onChange={(event) => onSave({ ...obsSettings, password: event.target.value })}
-      className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
+      className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
     />
   </div>
 );

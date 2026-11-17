@@ -8,7 +8,17 @@ import { ACTION_DRAG_TYPE, type KnobPart } from "./ActionDrawer";
 import { PageApps } from "./AppRuleList";
 import type { AutoSwitchRule } from "../types/deckforge";
 import { ChevronLeft, ChevronRight, LayoutTemplate, Plus } from "lucide-react";
-import type { DeckFaceState, DeviceDescriptor, KeyConfig, MediaPreview, Profile, ProfilePage, ScreenMediaConfig, ScreenTarget } from "../types/deckforge";
+import {
+  DEFAULT_KNOB_LED_COLORS,
+  type DeckFaceState,
+  type DeviceDescriptor,
+  type KeyConfig,
+  type MediaPreview,
+  type Profile,
+  type ProfilePage,
+  type ScreenMediaConfig,
+  type ScreenTarget,
+} from "../types/deckforge";
 
 interface DeckStageProps {
   activeDevice: DeviceDescriptor;
@@ -69,10 +79,10 @@ export const DeckStage: React.FC<DeckStageProps> = ({
   const [draggingKey, setDraggingKey] = React.useState<number | null>(null);
   const [dropPage, setDropPage] = React.useState<number | null>(null);
   return (
-    <div className="min-h-0 flex-1 flex flex-col items-center justify-start px-6 py-3 gap-3 overflow-y-auto">
+    <div className="min-h-0 flex-1 flex flex-col items-center justify-start px-6 py-4 gap-3 overflow-y-auto">
       <div
         style={{ transform: `scale(${canvasZoom / 100})` }}
-        className="shrink-0 origin-top bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-[var(--radius-lg)] p-4 transition-transform max-w-[650px] w-full flex flex-col gap-3"
+        className="shrink-0 origin-top bg-[var(--bg-panel)] border border-[var(--border-strong)]/70 rounded-[var(--radius-lg)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_16px_40px_rgba(0,0,0,0.45)] transition-transform max-w-[650px] w-full flex flex-col gap-3"
       >
         {/* Dynamic Key Grid matching real hardware rows x cols */}
         <div
@@ -89,6 +99,9 @@ export const DeckStage: React.FC<DeckStageProps> = ({
             return (
               <button
                 key={k.index}
+                type="button"
+                aria-pressed={isSelected}
+                aria-label={`Key ${k.index + 1}: ${look.title || "Empty"}`}
                 onClick={() => {
                   setSurface("key");
                   setSurfaceIndex(k.index);
@@ -132,13 +145,13 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                       ? `radial-gradient(circle at 50% 28%, ${k.accentColor}44, ${k.bgColor})`
                       : k.bgColor,
                 }}
-                className={`aspect-[1/0.9] border border-[var(--border-subtle)] p-2 flex flex-col items-center justify-center gap-1.5 relative overflow-hidden cursor-pointer active:cursor-grabbing transition-[outline-color,transform] duration-100 outline outline-2 outline-offset-2 group ${
+                className={`aspect-[1/0.9] border border-[var(--border-subtle)] p-2 flex flex-col items-center justify-center gap-1.5 relative overflow-hidden cursor-pointer active:cursor-grabbing transition-[outline-color,border-color,filter,transform] duration-150 outline outline-2 outline-offset-2 group hover:brightness-110 ${
                   dropTarget === k.index
                     ? "outline-[var(--accent-hover)] scale-[1.03]"
                     : isLivePressed
                     ? "outline-[var(--status-success)] scale-95"
                     : isSelected
-                    ? "outline-[var(--accent-primary)]"
+                    ? "outline-[var(--accent-primary)] shadow-[0_0_16px_rgba(124,131,247,0.2)]"
                     : "outline-transparent hover:border-[var(--border-strong)]"
                 }`}
               >
@@ -191,6 +204,8 @@ export const DeckStage: React.FC<DeckStageProps> = ({
         {activeDevice.touchStrip && (
           <div className="flex flex-col gap-1.5">
             <button
+              type="button"
+              aria-pressed={surface === "strip"}
               onClick={() => setSurface("strip")}
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
@@ -198,10 +213,10 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                 const file = event.dataTransfer.files?.[0];
                 if (file) void ingestFile(file, "strip", 0);
               }}
-              className={`h-7 rounded-md border text-[10.5px] font-semibold cursor-pointer ${
+              className={`h-7 rounded-md border text-[10.5px] font-semibold cursor-pointer transition-colors ${
                 surface === "strip"
                   ? "border-[var(--accent-primary)] bg-[var(--accent-soft)] text-white"
-                  : "border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)]"
+                  : "border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]"
               }`}
             >
               Whole touch strip · {activeDevice.touchStrip.pixelWidth}×{activeDevice.touchStrip.pixelHeight}
@@ -215,12 +230,23 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                 const zoneClip = clipFor(tz.media);
                 const zoneSelected = surface === "zone" && surfaceIndex === tz.index;
                 const zoneValue = liveZoneValue(tz.tapActionId, tz.valueText, tz.media ? null : face, tz.tapActionParam);
+                const selectZone = () => {
+                  setSurface("zone");
+                  setSurfaceIndex(tz.index);
+                };
                 return (
                   <div
                     key={tz.index}
-                    onClick={() => {
-                      setSurface("zone");
-                      setSurfaceIndex(tz.index);
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={zoneSelected}
+                    aria-label={`Touch zone ${tz.index + 1}: ${tz.label}`}
+                    onClick={selectZone}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        selectZone();
+                      }
                     }}
                     onDragOver={(event) => {
                       event.preventDefault();
@@ -237,10 +263,10 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                       setSurface("zone");
                       setSurfaceIndex(tz.index);
                     }}
-                    className={`relative min-h-14 overflow-hidden px-2.5 py-1.5 rounded-lg bg-[var(--bg-panel)] border cursor-pointer flex items-center justify-between ${
+                    className={`relative min-h-14 overflow-hidden px-2.5 py-1.5 rounded-lg bg-[var(--bg-panel)] border cursor-pointer flex items-center justify-between transition-all duration-150 ${
                       dropZone === `zone-${tz.index}`
                         ? "border-[var(--accent-hover)] bg-[var(--bg-elevated)]"
-                        : zoneSelected ? "border-[var(--accent-primary)]" : "border-[var(--border-subtle)] hover:border-[var(--accent-primary)]/60"
+                        : zoneSelected ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/40" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/60"
                     }`}
                   >
                     {zoneClip ? (
@@ -283,12 +309,30 @@ export const DeckStage: React.FC<DeckStageProps> = ({
           >
             {activePage.encoders.slice(0, activeDevice.encoders.count).map((enc) => {
               const knobValue = encoderAudioLook(enc, face);
+              const ledColor = (
+                enc.ledColor ||
+                DEFAULT_KNOB_LED_COLORS[enc.index] ||
+                "#35C98B"
+              ).toUpperCase();
+              const ledOff = ledColor === "#000000";
+              const isEncSelected = surface === "encoder" && surfaceIndex === enc.index;
+              const selectEncoder = () => {
+                setSurface("encoder");
+                setSurfaceIndex(enc.index);
+              };
               return (
               <div
                 key={enc.index}
-                onClick={() => {
-                  setSurface("encoder");
-                  setSurfaceIndex(enc.index);
+                role="button"
+                tabIndex={0}
+                aria-pressed={isEncSelected}
+                aria-label={`Knob ${enc.index + 1}: ${enc.label}`}
+                onClick={selectEncoder}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    selectEncoder();
+                  }
                 }}
                 onDragOver={(event) => {
                   if (!event.dataTransfer.types.includes(ACTION_DRAG_TYPE)) return;
@@ -307,12 +351,12 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                   setSurface("encoder");
                   setSurfaceIndex(enc.index);
                 }}
-                className={`relative px-2.5 py-1.5 rounded-xl bg-[var(--bg-input)] border flex items-center gap-2.5 cursor-pointer ${
+                className={`relative px-2.5 py-2 rounded-xl bg-[var(--bg-input)] border flex items-center gap-2.5 cursor-pointer transition-all duration-150 ${
                   dropZone === `enc-${enc.index}`
                     ? "border-[var(--accent-hover)] bg-[var(--bg-elevated)]"
-                    : surface === "encoder" && surfaceIndex === enc.index
-                    ? "border-[var(--accent-primary)]"
-                    : "border-[var(--border-subtle)] hover:border-[var(--accent-primary)]/60"
+                    : isEncSelected
+                    ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/40"
+                    : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/60"
                 }`}
               >
                 {dropZone === `enc-${enc.index}` && (
@@ -350,7 +394,22 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                     ))}
                   </div>
                 )}
-                <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[var(--border-strong)] to-[var(--bg-sidebar)] border border-dashed border-[var(--text-secondary)]/60 shrink-0" />
+                <div
+                  style={
+                    ledOff
+                      ? { borderColor: "var(--border-subtle)" }
+                      : {
+                          borderColor: ledColor,
+                          boxShadow: `0 0 10px ${ledColor}66, inset 0 0 4px ${ledColor}44`,
+                        }
+                  }
+                  className="w-6 h-6 rounded-full bg-gradient-to-br from-[var(--border-strong)] to-[var(--bg-sidebar)] border-2 shrink-0 flex items-center justify-center"
+                >
+                  <span
+                    style={{ backgroundColor: ledOff ? "var(--text-muted)" : ledColor }}
+                    className="w-1.5 h-1.5 rounded-full"
+                  />
+                </div>
                 <div className="min-w-0">
                   <div className="text-[11px] font-semibold text-[var(--text-primary)] truncate">
                     {enc.label}
@@ -359,7 +418,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                     {knobValue.title}
                   </div>
                   {knobValue.level != null && (
-                    <LevelMeter percent={knobValue.level} accent="#35C98B" muted={knobValue.muted} />
+                    <LevelMeter percent={knobValue.level} accent={ledOff ? "#35C98B" : ledColor} muted={knobValue.muted} />
                   )}
                 </div>
               </div>
@@ -410,19 +469,23 @@ export const DeckStage: React.FC<DeckStageProps> = ({
           )}
         </div>
       ) : (
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center flex-wrap justify-center gap-1.5">
         <div className="flex items-center bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] h-8 px-1">
           <button
+            type="button"
+            disabled={selectedPageIdx === 0}
             title="Previous page (Page Up)"
+            aria-label="Previous page"
             onClick={() => {
               deckforgeApi.holdAutoSwitch().catch(() => {});
               setSelectedPageIdx((p) => Math.max(0, p - 1));
             }}
-            className="px-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+            className="px-1.5 h-6 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-default cursor-pointer"
           >
             <ChevronLeft size={13} />
           </button>
           <select
+            aria-label="Current page"
             value={selectedPageIdx}
             onChange={(e) => {
               deckforgeApi.holdAutoSwitch().catch(() => {});
@@ -437,29 +500,35 @@ export const DeckStage: React.FC<DeckStageProps> = ({
             ))}
           </select>
           <button
+            type="button"
+            disabled={selectedPageIdx >= activeProfile.pages.length - 1}
             title="Next page (Page Down)"
+            aria-label="Next page"
             onClick={() => {
               deckforgeApi.holdAutoSwitch().catch(() => {});
               setSelectedPageIdx((p) => Math.min(activeProfile.pages.length - 1, p + 1));
             }}
-            className="px-1.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+            className="px-1.5 h-6 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-default cursor-pointer"
           >
             <ChevronRight size={13} />
           </button>
         </div>
 
         <button
+          type="button"
           onClick={handleAddPage}
           title="Add a page"
-          className="w-7 h-8 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer"
+          aria-label="Add a page"
+          className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer"
         >
           <Plus size={13} />
         </button>
         <button
+          type="button"
           onClick={() => setTemplatesOpen(true)}
           title="Page templates"
           aria-label="Page templates"
-          className="h-8 px-2.5 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1.5 text-[11px] font-medium cursor-pointer"
+          className="h-8 px-2.5 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1.5 text-[11px] font-medium cursor-pointer"
         >
           <LayoutTemplate size={13} /> Templates
         </button>

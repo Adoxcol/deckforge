@@ -128,6 +128,26 @@ pub fn build_disconnect_packet() -> [u8; HID_REPORT_LEN] {
     crt_base_report(b"DIS")
 }
 
+/// `Stream Dock AJAZZ.exe` @ `0x140194550` (`SDLightKnoLabel::sendDeviceLightChange`):
+/// `"CRT\0\0SETLB"` (`43 52 54 00 00 53 45 54 4C 42`) followed by 4 RGB triples (`R, G, B`)
+/// at payload bytes `10..22` (report buffer bytes `11..23`: `11 + 3 * k .. 13 + 3 * k`).
+pub fn build_knob_led_packet(colors: &[[u8; 3]; 4]) -> [u8; HID_REPORT_LEN] {
+    let mut buf = crt_base_report(b"SETLB");
+    for (k, &[r, g, b]) in colors.iter().enumerate() {
+        let base = 11 + k * 3;
+        buf[base] = r;
+        buf[base + 1] = g;
+        buf[base + 2] = b;
+    }
+    buf
+}
+
+/// `Stream Dock AJAZZ.exe` @ `0x140014c60` (`LightSpripColor::sendResetDeviceColor`):
+/// `"CRT\0\0DELED"` resets knob/strip LEDs to factory default colors.
+pub fn build_reset_leds_packet() -> [u8; HID_REPORT_LEN] {
+    crt_base_report(b"DELED")
+}
+
 /// AKP05E visual key (row-major, 0 = top left) → 1-based BAT image slot.
 ///
 /// The face is one 800×480 panel, not ten independent screens plus a strip at y=0.
@@ -1253,5 +1273,25 @@ mod tests {
         let path = std::env::temp_dir().join("deckforge-glyph-sheet.png");
         img.save(&path).unwrap();
         println!("wrote {}", path.display());
+    }
+
+    #[test]
+    fn test_knob_led_and_reset_packets() {
+        let colors = [
+            [0xFF, 0x00, 0x00],
+            [0x00, 0xFF, 0x00],
+            [0x00, 0x00, 0xFF],
+            [0xFF, 0x10, 0x80],
+        ];
+        let pkt = build_knob_led_packet(&colors);
+        assert_eq!(pkt.len(), HID_REPORT_LEN);
+        assert_eq!(&pkt[0..11], &[0x00, b'C', b'R', b'T', 0x00, 0x00, b'S', b'E', b'T', b'L', b'B']);
+        assert_eq!(&pkt[11..23], &[0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0x10, 0x80]);
+        assert!(pkt[23..].iter().all(|&b| b == 0));
+
+        let reset = build_reset_leds_packet();
+        assert_eq!(reset.len(), HID_REPORT_LEN);
+        assert_eq!(&reset[0..11], &[0x00, b'C', b'R', b'T', 0x00, 0x00, b'D', b'E', b'L', b'E', b'D']);
+        assert!(reset[11..].iter().all(|&b| b == 0));
     }
 }

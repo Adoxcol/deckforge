@@ -14,7 +14,7 @@ const sections = [
 ] as const;
 type Section = typeof sections[number]["id"];
 const card = "rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-5 space-y-3";
-const action = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]";
+const action = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-sidebar)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]";
 
 export const SettingsScreen: React.FC<{ onNavigate: (screen: NavScreenId) => void; onOpenGuide: () => void; onBackup: () => Promise<string>; onRestore: (contents: string) => Promise<number> }> = ({ onNavigate, onOpenGuide, onBackup, onRestore }) => {
   const [section, setSection] = useState<Section>("general");
@@ -43,7 +43,7 @@ export const SettingsScreen: React.FC<{ onNavigate: (screen: NavScreenId) => voi
       <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Preferences</p>
       {sections.map(({ id, name, hint, icon: Icon }) => <button type="button" key={id} onClick={() => setSection(id)}
         aria-current={section === id ? "page" : undefined} aria-controls="settings-content"
-        className={`w-full flex items-start gap-3 text-left rounded-lg px-3 py-3 border transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)] ${section === id ? "border-[var(--accent-primary)]/50 bg-[var(--accent-soft)] text-white" : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)]"}`}>
+        className={`w-full flex items-start gap-3 text-left rounded-lg px-3 py-3 border cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)] ${section === id ? "border-[var(--accent-primary)]/50 bg-[var(--accent-soft)] text-white" : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"}`}>
         <Icon size={16} className="mt-0.5 shrink-0" /><span><span className="block text-xs font-semibold">{name}</span><span className="block text-[10px] text-[var(--text-secondary)] mt-1">{hint}</span></span>
       </button>)}
     </nav>

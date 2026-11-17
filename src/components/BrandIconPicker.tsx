@@ -98,26 +98,28 @@ export const BrandIconPicker: React.FC<{ onPick: (file: File, icon: BrandIcon) =
           ))}
         </div>
       </div>
-      <div className="flex items-center gap-2 h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)]">
-        <Search size={13} className="text-[var(--text-muted)]" />
+      <div className="flex items-center gap-2 h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] transition-colors">
+        <Search size={13} className="text-[var(--text-muted)] shrink-0" />
         <input
+          aria-label="Search app and brand logos"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search 3,000+ logos (Spotify, Discordâ€¦)"
-          className="flex-1 bg-transparent outline-none text-xs"
+          placeholder="Search 3,000+ logos (Spotify, Discord…)"
+          className="flex-1 bg-transparent outline-none text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
         />
       </div>
-      <div className="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto p-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-md">
+      <div className="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto p-1.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-md">
         {failed && <span className="col-span-5 text-[11px] text-[var(--status-warning)] p-2">Could not load the logos.</span>}
-        {!icons && !failed && <span className="col-span-5 text-[11px] text-[var(--text-muted)] p-2">Loading logosâ€¦</span>}
+        {!icons && !failed && <span className="col-span-5 text-[11px] text-[var(--text-muted)] p-2">Loading logos…</span>}
         {icons && shown.length === 0 && <span className="col-span-5 text-[11px] text-[var(--text-muted)] p-2">No logo found.</span>}
         {shown.map((icon) => (
           <button
             key={icon.slug}
             type="button"
             title={icon.title}
+            aria-label={`Use ${icon.title} logo`}
             onClick={() => void renderKeyImage(icon, look).then((file) => onPick(file, icon))}
-            className="h-9 rounded flex items-center justify-center cursor-pointer hover:bg-[var(--bg-elevated)]"
+            className="h-9 rounded-md flex items-center justify-center cursor-pointer hover:bg-[var(--bg-elevated)] border border-transparent hover:border-[var(--border-subtle)] transition-colors"
           >
             <svg viewBox="0 0 24 24" width={16} height={16} fill={isLight(icon.hex) || icon.hex === "000000" ? "#E8EAF0" : `#${icon.hex}`} aria-hidden>
               <path d={icon.path} />

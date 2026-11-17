@@ -1,6 +1,7 @@
 use crate::drivers::akp05e_protocol::{
     akp05e_key_image_slot, akp05e_touch_zone_slot, build_brightness_packet, build_clear_key_packet,
-    build_button_mode_packet, build_heartbeat_packet, build_key_image_packets, build_screen_on_packet, build_touch_strip_packets,
+    build_button_mode_packet, build_heartbeat_packet, build_key_image_packets, build_knob_led_packet,
+    build_reset_leds_packet, build_screen_on_packet, build_touch_strip_packets,
     encode_procedural_key_jpeg, encode_touch_strip_jpeg, parse_hex_color,
 };
 use crate::drivers::frame_cache::{AntiFreezeFrameCache, FrameCacheStats};
@@ -364,6 +365,108 @@ pub fn send_hardware_brightness(
     });
 
     Ok(format!("Hardware brightness set to {}% on {}", percent, dev.model_name))
+}
+
+pub fn default_knob_rgb(index: usize) -> [u8; 3] {
+    match index {
+        0 => [0x35, 0xC9, 0x8B],
+        1 => [0x56, 0xB9, 0xF2],
+        2 => [0x8B, 0x5C, 0xF6],
+        _ => [0xF4, 0xB8, 0x60],
+    }
+}
+
+/// Sends a `CRT\0\0SETLB` packet setting the 4 rotary knob RGB LEDs on the deck.
+pub fn send_hardware_knob_leds(
+    dev: &DeviceDescriptor,
+    colors_hex: &[String],
+    diagnostics: &mut Vec<DiagnosticEntry>,
+) -> Result<String, String> {
+    let ts = now_ms();
+    let mut rgb = [[0u8; 3]; 4];
+    for (k, slot) in rgb.iter_mut().enumerate() {
+        let fallback = default_knob_rgb(k);
+        *slot = colors_hex
+            .get(k)
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|hex| parse_hex_color(hex, fallback))
+            .unwrap_or(fallback);
+    }
+    let pkt = build_knob_led_packet(&rgb);
+    let hex_preview = pkt[1..23]
+        .iter()
+        .map(|b| format!("{:02X}", b))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    if !dev.connected {
+        diagnostics.push(DiagnosticEntry {
+            id: format!("diag-led-{}", ts),
+            timestamp_ms: ts,
+            level: "info".to_string(),
+            device_id: dev.id.clone(),
+            stage: "SIM_KNOB_LED".to_string(),
+            message: format!("Simulated knob LED update ({})", dev.model_name),
+            packet_hex: Some(hex_preview),
+        });
+        return Ok(format!("Simulator knob LEDs updated on {}", dev.model_name));
+    }
+
+    deck_write(vec![(pkt.to_vec(), 0)])?;
+
+    diagnostics.push(DiagnosticEntry {
+        id: format!("diag-led-{}", ts),
+        timestamp_ms: ts,
+        level: "success".to_string(),
+        device_id: dev.id.clone(),
+        stage: "CRT_SETLB_LED".to_string(),
+        message: format!("Applied knob LED colors to {}", dev.model_name),
+        packet_hex: Some(hex_preview),
+    });
+
+    Ok(format!("Updated knob LEDs on {}", dev.model_name))
+}
+
+/// Sends a `CRT\0\0DELED` packet resetting knob LEDs to factory default.
+pub fn reset_hardware_knob_leds(
+    dev: &DeviceDescriptor,
+    diagnostics: &mut Vec<DiagnosticEntry>,
+) -> Result<String, String> {
+    let ts = now_ms();
+    let pkt = build_reset_leds_packet();
+    let hex_preview = pkt[1..11]
+        .iter()
+        .map(|b| format!("{:02X}", b))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    if !dev.connected {
+        diagnostics.push(DiagnosticEntry {
+            id: format!("diag-led-reset-{}", ts),
+            timestamp_ms: ts,
+            level: "info".to_string(),
+            device_id: dev.id.clone(),
+            stage: "SIM_KNOB_LED".to_string(),
+            message: format!("Simulated knob LED reset ({})", dev.model_name),
+            packet_hex: Some(hex_preview),
+        });
+        return Ok(format!("Simulator knob LEDs reset on {}", dev.model_name));
+    }
+
+    deck_write(vec![(pkt.to_vec(), 0)])?;
+
+    diagnostics.push(DiagnosticEntry {
+        id: format!("diag-led-reset-{}", ts),
+        timestamp_ms: ts,
+        level: "success".to_string(),
+        device_id: dev.id.clone(),
+        stage: "CRT_DELED_RESET".to_string(),
+        message: format!("Reset knob LEDs to factory default on {}", dev.model_name),
+        packet_hex: Some(hex_preview),
+    });
+
+    Ok(format!("Reset knob LEDs to factory default on {}", dev.model_name))
 }
 
 /// Turns the panel on and restores the backlight. Runs on the deck's single

@@ -1,5 +1,5 @@
 import React from "react";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import { actionNeedsParam } from "./ActionBinding";
 import { DeckIcon } from "./DeckIcon";
 import type { ActionTemplate } from "../data/actionCatalog";
@@ -88,8 +88,25 @@ export const ActionDrawer = React.memo(function ActionDrawer({
     () => filterActions(actions, actionCategoryFilter, deferredSearch),
     [actions, actionCategoryFilter, deferredSearch]
   );
+  const assignAction = (act: ActionTemplate) => {
+    if (surface === "zone" && activeZone) {
+      updateSelectedZone(activeZone.index, zonePatchForAction(act));
+      triggerToast(`Assigned "${act.title}" to zone #${activeZone.index + 1}`, "info");
+      return;
+    }
+    if (surface === "encoder" && activeEncoder) {
+      updateSelectedEncoder(activeEncoder.index, encoderPatchForAction(act));
+      triggerToast(`Assigned "${act.title}" to the knob press`, "info");
+      return;
+    }
+    updateSelectedKey(keyPatchForAction(act));
+    triggerToast(
+      `Assigned "${act.actionLabel}" to Key #${activeKey.index + 1}`,
+      "info"
+    );
+  };
   return (
-    <div className="h-[205px] bg-[var(--bg-sidebar)] border-t border-[var(--border-subtle)] grid grid-cols-[165px_1fr] p-3 gap-4 shrink-0">
+    <div className="h-[210px] bg-[var(--bg-sidebar)] border-t border-[var(--border-subtle)] grid grid-cols-[165px_1fr] p-3 gap-4 shrink-0">
       {/* Left Category Filter Rail */}
       <div className="border-r border-[var(--border-subtle)] pr-3 flex flex-col gap-0.5 overflow-y-auto">
         <div className="text-[11px] font-semibold text-[var(--text-secondary)] px-2 mb-1">Actions</div>
@@ -99,6 +116,8 @@ export const ActionDrawer = React.memo(function ActionDrawer({
             return (
               <button
                 key={cat}
+                type="button"
+                aria-pressed={isAct}
                 onClick={() => setActionCategoryFilter(cat)}
                 className={`text-left px-2.5 py-1.5 rounded-md text-[11.5px] cursor-pointer transition-colors ${
                   isAct
@@ -113,67 +132,76 @@ export const ActionDrawer = React.memo(function ActionDrawer({
         )}
       </div>
 
-      {/* Right Search + 3x2 Action Cards Grid */}
+      {/* Right Search + Action Cards Grid */}
       <div className="flex flex-col gap-2.5 overflow-hidden">
         <div className="relative">
           <Search
             size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none"
           />
           <input
+            aria-label="Search actions"
             value={actionSearch}
             onChange={(e) => setActionSearch(e.target.value)}
             placeholder="Search actions..."
-            className="w-full h-8 pl-8 pr-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
+            className="w-full h-8 pl-8 pr-8 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
           />
+          {actionSearch && (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => setActionSearch("")}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer"
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(190px,1fr))] gap-1 overflow-y-auto pr-1">
-          {filteredActions.map((act) => (
-            <div
-              key={act.id}
-              draggable
-              title="Click to assign, or drag onto a key, touch zone or knob"
-              onDragStart={(event) => {
-                event.dataTransfer.setData(ACTION_DRAG_TYPE, act.id);
-                event.dataTransfer.effectAllowed = "copy";
-              }}
-              onClick={() => {
-                if (surface === "zone" && activeZone) {
-                  updateSelectedZone(activeZone.index, zonePatchForAction(act));
-                  triggerToast(`Assigned "${act.title}" to zone #${activeZone.index + 1}`, "info");
-                  return;
-                }
-                if (surface === "encoder" && activeEncoder) {
-                  updateSelectedEncoder(activeEncoder.index, encoderPatchForAction(act));
-                  triggerToast(`Assigned "${act.title}" to the knob press`, "info");
-                  return;
-                }
-                updateSelectedKey(keyPatchForAction(act));
-                triggerToast(
-                  `Assigned "${act.actionLabel}" to Key #${activeKey.index + 1}`,
-                  "info"
-                );
-              }}
-              className="p-2 rounded-[var(--radius-md)] border border-transparent hover:border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] flex items-center justify-between gap-2.5 cursor-grab active:cursor-grabbing"
-            >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div
-                  className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center shrink-0 bg-[var(--bg-elevated)] border border-[var(--border-subtle)]"
-                >
-                  <DeckIcon name={act.iconName} size={16} color="var(--text-primary)" />
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[12.5px] font-medium text-[var(--text-primary)] truncate">
-                    {act.title}
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(195px,1fr))] gap-1.5 overflow-y-auto pr-1 content-start">
+          {filteredActions.length === 0 ? (
+            <div className="col-span-full py-6 text-center text-xs text-[var(--text-muted)]">
+              No actions match “{actionSearch.trim()}”{actionCategoryFilter !== "All" ? ` in ${actionCategoryFilter}` : ""}.
+            </div>
+          ) : (
+            filteredActions.map((act) => (
+              <div
+                key={act.id}
+                role="button"
+                tabIndex={0}
+                draggable
+                title="Click to assign, or drag onto a key, touch zone or knob"
+                onDragStart={(event) => {
+                  event.dataTransfer.setData(ACTION_DRAG_TYPE, act.id);
+                  event.dataTransfer.effectAllowed = "copy";
+                }}
+                onClick={() => assignAction(act)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    assignAction(act);
+                  }
+                }}
+                className="p-2 rounded-[var(--radius-md)] bg-[var(--bg-panel)]/65 border border-[var(--border-subtle)]/70 hover:border-[var(--accent-primary)]/45 hover:bg-[var(--bg-elevated)] flex items-center justify-between gap-2.5 cursor-grab active:cursor-grabbing transition-all duration-150"
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center shrink-0 bg-[var(--bg-elevated)] border border-[var(--border-subtle)]"
+                  >
+                    <DeckIcon name={act.iconName} size={16} color={act.accentColor || "var(--text-primary)"} />
                   </div>
-                  <div className="text-[11px] text-[var(--text-muted)] truncate">
-                    {act.description}
+                  <div className="min-w-0">
+                    <div className="text-[12.5px] font-medium text-[var(--text-primary)] truncate">
+                      {act.title}
+                    </div>
+                    <div className="text-[11px] text-[var(--text-muted)] truncate">
+                      {act.description}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
     </div>

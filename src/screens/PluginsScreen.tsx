@@ -154,25 +154,36 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
     }
   };
 
+  React.useEffect(() => {
+    if (!confirming) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setConfirming(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirming]);
+
   const builtIns = (legacySummary?.discoveredPlugins ?? []).filter((p) => p.sourceKind === "BuiltIn");
 
   return (
     <div className="flex-1 p-6 overflow-y-auto max-w-6xl mx-auto w-full flex flex-col gap-5">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-xl font-bold">Plugins</h1>
           <p className="text-xs text-[var(--text-secondary)] mt-0.5">
             DeckForge runs Stream Dock and Stream Deck plugins. Turn one on, then pick its actions for a key.
           </p>
         </div>
-        <div className="flex gap-1 bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] p-1 rounded-lg shrink-0">
+        <div role="tablist" aria-label="Plugin sections" className="flex gap-1 bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] p-1 rounded-lg shrink-0">
           {(["Installed plugins", "Browse", "Built-in actions"] as const).map((t) => (
             <button
               key={t}
+              type="button"
+              role="tab"
+              aria-selected={tab === t}
               onClick={() => setTab(t)}
-              aria-pressed={tab === t}
-              className={`px-3 py-1.5 rounded text-xs font-medium cursor-pointer ${
-                tab === t ? "bg-[var(--accent-soft)] text-white font-semibold" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-colors ${
+                tab === t ? "bg-[var(--accent-soft)] text-white font-semibold shadow-xs" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
               }`}
             >
               {t}
@@ -208,15 +219,17 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               }}
             />
             <button
+              type="button"
               disabled={installing !== null}
               onClick={() => fileInput.current?.click()}
-              className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               <Upload size={13} /> {installing ? "Installing…" : "Install from file"}
             </button>
             <button
+              type="button"
               onClick={rescan}
-              className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer"
+              className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer"
             >
               <RefreshCw size={13} /> Look again
             </button>
@@ -228,12 +241,12 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               <code> %APPDATA%\DeckForge\plugins</code>.
             </div>
           )}
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {plugins.map((plug) => {
               const status = statusOf(plug);
               const runnable = plug.runtime !== "unknown";
               return (
-                <div key={plug.uuid} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-3">
+                <div key={plug.uuid} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors flex flex-col gap-3">
                   <div className="flex items-start gap-3">
                     {plug.icon ? (
                       <img src={plug.icon} alt="" className="w-9 h-9 rounded-md shrink-0 object-contain bg-black/20" />
@@ -300,13 +313,14 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               void search();
             }}
           >
-            <div className="flex-1 flex items-center gap-2 h-9 px-3 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)]">
-              <Search size={14} className="text-[var(--text-muted)]" />
+            <div className="flex-1 flex items-center gap-2 h-9 px-3 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] transition-colors">
+              <Search size={14} className="text-[var(--text-muted)] shrink-0" />
               <input
+                aria-label="Search open-source plugins on GitHub"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search open-source plugins on GitHub (obs, spotify, timer…)"
-                className="flex-1 bg-transparent outline-none text-sm"
+                className="flex-1 bg-transparent outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
               />
             </div>
             <button type="submit" disabled={searching} className="h-9 px-4 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer disabled:opacity-50">
@@ -320,9 +334,9 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
           {results && results.length === 0 && !searching && (
             <div className="p-6 rounded-xl border border-dashed border-[var(--border-subtle)] text-sm text-[var(--text-secondary)] text-center">Nothing found.</div>
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(results ?? []).map((r) => (
-              <div key={r.repo} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2">
+              <div key={r.repo} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors flex flex-col gap-2">
                 <div className="flex items-start gap-3">
                   {r.ownerAvatar ? (
                     <img src={r.ownerAvatar} alt="" className="w-8 h-8 rounded-md shrink-0" />
@@ -359,7 +373,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
       )}
 
       {tab === "Built-in actions" && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {builtIns.map((plug) => (
             <div key={plug.id} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col justify-between gap-3">
               <div>
@@ -373,11 +387,12 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
       )}
 
       {confirming && (
-        <div className="fixed inset-0 z-[80] bg-black/50 grid place-items-center p-4" onMouseDown={() => setConfirming(null)}>
+        <div className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-[2px] grid place-items-center p-4 animate-fade-in" onMouseDown={() => setConfirming(null)}>
           <div
             role="dialog"
+            aria-modal="true"
             aria-label={`Turn on ${confirming.name}`}
-            className="w-full max-w-md rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] p-5 flex flex-col gap-3 shadow-2xl"
+            className="w-full max-w-md rounded-2xl bg-[var(--bg-panel)] border border-[var(--border-strong)] p-5 flex flex-col gap-3 shadow-2xl animate-pop-in"
             onMouseDown={(e) => e.stopPropagation()}
           >
             <h2 className="text-sm font-bold">Turn on {confirming.name}?</h2>
@@ -385,18 +400,19 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               A plugin is its own program. It runs on this PC with your user rights, the same as any app you install, and
               DeckForge can't limit what it does. Only turn on plugins you trust.
             </p>
-            <p className="text-[11px] text-[var(--text-muted)] break-all">{confirming.dir}</p>
+            <p className="text-[11px] font-mono text-[var(--text-muted)] break-all bg-[var(--bg-sidebar)] px-2.5 py-1.5 rounded-md border border-[var(--border-subtle)]">{confirming.dir}</p>
             <div className="flex justify-end gap-2 pt-1">
-              <button onClick={() => setConfirming(null)} className="h-8 px-3 rounded-md border border-[var(--border-subtle)] text-xs cursor-pointer">
+              <button type="button" onClick={() => setConfirming(null)} className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs cursor-pointer">
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={() => {
                   const plug = confirming;
                   setConfirming(null);
                   void setEnabled(plug, true);
                 }}
-                className="h-8 px-3 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer"
+                className="h-8 px-3.5 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer"
               >
                 Turn on
               </button>

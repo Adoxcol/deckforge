@@ -1,7 +1,15 @@
 import { PerformancePanel } from "../components/PerformancePanel";
 import React, { useState } from "react";
 import { RefreshCw, RotateCcw } from "lucide-react";
-import type { DeviceDescriptor, DiagnosticEntry, FrameCacheStats } from "../types/deckforge";
+import {
+  DEFAULT_KNOB_LED_COLORS,
+  type DeviceDescriptor,
+  type DiagnosticEntry,
+  type EncoderConfig,
+  type FrameCacheStats,
+} from "../types/deckforge";
+
+const DEVICE_KNOB_SWATCHES = ["#35C98B", "#56B9F2", "#8B5CF6", "#F4B860", "#F16B79", "#FFFFFF"] as const;
 
 interface DevicesScreenProps {
   connectedDevices: DeviceDescriptor[];
@@ -14,6 +22,9 @@ interface DevicesScreenProps {
   onOpenWorkspace: () => void;
   /** Restarts the deck like a replug. Resolves when it is done or has failed. */
   onRestartDeck: () => Promise<void>;
+  encoders?: EncoderConfig[];
+  onKnobLedChange?: (knobIndex: number | "all", colorHex: string) => void;
+  onResetKnobLeds?: () => void;
 }
 
 type DetailTab = "Overview" | "Controls" | "Display" | "Diagnostics" | "Advanced";
@@ -29,6 +40,9 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
   onBrightness,
   onOpenWorkspace,
   onRestartDeck,
+  encoders,
+  onKnobLedChange,
+  onResetKnobLeds,
 }) => {
   const [deviceDetailTab, setDeviceDetailTab] = useState<DetailTab>("Overview");
   const [restarting, setRestarting] = useState(false);
@@ -38,8 +52,11 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-bold">Connected</h2>
           <button
+            type="button"
             onClick={onRescan}
-            className="p-1.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] cursor-pointer"
+            title="Rescan USB devices"
+            aria-label="Rescan USB devices"
+            className="p-1.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
           >
             <RefreshCw size={13} />
           </button>
@@ -52,11 +69,20 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
           connectedDevices.map((dev) => (
             <div
               key={dev.id}
+              role="button"
+              tabIndex={0}
+              aria-pressed={dev.id === activeDevice.id}
               onClick={() => onSelectDevice(dev.id)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelectDevice(dev.id);
+                }
+              }}
               className={`p-3 rounded-lg border cursor-pointer transition-all ${
                 dev.id === activeDevice.id
                   ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]"
-                  : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
+                  : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]"
               }`}
             >
               <div className="flex items-center justify-between">
@@ -86,7 +112,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
           </p>
         ) : (
         <>
-        <div className="flex items-center justify-between border-b border-[var(--border-subtle)] pb-4">
+        <div className="flex items-center justify-between flex-wrap gap-3 border-b border-[var(--border-subtle)] pb-4">
           <div>
             <h1 className="text-xl font-bold">{activeDevice.modelName}</h1>
             <p className="text-xs text-[var(--text-secondary)] font-mono mt-0.5">
@@ -94,14 +120,16 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
               {activeDevice.firmwareVersion}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
+              type="button"
               onClick={() => onBrightness(activeDevice.brightness)}
-              className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-xs font-medium cursor-pointer"
+              className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--accent-primary)] text-xs font-medium cursor-pointer"
             >
               Identify deck
             </button>
             <button
+              type="button"
               onClick={async () => {
                 setRestarting(true);
                 try {
@@ -112,12 +140,13 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
               }}
               disabled={restarting}
               title="Screen stuck black or not responding? This resets the USB port the deck is on, so it disconnects and reconnects. Windows asks for permission first. If the screen is still black afterwards, unplug the deck and plug it back in."
-              className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-xs font-medium cursor-pointer disabled:opacity-60 disabled:cursor-wait flex items-center gap-1.5"
+              className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--accent-primary)] text-xs font-medium cursor-pointer disabled:opacity-60 disabled:cursor-wait flex items-center gap-1.5"
             >
               <RotateCcw size={13} className={restarting ? "animate-spin" : ""} />
               {restarting ? "Restarting…" : "Restart deck"}
             </button>
             <button
+              type="button"
               onClick={() => onOpenWorkspace()}
               className="h-9 px-4 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer"
             >
@@ -127,15 +156,18 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
         </div>
 
         {/* 5 Device Detail Sub-tabs per Spec Section 5 */}
-        <div className="flex gap-1 bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] p-1 rounded-lg w-fit">
+        <div role="tablist" aria-label="Device details" className="flex flex-wrap gap-1 bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] p-1 rounded-lg w-fit">
           {(["Overview", "Controls", "Display", "Diagnostics", "Advanced"] as const).map(
             (tab) => (
               <button
                 key={tab}
+                type="button"
+                role="tab"
+                aria-selected={deviceDetailTab === tab}
                 onClick={() => setDeviceDetailTab(tab)}
-                className={`px-3.5 py-1.5 rounded-md text-xs font-medium cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-colors ${
                   deviceDetailTab === tab
-                    ? "bg-[var(--accent-soft)] text-white font-semibold"
+                    ? "bg-[var(--accent-soft)] text-white font-semibold shadow-xs"
                     : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                 }`}
               >
@@ -188,28 +220,127 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
           </div>
         )}
 
+        {deviceDetailTab === "Overview" && activeDevice.encoders && encoders && onKnobLedChange && onResetKnobLeds && (
+          <div className="p-4 rounded-[var(--radius-md)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-[13px] font-bold text-[var(--text-primary)]">Knob LED Ring Colors</div>
+                <p className="text-[11.5px] text-[var(--text-muted)] mt-0.5">
+                  Click a swatch or custom picker to update the hardware knob LEDs live via CRT\0\0SETLB.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => onKnobLedChange("all", "#000000")}
+                  className="h-8 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-xs font-medium cursor-pointer"
+                >
+                  All Off
+                </button>
+                <button
+                  type="button"
+                  onClick={onResetKnobLeds}
+                  className="h-8 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--status-warning)] text-xs font-medium cursor-pointer"
+                >
+                  Factory Reset
+                </button>
+              </div>
+            </div>
+            <div
+              className="grid gap-3"
+              style={{
+                gridTemplateColumns: `repeat(${Math.min(activeDevice.encoders.count, 4)}, minmax(0, 1fr))`,
+              }}
+            >
+              {encoders.slice(0, activeDevice.encoders.count).map((enc) => {
+                const ledColor = (enc.ledColor || DEFAULT_KNOB_LED_COLORS[enc.index] || "#35C98B").toUpperCase();
+                const ledOff = ledColor === "#000000";
+                return (
+                  <div
+                    key={enc.index}
+                    className="p-3 rounded-lg bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] flex flex-col gap-2"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          style={
+                            ledOff
+                              ? { borderColor: "var(--border-subtle)" }
+                              : {
+                                  borderColor: ledColor,
+                                  boxShadow: `0 0 10px ${ledColor}66`,
+                                }
+                          }
+                          className="w-5 h-5 rounded-full bg-[var(--bg-panel)] border-2 shrink-0 flex items-center justify-center"
+                        >
+                          <span
+                            style={{ backgroundColor: ledOff ? "var(--text-muted)" : ledColor }}
+                            className="w-1.5 h-1.5 rounded-full"
+                          />
+                        </div>
+                        <span className="text-xs font-semibold truncate">{enc.label || `Knob ${enc.index + 1}`}</span>
+                      </div>
+                      <span className="text-[10px] font-mono text-[var(--text-muted)]">
+                        {ledOff ? "OFF" : ledColor}
+                      </span>
+                    </div>
+                    <div className="flex items-center flex-wrap gap-1.5">
+                      {DEVICE_KNOB_SWATCHES.map((hex) => (
+                        <button
+                          key={hex}
+                          type="button"
+                          title={hex}
+                          aria-label={`Set knob ${enc.index + 1} LED to ${hex}`}
+                          onClick={() => onKnobLedChange(enc.index, hex)}
+                          style={{ backgroundColor: hex }}
+                          className={`w-5 h-5 rounded cursor-pointer ${
+                            ledColor === hex ? "ring-2 ring-white scale-110" : "border border-white/15"
+                          }`}
+                        />
+                      ))}
+                      <input
+                        type="color"
+                        aria-label={`Custom color for knob ${enc.index + 1}`}
+                        value={ledOff ? "#000000" : ledColor}
+                        onChange={(e) => onKnobLedChange(enc.index, e.target.value.toUpperCase())}
+                        className="w-6 h-5 bg-transparent border border-[var(--border-subtle)] rounded p-0 cursor-pointer"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {deviceDetailTab === "Diagnostics" && (
           <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-4 flex flex-col gap-2">
             <div className="text-xs font-bold text-[var(--text-secondary)] mb-1">
               USB HID & Driver Event Log
             </div>
             <div className="flex flex-col gap-1.5 max-h-80 overflow-y-auto font-mono text-xs">
-              {diagnostics.map((d) => (
-                <div
-                  key={d.id}
-                  className="p-2 rounded bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] flex items-center justify-between gap-4"
-                >
-                  <div>
-                    <span className="text-[var(--accent-primary)] mr-2">[{d.stage}]</span>
-                    <span className="text-[var(--text-primary)]">{d.message}</span>
-                  </div>
-                  {d.packetHex && (
-                    <span className="text-[10.5px] text-[var(--status-success)] bg-[var(--bg-panel)] px-2 py-0.5 rounded">
-                      {d.packetHex}
-                    </span>
-                  )}
+              {diagnostics.length === 0 ? (
+                <div className="py-6 text-center text-[var(--text-muted)] font-sans">
+                  No USB HID or driver events recorded yet.
                 </div>
-              ))}
+              ) : (
+                diagnostics.map((d) => (
+                  <div
+                    key={d.id}
+                    className="p-2 rounded bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] flex items-center justify-between gap-4"
+                  >
+                    <div>
+                      <span className="text-[var(--accent-primary)] mr-2">[{d.stage}]</span>
+                      <span className="text-[var(--text-primary)]">{d.message}</span>
+                    </div>
+                    {d.packetHex && (
+                      <span className="text-[10.5px] text-[var(--status-success)] bg-[var(--bg-panel)] px-2 py-0.5 rounded shrink-0">
+                        {d.packetHex}
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}

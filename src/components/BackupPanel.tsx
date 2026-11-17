@@ -28,7 +28,7 @@ export function BackupPanel({ onBackup, onRestore }: {
     }
     setPending({ ...picked, count: file.profiles.length });
   });
-  const button = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] disabled:opacity-40 disabled:cursor-not-allowed";
+  const button = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-sidebar)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[var(--border-strong)] disabled:hover:bg-[var(--bg-sidebar)] cursor-pointer transition-colors";
   return <section className="rounded-xl border border-[var(--accent-primary)]/30 bg-[var(--bg-panel)] p-5 space-y-3">
     <h2 className="font-semibold text-[var(--text-primary)]">Profiles & media backup</h2>
     <p>Back up all editor profiles, all macros, and every image or animation those profiles use in one file.</p>
@@ -47,7 +47,7 @@ export function BackupPanel({ onBackup, onRestore }: {
         setPending(null); setMessage(`Restored ${count} profiles as editor drafts. Open the workspace to review and save them. Macros have been queued for local save.`);
       })}>Restore as copies</button><button className={button} disabled={busy} onClick={() => setPending(null)}>Cancel</button></div>
     </div>}
-    {message && <p role="status" className="text-xs text-[#68DDB0] break-all">{message}</p>}
+    {message && <p role="status" className="text-xs text-[var(--status-success)] break-all">{message}</p>}
     {error && <p role="alert" className="text-xs text-[var(--status-error)] break-all">{error}</p>}
     <p className="text-xs text-[var(--text-muted)]">Up to 64 MB of source media per backup. Auto-switch rules, OBS connection settings, Game Modes, startup preferences, and unused media are not included.</p>
   </section>;

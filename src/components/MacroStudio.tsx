@@ -133,12 +133,13 @@ export const MacroStudio: React.FC<{
             <button
               key={item.id}
               type="button"
+              aria-pressed={active}
               onClick={() => {
                 onSelectMacro(item.id);
                 onSelectStep(0);
               }}
-              className={`text-left p-3 rounded-xl border cursor-pointer ${
-                active ? "bg-[#221A36] border-[var(--accent-primary)]" : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
+              className={`text-left p-3 rounded-xl border cursor-pointer transition-colors ${
+                active ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]" : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]"
               }`}
             >
               <div className="text-xs font-bold text-[var(--text-primary)] truncate">{item.name}</div>
@@ -171,22 +172,24 @@ export const MacroStudio: React.FC<{
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <input
+                  aria-label="Macro chain name"
                   value={macro.name}
                   onChange={(event) => updateMacro((current) => ({ ...current, name: event.target.value, lastEditedMs: Date.now() }))}
-                  className="w-full bg-transparent text-xl font-bold text-[var(--text-primary)] outline-none"
+                  className="w-full bg-transparent hover:bg-[var(--bg-panel)]/50 focus:bg-[var(--bg-panel)] rounded-md px-2 -mx-2 py-0.5 border border-transparent focus:border-[var(--border-subtle)] text-xl font-bold text-[var(--text-primary)] outline-none"
                 />
                 <input
+                  aria-label="Macro chain description"
                   value={macro.description}
                   onChange={(event) =>
                     updateMacro((current) => ({ ...current, description: event.target.value, lastEditedMs: Date.now() }))
                   }
-                  className="w-full mt-1 bg-transparent text-xs text-[var(--text-secondary)] outline-none"
+                  className="w-full mt-1 bg-transparent hover:bg-[var(--bg-panel)]/50 focus:bg-[var(--bg-panel)] rounded-md px-2 -mx-2 py-0.5 border border-transparent focus:border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] outline-none"
                 />
               </div>
               <button
                 type="button"
                 onClick={() => onRun(macro)}
-                className="h-9 px-4 rounded-lg bg-[var(--status-success)] text-[#062117] text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+                className="h-9 px-4 rounded-lg bg-[var(--status-success)] hover:brightness-110 text-[#062117] text-xs font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
               >
                 <Play size={13} />
                 Run chain
@@ -195,7 +198,7 @@ export const MacroStudio: React.FC<{
 
             <div className="flex items-center justify-between gap-3 text-xs text-[var(--text-secondary)]">
               <span>One chain at a time. Extra starts are rejected. Limit: 256 blocks and 60 seconds.</span>
-              <button type="button" onClick={onStop} className="px-3 py-2 rounded border border-[var(--status-error)] text-[var(--status-error)] shrink-0">
+              <button type="button" onClick={onStop} className="h-8 px-3 rounded-md border border-[var(--status-error)]/60 hover:bg-[var(--status-error)]/10 text-[var(--status-error)] font-medium cursor-pointer shrink-0 transition-colors">
                 Stop running chain
               </button>
             </div>
@@ -263,8 +266,8 @@ export const MacroStudio: React.FC<{
                     <button
                       type="button"
                       onClick={() => onSelectStep(index)}
-                      className={`w-full text-left rounded-2xl border p-3 mb-3 cursor-pointer ${
-                        selected ? "bg-[var(--bg-elevated)] border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]" : "bg-[var(--bg-panel)] border-[var(--border-subtle)]"
+                      className={`w-full text-left rounded-2xl border p-3 mb-3 cursor-pointer transition-colors ${
+                        selected ? "bg-[var(--bg-elevated)] border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]" : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
                       }`}
                     >
                       <span
@@ -318,7 +321,7 @@ export const MacroStudio: React.FC<{
                   steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, label } : item)),
                 }));
               }}
-              className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
+              className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
             />
             <label className="text-[11px] text-[var(--text-secondary)]">Kind</label>
             <select
@@ -333,7 +336,7 @@ export const MacroStudio: React.FC<{
                   ),
                 }));
               }}
-              className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
+              className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer"
             >
               {BLOCKS.map((kind) => (
                 <option key={kind.type} value={kind.type}>
@@ -352,7 +355,7 @@ export const MacroStudio: React.FC<{
                     steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, parameter } : item)),
                   }));
                 }}
-                className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
+                className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer"
               >
                 {profiles.map((profile) => (
                   <option key={profile.id} value={profile.id}>
@@ -370,7 +373,7 @@ export const MacroStudio: React.FC<{
                     steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, parameter } : item)),
                   }));
                 }}
-                className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs font-mono text-[var(--text-primary)] outline-none"
+                className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none"
               />
             )}
             <label className="text-[11px] text-[var(--text-secondary)]">Block timeout (ms, including retry)</label>
@@ -380,7 +383,7 @@ export const MacroStudio: React.FC<{
                 updateMacro(current => ({ ...current, steps: current.steps.map((item, index) =>
                   index === selectedStepIdx ? { ...item, timeoutMs } : item) }));
               }}
-              className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs" />
+              className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none" />
             <p className="text-[10px] text-[var(--text-muted)]">Timeout or Stop ends the chain. An action already dispatched cannot be undone.</p>
             <label className="text-[11px] text-[var(--text-secondary)]">If this block fails</label>
             <select
@@ -392,7 +395,7 @@ export const MacroStudio: React.FC<{
                   steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, onError } : item)),
                 }));
               }}
-              className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
+              className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer"
             >
               <option value="Stop">Stop the chain</option>
               <option value="Continue">Keep going</option>
@@ -401,6 +404,9 @@ export const MacroStudio: React.FC<{
             <div className="flex gap-2">
               <button
                 type="button"
+                disabled={selectedStepIdx === 0}
+                title="Move block up"
+                aria-label="Move block up"
                 onClick={() => {
                   if (selectedStepIdx === 0) return;
                   updateMacro((current) => {
@@ -411,12 +417,15 @@ export const MacroStudio: React.FC<{
                   });
                   onSelectStep(selectedStepIdx - 1);
                 }}
-                className="h-8 flex-1 rounded-md border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center cursor-pointer"
+                className="h-8 flex-1 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-35 disabled:cursor-default flex items-center justify-center cursor-pointer"
               >
                 <ChevronUp size={14} />
               </button>
               <button
                 type="button"
+                disabled={!macro || selectedStepIdx >= macro.steps.length - 1}
+                title="Move block down"
+                aria-label="Move block down"
                 onClick={() => {
                   if (!macro || selectedStepIdx >= macro.steps.length - 1) return;
                   updateMacro((current) => {
@@ -427,12 +436,14 @@ export const MacroStudio: React.FC<{
                   });
                   onSelectStep(selectedStepIdx + 1);
                 }}
-                className="h-8 flex-1 rounded-md border border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center justify-center cursor-pointer"
+                className="h-8 flex-1 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-35 disabled:cursor-default flex items-center justify-center cursor-pointer"
               >
                 <ChevronDown size={14} />
               </button>
               <button
                 type="button"
+                title="Remove block"
+                aria-label="Remove block"
                 onClick={() => {
                   updateMacro((current) => ({
                     ...current,
@@ -440,7 +451,7 @@ export const MacroStudio: React.FC<{
                   }));
                   onSelectStep(Math.max(0, selectedStepIdx - 1));
                 }}
-                className="h-8 w-8 rounded-md border border-[#3A2430] text-[var(--status-error)] flex items-center justify-center cursor-pointer"
+                className="h-8 w-8 rounded-md border border-[var(--status-error)]/35 hover:border-[var(--status-error)] hover:bg-[var(--status-error)]/10 text-[var(--status-error)] flex items-center justify-center cursor-pointer"
               >
                 <Trash2 size={14} />
               </button>
@@ -454,7 +465,7 @@ export const MacroStudio: React.FC<{
           <button
             type="button"
             onClick={() => onAssign(macro)}
-            className="mt-auto h-10 rounded-lg bg-[var(--accent-soft)] border border-[var(--accent-primary)] text-[var(--text-primary)] text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+            className="mt-auto h-10 rounded-lg bg-[var(--accent-soft)] border border-[var(--accent-primary)]/60 hover:bg-[var(--accent-primary)] text-[var(--accent-text)] hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
           >
             <Zap size={14} />
             {activeKeyLabel ? `Put on ${activeKeyLabel}` : "Put on selected key"}

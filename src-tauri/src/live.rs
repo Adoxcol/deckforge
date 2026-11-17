@@ -470,10 +470,37 @@ pub(crate) fn push_connected_layout(shared: &SharedState) {
     }
 }
 
+pub(crate) fn sync_page_knob_leds(shared: &SharedState, dev: &DeviceDescriptor, page: &ProfilePage) {
+    if !page.encoders.iter().any(|e| !e.led_color.trim().is_empty()) {
+        return;
+    }
+    let colors: Vec<String> = (0..4)
+        .map(|i| {
+            page.encoders
+                .iter()
+                .find(|e| e.index as usize == i)
+                .map(|e| e.led_color.clone())
+                .unwrap_or_default()
+        })
+        .collect();
+    let mut diags = Vec::new();
+    let _ = send_hardware_knob_leds(dev, &colors, &mut diags);
+    if !diags.is_empty() {
+        let mut guard = shared.lock_safe();
+        guard.diagnostics.extend(diags);
+        let excess = guard.diagnostics.len().saturating_sub(80);
+        guard.diagnostics.drain(..excess);
+    }
+}
+
 pub(crate) fn restore_connected_layout(shared: &SharedState) -> Result<(), String> {
     let _display = DISPLAY_WRITE.lock_safe();
     let prepared = prepare_reconnect(&mut shared.lock_safe())?;
-    transmit_layout(shared, prepared, write_hid_bursts).map(|_| ())
+    let dev = prepared.dev.clone();
+    let page = prepared.applied.page.clone();
+    transmit_layout(shared, prepared, write_hid_bursts)?;
+    sync_page_knob_leds(shared, &dev, &page);
+    Ok(())
 }
 
 fn prepare_reconnect(guard: &mut ManagedAppState) -> Result<PreparedLayout, String> {
@@ -499,14 +526,18 @@ pub(crate) fn push_active_layout_locked(shared: &SharedState, handshake: bool) -
         let page_index = guard.active_page_index;
         prepare_layout(&mut guard, dev, &profile_id, page_index, handshake)?
     };
+    let dev = prepared.dev.clone();
+    let page = prepared.applied.page.clone();
     transmit_layout(shared, prepared, |dev, bursts| {
         if handshake { write_hid_bursts(dev, bursts) } else { write_animation_frames(dev, bursts) }
-    }).map(|_| ())
+    })?;
+    sync_page_knob_leds(shared, &dev, &page);
+    Ok(())
 }
 
 pub(crate) struct PreparedLayout {
-    dev: DeviceDescriptor,
-    applied: AppliedLayout,
+    pub(crate) dev: DeviceDescriptor,
+    pub(crate) applied: AppliedLayout,
     face: DeckFaceState,
     media: MediaStore,
     frame_cache: AntiFreezeFrameCache,

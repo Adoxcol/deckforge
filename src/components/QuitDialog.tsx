@@ -24,17 +24,23 @@ export function QuitDialog({ open, busy, dirty, error, onCancel, onQuit }: {
     return () => { document.removeEventListener("keydown", trap, true); before?.focus(); };
   }, [open, busy]);
   if (!open) return null;
-  return <div className="fixed inset-0 z-[100] bg-black/70 flex items-center justify-center" onKeyDown={e => e.stopPropagation()}>
-    <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="quit-title" className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-6 max-w-lg text-[var(--text-primary)] space-y-4">
-      <h2 id="quit-title" className="text-lg font-bold">Quit DeckForge?</h2>
-      <p className="text-sm">Quitting stops device control. Closing the window instead keeps DeckForge running in the system tray.</p>
-      {dirty && <p className="text-sm text-[var(--status-warning)]">You have unsaved edits. Discard and quit will lose edits that have not been saved.</p>}
-      {error && <p role="alert" className="text-sm text-[var(--status-error)]">{error}</p>}
-      <div className="flex gap-3 text-sm">
-        <button autoFocus disabled={busy} onClick={onCancel} className="p-2 rounded border border-[var(--text-muted)]">Cancel</button>
-        <button disabled={busy} onClick={() => onQuit(false)} className="p-2 rounded border border-[var(--status-error)]">{dirty ? "Discard and quit" : "Quit"}</button>
-        <button disabled={busy} onClick={() => onQuit(true)} className="p-2 rounded bg-[var(--accent-primary)]">{busy ? "Finishing…" : "Save and quit"}</button>
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-[2px] flex items-center justify-center p-6 animate-fade-in" onKeyDown={e => e.stopPropagation()}>
+      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="quit-title" className="rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-6 max-w-md w-full shadow-2xl text-[var(--text-primary)] space-y-4 animate-pop-in">
+        <h2 id="quit-title" className="text-lg font-bold">Quit DeckForge?</h2>
+        <p className="text-xs leading-relaxed text-[var(--text-secondary)]">Quitting stops device control. Closing the window instead keeps DeckForge running in the system tray.</p>
+        {dirty && (
+          <p className="text-xs leading-relaxed text-[var(--status-warning)] bg-[var(--status-warning)]/10 border border-[var(--status-warning)]/30 rounded-lg px-3 py-2">
+            You have unsaved edits. Discard and quit will lose edits that have not been saved.
+          </p>
+        )}
+        {error && <p role="alert" className="text-xs text-[var(--status-error)]">{error}</p>}
+        <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)] text-xs">
+          <button type="button" autoFocus disabled={busy} onClick={onCancel} className="h-9 px-3.5 rounded-lg border border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] font-medium text-[var(--text-primary)] cursor-pointer disabled:opacity-40">Cancel</button>
+          <button type="button" disabled={busy} onClick={() => onQuit(false)} className="h-9 px-3.5 rounded-lg border border-[var(--status-error)]/50 hover:bg-[var(--status-error)]/10 font-medium text-[var(--status-error)] cursor-pointer disabled:opacity-40">{dirty ? "Discard and quit" : "Quit"}</button>
+          <button type="button" disabled={busy} onClick={() => onQuit(true)} className="h-9 px-4 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] font-semibold text-white cursor-pointer disabled:opacity-40">{busy ? "Finishing…" : "Save and quit"}</button>
+        </div>
       </div>
     </div>
-  </div>;
+  );
 }

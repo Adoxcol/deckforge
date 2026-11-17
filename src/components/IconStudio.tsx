@@ -141,9 +141,10 @@ export const IconStudio: React.FC<{
                 type="button"
                 title={item.title}
                 aria-label={item.title || `Key ${item.index + 1}`}
+                aria-pressed={selected}
                 onClick={() => onSelectKey(item.index)}
-                className={`relative flex h-11 w-11 items-center justify-center rounded-lg border cursor-pointer ${
-                  selected ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
+                className={`relative flex h-11 w-11 items-center justify-center rounded-lg border cursor-pointer transition-all hover:brightness-110 ${
+                  selected ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)] shadow-sm" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
                 }`}
                 style={{
                   background: item.media
@@ -219,9 +220,10 @@ export const IconStudio: React.FC<{
             <button
               key={item.id}
               type="button"
+              aria-pressed={layer === item.id}
               onClick={() => setLayer(item.id)}
-              className={`relative mb-2 w-full rounded-2xl border p-3 text-left cursor-pointer ${
-                layer === item.id ? "border-[var(--accent-primary)] bg-[var(--bg-elevated)]" : "border-[var(--border-subtle)] bg-[var(--bg-panel)]"
+              className={`relative mb-2 w-full rounded-2xl border p-3 text-left cursor-pointer transition-colors ${
+                layer === item.id ? "border-[var(--accent-primary)] bg-[var(--bg-elevated)]" : "border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:border-[var(--border-strong)]"
               }`}
             >
               <span className="absolute -left-8 top-4 h-4 w-4 rounded-full border-2 border-[var(--bg-app)]" style={{ background: item.color }} />
@@ -242,7 +244,7 @@ export const IconStudio: React.FC<{
             <button
               type="button"
               onClick={onUpload}
-              className="h-9 rounded-lg bg-[var(--accent-soft)] border border-[var(--accent-primary)] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer"
+              className="h-9 rounded-lg bg-[var(--accent-soft)] border border-[var(--accent-primary)]/60 hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/25 text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
             >
               <Upload size={14} />
               Upload image or GIF
@@ -250,7 +252,7 @@ export const IconStudio: React.FC<{
             <button
               type="button"
               onClick={onSample}
-              className="h-8 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] flex items-center justify-center gap-1.5 cursor-pointer"
+              className="h-8 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
             >
               <Film size={13} />
               Sample pulse
@@ -263,8 +265,8 @@ export const IconStudio: React.FC<{
                       key={fit}
                       type="button"
                       onClick={() => onMediaPatch({ fit })}
-                      className={`h-7 rounded text-[11px] capitalize cursor-pointer ${
-                        face.media?.fit === fit ? "bg-[var(--accent-soft)] text-white font-semibold" : "bg-[var(--bg-panel)] text-[var(--text-secondary)]"
+                      className={`h-7 rounded text-[11px] capitalize cursor-pointer transition-colors ${
+                        face.media?.fit === fit ? "bg-[var(--accent-soft)] text-white font-semibold" : "bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                       }`}
                     >
                       {fit}
@@ -279,19 +281,19 @@ export const IconStudio: React.FC<{
                   step={0.25}
                   value={face.media.speed}
                   onChange={(event) => onMediaPatch({ speed: Number(event.target.value) })}
-                  className="accent-[var(--accent-primary)]"
+                  className="accent-[var(--accent-primary)] cursor-pointer"
                 />
                 <button
                   type="button"
                   onClick={() => onMediaPatch({ loopPlayback: !face.media?.loopPlayback })}
-                  className="h-8 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] cursor-pointer"
+                  className="h-8 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] cursor-pointer transition-colors"
                 >
                   {face.media.loopPlayback ? "Looping" : "Play once"}
                 </button>
                 <button
                   type="button"
                   onClick={onClearMedia}
-                  className="h-8 rounded-lg border border-[#3A2430] text-xs text-[var(--status-error)] flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="h-8 rounded-lg border border-[var(--status-error)]/35 hover:border-[var(--status-error)] hover:bg-[var(--status-error)]/10 text-xs text-[var(--status-error)] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                 >
                   <Trash2 size={13} />
                   Remove picture
@@ -305,14 +307,15 @@ export const IconStudio: React.FC<{
         {layer === "title" && (
           <>
             <input
+              aria-label="Key title"
               value={face.title}
               onChange={(event) => onChange({ title: event.target.value })}
-              className="h-9 px-2.5 rounded-lg bg-[var(--bg-app)] border border-[var(--border-subtle)] text-sm text-[var(--text-primary)] outline-none"
+              className="h-9 px-2.5 rounded-lg bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-sm text-[var(--text-primary)] outline-none"
             />
             <button
               type="button"
               onClick={() => onChange({ showTitle: !face.showTitle })}
-              className="h-8 rounded-lg border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer"
+              className="h-8 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
             >
               {face.showTitle ? <Eye size={13} /> : <EyeOff size={13} />}
               {face.showTitle ? "Title is on the key" : "Title is hidden"}
@@ -323,8 +326,8 @@ export const IconStudio: React.FC<{
                   key={size}
                   type="button"
                   onClick={() => onChange({ titleSize: size })}
-                  className={`h-7 rounded text-[11px] cursor-pointer ${
-                    face.titleSize === size ? "bg-[var(--accent-soft)] text-white font-semibold" : "bg-[var(--bg-panel)] text-[var(--text-secondary)]"
+                  className={`h-7 rounded text-[11px] cursor-pointer transition-colors ${
+                    face.titleSize === size ? "bg-[var(--accent-soft)] text-white font-semibold" : "bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   {size}
@@ -344,9 +347,11 @@ export const IconStudio: React.FC<{
                 key={name}
                 type="button"
                 title={name}
+                aria-label={`Select ${name} icon`}
+                aria-pressed={face.iconName === name}
                 onClick={() => onChange({ iconName: name })}
-                className={`h-9 rounded-lg flex items-center justify-center cursor-pointer ${
-                  face.iconName === name ? "bg-[var(--accent-soft)] border border-[var(--accent-primary)]" : "bg-[var(--bg-panel)] border border-[var(--border-subtle)]"
+                className={`h-9 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+                  face.iconName === name ? "bg-[var(--accent-soft)] border border-[var(--accent-primary)]" : "bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)]"
                 }`}
               >
                 <DeckIcon name={name} size={16} color={face.accentColor} />
@@ -364,25 +369,29 @@ export const IconStudio: React.FC<{
                   key={look.name}
                   type="button"
                   title={look.name}
+                  aria-label={`Use ${look.name} look`}
+                  aria-pressed={face.accentColor === look.accent}
                   onClick={() => onChange({ accentColor: look.accent, bgColor: look.bg, backgroundStyle: "Gradient" })}
-                  className={`h-9 rounded-lg border cursor-pointer ${face.accentColor === look.accent ? "border-white" : "border-transparent"}`}
+                  className={`h-9 rounded-lg border cursor-pointer transition-transform ${face.accentColor === look.accent ? "border-white scale-105" : "border-white/10 hover:scale-105"}`}
                   style={{ background: `linear-gradient(160deg, ${look.accent}, ${look.bg})` }}
                 />
               ))}
             </div>
             <label className="text-[11px] text-[var(--text-secondary)]">Accent</label>
             <input
+              aria-label="Accent color"
               type="color"
               value={face.accentColor}
               onChange={(event) => onChange({ accentColor: event.target.value })}
-              className="h-8 w-full bg-transparent cursor-pointer"
+              className="h-8 w-full bg-transparent cursor-pointer rounded"
             />
             <label className="text-[11px] text-[var(--text-secondary)]">Surface</label>
             <input
+              aria-label="Surface color"
               type="color"
               value={face.bgColor}
               onChange={(event) => onChange({ bgColor: event.target.value })}
-              className="h-8 w-full bg-transparent cursor-pointer"
+              className="h-8 w-full bg-transparent cursor-pointer rounded"
             />
             <div className="grid grid-cols-2 gap-1">
               {(["Gradient", "Solid"] as const).map((style) => (
@@ -390,8 +399,8 @@ export const IconStudio: React.FC<{
                   key={style}
                   type="button"
                   onClick={() => onChange({ backgroundStyle: style })}
-                  className={`h-7 rounded text-[11px] cursor-pointer ${
-                    face.backgroundStyle === style ? "bg-[var(--accent-soft)] text-white font-semibold" : "bg-[var(--bg-panel)] text-[var(--text-secondary)]"
+                  className={`h-7 rounded text-[11px] cursor-pointer transition-colors ${
+                    face.backgroundStyle === style ? "bg-[var(--accent-soft)] text-white font-semibold" : "bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   {style}
@@ -400,12 +409,13 @@ export const IconStudio: React.FC<{
             </div>
             <label className="text-[11px] text-[var(--text-secondary)]">Corners {face.cornerRadius}px</label>
             <input
+              aria-label="Corner radius"
               type="range"
               min={2}
               max={18}
               value={face.cornerRadius}
               onChange={(event) => onChange({ cornerRadius: Number(event.target.value) })}
-              className="accent-[var(--accent-primary)]"
+              className="accent-[var(--accent-primary)] cursor-pointer"
             />
           </>
         )}
@@ -413,14 +423,14 @@ export const IconStudio: React.FC<{
         <button
           type="button"
           onClick={onPaintPage}
-          className="mt-auto h-8 rounded-lg border border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] cursor-pointer"
+          className="mt-auto h-8 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
         >
           Paint this color on every key
         </button>
         <button
           type="button"
           onClick={onApply}
-          className="h-10 rounded-lg bg-[var(--accent-primary)] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer"
+          className="h-10 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
         >
           <ImagePlus size={14} />
           Send this page to the deck

@@ -37,16 +37,16 @@ export function AppAudioTarget({ value, onChange }: { value: string; onChange: (
   return <div className="flex flex-col gap-2">
     <div className="flex items-center justify-between gap-2">
       <label htmlFor={id} className="text-[11px] text-[var(--text-secondary)]">Audio application</label>
-      <button type="button" disabled={busy} onClick={() => void refresh(true)} className="text-[11px] text-[var(--accent-primary)] disabled:opacity-50">{busy ? "Scanning…" : "Refresh apps"}</button>
+      <button type="button" disabled={busy} onClick={() => void refresh(true)} className="text-[11px] font-medium text-[var(--accent-text)] hover:text-[var(--accent-hover)] hover:underline disabled:opacity-50 cursor-pointer disabled:cursor-default">{busy ? "Scanning…" : "Refresh apps"}</button>
     </div>
     <select aria-label="Choose an app with an audio session" value={apps.some(app => app.exe === value) ? value : ""}
       onChange={event => { if (event.target.value) onChange(event.target.value); }}
-      className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs">
+      className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer">
       <option value="">Choose an audio app…</option>
       {apps.map(app => <option key={app.exe} value={app.exe}>{app.exe} ({app.sessions} {app.sessions === 1 ? "session" : "sessions"})</option>)}
     </select>
     <input id={id} value={value} onChange={event => onChange(event.target.value)} placeholder="Or enter spotify.exe"
-      className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs" />
+      className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]" />
     {!error && <p className="text-[11px] text-[var(--text-secondary)]">{selected ? `Current: ${appAudioLabel(selected)}` : value.trim() ? "No current audio session" : "Choose an app to see its volume"}. MIX means only some sessions are muted.</p>}
     {error && <p role="alert" className="text-[11px] text-[var(--status-warning)]">{error}</p>}
     {!busy && !error && apps.length === 0 && <p className="text-[11px] text-[var(--text-muted)]">No audio apps found. Play audio in the app, then refresh.</p>}

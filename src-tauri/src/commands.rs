@@ -70,6 +70,57 @@ pub fn set_device_brightness(
 }
 
 #[tauri::command]
+pub fn set_knob_leds(
+    device_id: String,
+    colors: Vec<String>,
+    state: State<'_, SharedState>,
+) -> Result<String, String> {
+    let dev = {
+        let guard = state.lock_safe();
+        guard
+            .devices
+            .iter()
+            .find(|d| d.id == device_id)
+            .cloned()
+            .ok_or_else(|| format!("Device {} not found", device_id))?
+    };
+    let mut diags = Vec::new();
+    let res = send_hardware_knob_leds(&dev, &colors, &mut diags)?;
+    {
+        let mut guard = state.lock_safe();
+        guard.diagnostics.extend(diags);
+        let excess = guard.diagnostics.len().saturating_sub(80);
+        guard.diagnostics.drain(..excess);
+    }
+    Ok(res)
+}
+
+#[tauri::command]
+pub fn reset_knob_leds(
+    device_id: String,
+    state: State<'_, SharedState>,
+) -> Result<String, String> {
+    let dev = {
+        let guard = state.lock_safe();
+        guard
+            .devices
+            .iter()
+            .find(|d| d.id == device_id)
+            .cloned()
+            .ok_or_else(|| format!("Device {} not found", device_id))?
+    };
+    let mut diags = Vec::new();
+    let res = reset_hardware_knob_leds(&dev, &mut diags)?;
+    {
+        let mut guard = state.lock_safe();
+        guard.diagnostics.extend(diags);
+        let excess = guard.diagnostics.len().saturating_sub(80);
+        guard.diagnostics.drain(..excess);
+    }
+    Ok(res)
+}
+
+#[tauri::command]
 pub async fn apply_profile_to_device(
     device_id: String,
     profile_id: String,
@@ -90,7 +141,11 @@ pub async fn apply_profile_to_device(
                 .ok_or_else(|| format!("Page {page_id} not found"))?;
             prepare_layout(&mut guard, dev, &profile_id, page_index, true)?
         };
-        transmit_layout(&shared, prepared, write_hid_bursts)
+        let dev = prepared.dev.clone();
+        let page = prepared.applied.page.clone();
+        let res = transmit_layout(&shared, prepared, write_hid_bursts)?;
+        sync_page_knob_leds(&shared, &dev, &page);
+        Ok(res)
     }).await.map_err(|err| err.to_string())?
 
 }

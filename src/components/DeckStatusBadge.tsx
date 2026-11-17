@@ -18,38 +18,38 @@ function clock(ms: number | null): string {
 /** What the status bar should say about the deck, and in which colour. */
 export function describeDeckStatus(status: DeckStatus | null): { text: string; color: string; detail: string } {
   if (!status) {
-    return { text: "Checking the deck…", color: "#707B94", detail: "" };
+    return { text: "Checking the deck…", color: "var(--text-muted)", detail: "" };
   }
   if (status.state === "conflict") {
-    return { text: "AJAZZ running · DeckForge paused", color: "#F4B860",
+    return { text: "AJAZZ running · DeckForge paused", color: "var(--status-warning)",
       detail: "Save your work and close AJAZZ and its tray watcher, then choose Use DeckForge. No application is closed automatically." };
   }
   if (status.state === "paused") {
-    return { text: "DeckForge paused", color: "#F4B860",
+    return { text: "DeckForge paused", color: "var(--status-warning)",
       detail: "Device control is released. You can use AJAZZ. Close it before choosing Use DeckForge." };
   }
   if (status.state === "pausing") {
-    return { text: "Releasing the deck…", color: "#F4B860",
+    return { text: "Releasing the deck…", color: "var(--status-warning)",
       detail: "Wait for DeckForge paused before opening AJAZZ." };
   }
   if (status.state === "searching") {
     return {
       text: "Looking for the deck…",
-      color: "#707B94",
+      color: "var(--text-muted)",
       detail: "Plug the deck in with a USB cable, and close the official Ajazz app if it is open.",
     };
   }
   if (status.state === "reconnecting") {
     return {
       text: "Deck lost, reconnecting…",
-      color: "#F4B860",
+      color: "var(--status-warning)",
       detail: "The deck dropped off USB. DeckForge sends the layout again as soon as it comes back.",
     };
   }
   if (status.lastPushOk === false) {
     return {
       text: `Last send failed${status.lastError ? `: ${status.lastError}` : ""}`,
-      color: "#F16B79",
+      color: "var(--status-error)",
       detail: "Use Re-send layout to try the whole layout again.",
     };
   }
@@ -57,7 +57,7 @@ export function describeDeckStatus(status: DeckStatus | null): { text: string; c
   const dropped = status.reconnects > 0 ? ` · reconnected ${status.reconnects}×` : "";
   return {
     text: `Deck connected · ${sent}${dropped}`,
-    color: "#35C98B",
+    color: "var(--status-success)",
     detail: "",
   };
 }
@@ -95,23 +95,29 @@ export const DeckStatusBadge: React.FC<Props> = ({ onNotify, status, onRefresh }
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2" title={view.detail || undefined}>
       <span className="flex min-w-0 flex-1 items-center gap-2" style={{ color: view.color }}>
-        <span className="w-2 h-2 shrink-0 rounded-full" style={{ backgroundColor: view.color }} />
-        <span className="truncate" title={view.text}>{isTauriRuntime() ? view.text : `Browser preview · ${status?.state ?? "checking"}`}</span>
+        <span
+          className={`w-2 h-2 shrink-0 rounded-full ${status?.state === "connected" && status.lastPushOk !== false ? "shadow-[0_0_6px_var(--status-success)]" : ""}`}
+          style={{ backgroundColor: view.color }}
+        />
+        <span className="truncate font-medium" title={view.text}>{isTauriRuntime() ? view.text : `Browser preview · ${status?.state ?? "checking"}`}</span>
       </span>
       <button
         type="button"
         onClick={resend}
         disabled={sending || status?.state !== "connected"}
         title="Send every picture to the deck again, with the full connect sequence"
-        className="h-8 px-3 shrink-0 whitespace-nowrap rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)] disabled:opacity-40 disabled:hover:border-[var(--border-subtle)] disabled:hover:text-[var(--text-secondary)] flex items-center gap-1 cursor-pointer disabled:cursor-default"
+        className="h-7 px-2.5 shrink-0 whitespace-nowrap rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] disabled:opacity-40 disabled:hover:bg-[var(--bg-panel)] disabled:hover:border-[var(--border-subtle)] disabled:hover:text-[var(--text-secondary)] flex items-center gap-1.5 cursor-pointer disabled:cursor-default"
       >
-        <RefreshCw size={12} className={sending ? "animate-spin" : ""} />
+        <RefreshCw size={11} className={sending ? "animate-spin" : ""} />
         <span>Resend layout</span>
       </button>
-      <button type="button" onClick={changeControl}
+      <button
+        type="button"
+        onClick={changeControl}
         disabled={!status || changingControl || status.state === "pausing"}
-        className="h-8 px-3 shrink-0 whitespace-nowrap rounded-md border border-[var(--border-subtle)] text-[11px] text-[var(--status-warning)] disabled:opacity-40"
-        title={suspended ? "Close AJAZZ first, then reconnect with DeckForge" : "Release the deck so you can use AJAZZ"}>
+        className="h-7 px-2.5 shrink-0 whitespace-nowrap rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[11px] font-medium text-[var(--status-warning)] hover:border-[var(--status-warning)]/60 hover:bg-[var(--status-warning)]/10 disabled:opacity-40 disabled:hover:border-[var(--border-subtle)] disabled:hover:bg-[var(--bg-panel)] cursor-pointer disabled:cursor-default"
+        title={suspended ? "Close AJAZZ first, then reconnect with DeckForge" : "Release the deck so you can use AJAZZ"}
+      >
         {suspended ? "Use DeckForge" : "Pause DeckForge"}
       </button>
     </span>

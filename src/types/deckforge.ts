@@ -93,6 +93,8 @@ export interface TouchZoneConfig {
   media?: ScreenMediaConfig | null;
 }
 
+export const DEFAULT_KNOB_LED_COLORS = ["#35C98B", "#56B9F2", "#8B5CF6", "#F4B860"] as const;
+
 export interface EncoderConfig {
   index: number;
   label: string;
@@ -103,6 +105,7 @@ export interface EncoderConfig {
   cwParam?: string;
   ccwParam?: string;
   pushParam?: string;
+  ledColor?: string;
 }
 
 export interface ProfilePage {

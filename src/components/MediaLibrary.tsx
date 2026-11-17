@@ -13,7 +13,7 @@ interface Props {
   onUse: (clip: MediaPreview) => void;
   onClose: () => void;
 }
-const button = "rounded-md border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2 text-xs disabled:opacity-50 hover:bg-[var(--bg-elevated)]";
+const button = "rounded-md border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2 text-xs font-medium disabled:opacity-50 disabled:cursor-default hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] cursor-pointer transition-colors";
 
 export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
   const dialog = React.useRef<HTMLDialogElement>(null);
@@ -65,11 +65,11 @@ export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
     onUse(clip); onClose();
   });
   return <dialog ref={dialog} aria-labelledby="media-library-title" onCancel={event => { event.preventDefault(); if (!busyRef.current) onClose(); }}
-    className="m-auto w-[760px] max-w-[95vw] max-h-[90vh] rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[var(--text-primary)] p-0 shadow-2xl backdrop:bg-black/60">
+    className="m-auto w-[760px] max-w-[95vw] max-h-[90vh] rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] text-[var(--text-primary)] p-0 shadow-2xl backdrop:bg-black/65 backdrop:backdrop-blur-[2px] animate-pop-in">
     <div className="p-5 flex flex-col gap-4">
-      <div className="flex items-center justify-between"><div><h2 id="media-library-title" className="text-lg font-bold">Media library</h2><p className="text-xs text-[var(--text-secondary)]">Animated icons and images, ready for your deck.</p></div><button className={button} disabled={busy} onClick={onClose} aria-label="Close media library"><X size={16}/></button></div>
-      <div className="flex gap-2 flex-wrap">{["Starter pack", "My media", "Favorites", "Recent"].map(name => <button key={name} className={button} aria-pressed={tab === name} style={tab === name ? { borderColor: "var(--accent-primary)", color: "var(--accent-text)" } : undefined} onClick={() => setTab(name)}>{name}</button>)}</div>
-      <div className="flex items-center gap-2"><Search size={16}/><input autoFocus aria-label="Search media library" placeholder="Search your library..." value={query} onChange={e => setQuery(e.target.value)} className="min-w-0 flex-1 rounded-md bg-[var(--bg-input)] px-3 py-2 text-sm"/><button className={button} disabled={busy} onClick={() => upload.current?.click()}><Upload size={14} className="inline mr-1"/>Upload</button></div>
+      <div className="flex items-center justify-between"><div><h2 id="media-library-title" className="text-lg font-bold">Media library</h2><p className="text-xs text-[var(--text-secondary)]">Animated icons and images, ready for your deck.</p></div><button type="button" className={button} disabled={busy} onClick={onClose} aria-label="Close media library"><X size={16}/></button></div>
+      <div className="flex gap-2 flex-wrap">{["Starter pack", "My media", "Favorites", "Recent"].map(name => <button type="button" key={name} className={button} aria-pressed={tab === name} style={tab === name ? { borderColor: "var(--accent-primary)", backgroundColor: "var(--accent-soft)", color: "var(--accent-text)" } : undefined} onClick={() => setTab(name)}>{name}</button>)}</div>
+      <div className="flex items-center gap-2"><Search size={16} className="text-[var(--text-muted)] shrink-0"/><input autoFocus aria-label="Search media library" placeholder="Search your library..." value={query} onChange={e => setQuery(e.target.value)} className="min-w-0 flex-1 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] outline-none px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"/><button type="button" className={button} disabled={busy} onClick={() => upload.current?.click()}><Upload size={14} className="inline mr-1"/>Upload</button></div>
       <input ref={upload} type="file" hidden accept="image/png,image/jpeg,image/gif,image/webp,image/bmp" onChange={event => {
         const file = event.target.files?.[0]; event.target.value = "";
         if (file) void run(async () => {
@@ -78,27 +78,27 @@ export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
         });
       }}/>
       <form className="flex gap-2" onSubmit={event => { event.preventDefault(); void run(async () => { imported(await deckforgeApi.importMediaUrl(url.trim())); setUrl(""); }); }}>
-        <input aria-label="Direct image or GIF link" type="url" required placeholder="Paste a direct HTTPS image or GIF link" value={url} onChange={e => setUrl(e.target.value)} className="min-w-0 flex-1 rounded-md bg-[var(--bg-input)] px-3 py-2 text-xs"/>
-        <button className={button} disabled={busy || !url.trim()}>Import link</button>
+        <input aria-label="Direct image or GIF link" type="url" required placeholder="Paste a direct HTTPS image or GIF link" value={url} onChange={e => setUrl(e.target.value)} className="min-w-0 flex-1 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] outline-none px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"/>
+        <button type="submit" className={button} disabled={busy || !url.trim()}>Import link</button>
       </form>
       <p className="text-[11px] text-[var(--text-muted)]">Import files you own or have permission to use. Up to 8 MB. Webpage links are not image files.</p>
       {error && <p role="alert" className="text-xs text-[var(--status-warning)]">{error}</p>}
       {busy && <p role="status" className="text-xs">Preparing media...</p>}
       <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-[35vh] overflow-y-auto p-1">
         {shown.slice(0, limit).map(clip => <div key={clip.id} className="relative">
-          <button disabled={busy} aria-pressed={selected?.id === clip.id} className="w-full rounded-lg border p-2 text-left disabled:opacity-50" style={{ borderColor: selected?.id === clip.id ? "var(--accent-primary)" : "var(--border-subtle)" }} onClick={() => setSelected(clip)} onMouseEnter={() => setHovered(clip.id)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(clip.id)} onBlur={() => setHovered(null)}>
+          <button type="button" disabled={busy} aria-pressed={selected?.id === clip.id} className="w-full rounded-lg border bg-[var(--bg-sidebar)] hover:bg-[var(--bg-elevated)] p-2 text-left disabled:opacity-50 cursor-pointer transition-colors" style={{ borderColor: selected?.id === clip.id ? "var(--accent-primary)" : "var(--border-subtle)" }} onClick={() => setSelected(clip)} onMouseEnter={() => setHovered(clip.id)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(clip.id)} onBlur={() => setHovered(null)}>
             <div className="aspect-square overflow-hidden rounded bg-black/30">{hovered === clip.id ? <ScreenFace clip={clip} iconName="Image" accent="#A78BFA"/> : <img src={clip.frames[0]} alt="" loading="lazy" className="w-full h-full object-cover"/>}</div>
             <span className="block truncate text-[11px] mt-2" title={clip.fileName}>{clip.fileName}</span><span className="text-[10px] text-[var(--text-muted)]">{clip.frameCount > 1 ? "Animated" : "Image"}</span>
           </button>
-          <button aria-label={`${prefs.favorites.includes(clip.id) ? "Unfavorite" : "Favorite"} ${clip.fileName}`} aria-pressed={prefs.favorites.includes(clip.id)} onClick={() => savePrefs({ ...prefs, favorites: prefs.favorites.includes(clip.id) ? prefs.favorites.filter(id => id !== clip.id) : [...prefs.favorites, clip.id] })} className="absolute top-2 right-2 rounded bg-black/70 p-1"><Star size={13} fill={prefs.favorites.includes(clip.id) ? "#FBBF24" : "none"}/></button>
+          <button type="button" aria-label={`${prefs.favorites.includes(clip.id) ? "Unfavorite" : "Favorite"} ${clip.fileName}`} aria-pressed={prefs.favorites.includes(clip.id)} onClick={() => savePrefs({ ...prefs, favorites: prefs.favorites.includes(clip.id) ? prefs.favorites.filter(id => id !== clip.id) : [...prefs.favorites, clip.id] })} className="absolute top-2 right-2 rounded bg-black/70 hover:bg-black/90 p-1 cursor-pointer"><Star size={13} fill={prefs.favorites.includes(clip.id) ? "#FBBF24" : "none"}/></button>
         </div>)}
         {!shown.length && <p className="col-span-full py-8 text-center text-sm text-[var(--text-secondary)]">{query ? "No matching media." : "Nothing here yet. Choose a starter animation or import an image or GIF."}</p>}
       </div>
-      {shown.length > limit && <button className={button} onClick={() => setLimit(n => n + 24)}>Show more ({shown.length - limit} remaining)</button>}
+      {shown.length > limit && <button type="button" className={button} onClick={() => setLimit(n => n + 24)}>Show more ({shown.length - limit} remaining)</button>}
       <div className="flex gap-3 items-center border-t border-[var(--border-subtle)] pt-3">
         <div className="h-16 w-16 shrink-0 rounded bg-black/30 overflow-hidden">{selected && <ScreenFace clip={selected} iconName="Image" accent="#A78BFA"/>}</div>
         <div className="flex-1 min-w-0"><p className="text-sm truncate">{selected?.fileName ?? "Choose an image or animation"}</p><p className="text-[11px] text-[var(--text-muted)]">Adjust fit and speed in the editor. Apply to Device when ready.</p></div>
-        <button className={button + " text-[var(--accent-text)]"} disabled={!selected || busy} onClick={() => void useSelected()}>Use on screen</button>
+        <button type="button" className="h-9 px-4 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer disabled:opacity-40 disabled:cursor-default" disabled={!selected || busy} onClick={() => void useSelected()}>Use on screen</button>
       </div>
       <p className="text-[10px] text-[var(--text-muted)]">Starter pack: original DeckForge animations, CC0. Imported media stays on this computer for offline use.</p>
     </div>

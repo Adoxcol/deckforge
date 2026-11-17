@@ -226,6 +226,7 @@ function readZone(raw: Rec, fallbackIndex: number): TouchZoneConfig {
 }
 
 function readEncoder(raw: Rec, fallbackIndex: number): EncoderConfig {
+  const rawLed = str(raw.ledColor).trim();
   return {
     index: Math.max(0, Math.floor(num(raw.index, fallbackIndex))),
     label: str(raw.label).slice(0, 40),
@@ -236,6 +237,7 @@ function readEncoder(raw: Rec, fallbackIndex: number): EncoderConfig {
     cwParam: str(raw.cwParam),
     ccwParam: str(raw.ccwParam),
     pushParam: str(raw.pushParam),
+    ...(rawLed ? { ledColor: color(rawLed, "#35C98B") } : {}),
   };
 }
 

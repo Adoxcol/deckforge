@@ -62,6 +62,8 @@ pub struct EncoderConfig {
     pub ccw_param: String,
     #[serde(default)]
     pub push_param: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub led_color: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -250,6 +252,7 @@ pub fn default_encoders() -> Vec<EncoderConfig> {
             cw_param: String::new(),
             ccw_param: String::new(),
             push_param: String::new(),
+            led_color: String::new(),
         },
         EncoderConfig {
             index: 1,
@@ -261,6 +264,7 @@ pub fn default_encoders() -> Vec<EncoderConfig> {
             cw_param: String::new(),
             ccw_param: String::new(),
             push_param: String::new(),
+            led_color: String::new(),
         },
         EncoderConfig {
             index: 2,
@@ -272,6 +276,7 @@ pub fn default_encoders() -> Vec<EncoderConfig> {
             cw_param: String::new(),
             ccw_param: String::new(),
             push_param: String::new(),
+            led_color: String::new(),
         },
         EncoderConfig {
             index: 3,
@@ -283,6 +288,7 @@ pub fn default_encoders() -> Vec<EncoderConfig> {
             cw_param: String::new(),
             ccw_param: String::new(),
             push_param: String::new(),
+            led_color: String::new(),
         },
     ]
 }

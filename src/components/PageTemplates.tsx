@@ -120,15 +120,16 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-40 bg-black/65 backdrop-blur-[2px] flex items-center justify-center p-6"
+      className="fixed inset-0 z-40 bg-black/65 backdrop-blur-[2px] flex items-center justify-center p-6 animate-fade-in"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
         role="dialog"
+        aria-modal="true"
         aria-label="Page templates"
-        className="w-[1040px] max-w-full h-[640px] max-h-full bg-[var(--bg-app)] border border-[var(--border-subtle)] rounded-xl shadow-2xl flex flex-col overflow-hidden"
+        className="w-[1040px] max-w-full h-[640px] max-h-full bg-[var(--bg-app)] border border-[var(--border-strong)] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-pop-in"
       >
         <div className="flex items-center gap-3 px-5 h-14 border-b border-[var(--border-subtle)] shrink-0">
           <div className="w-8 h-8 rounded-lg bg-[var(--accent-soft)] text-[var(--accent-text)] flex items-center justify-center">
@@ -253,34 +254,38 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
 
             <div className="flex flex-col gap-2">
               <button
+                type="button"
                 onClick={() => onAdd(instantiateTemplate(selected, pageName))}
-                className="h-9 rounded-md bg-[var(--accent-primary)] hover:bg-[#7C4DEB] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                className="h-9 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 <Check size={14} /> Add as a new page
               </button>
               {!confirmReplace ? (
                 <button
+                  type="button"
                   onClick={() => setConfirmReplace(true)}
                   disabled={!currentPage}
-                  className="h-9 rounded-md border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-[var(--text-primary)] text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
+                  className="h-9 rounded-md border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-panel)] text-[var(--text-primary)] text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
                 >
                   <Replace size={14} /> Replace “{currentPage?.name ?? "current page"}”
                 </button>
               ) : (
-                <div className="rounded-md border border-[var(--status-warning)]/50 bg-[#2A2215] p-2.5 flex flex-col gap-2">
+                <div className="rounded-md border border-[var(--status-warning)]/45 bg-[var(--status-warning)]/10 p-2.5 flex flex-col gap-2">
                   <div className="text-[11px] text-[var(--status-warning)]">
                     This overwrites every key, touch zone and knob on “{currentPage?.name}”. You can undo it with Ctrl+Z.
                   </div>
                   <div className="flex gap-2">
                     <button
+                      type="button"
                       onClick={() => onReplace(instantiateTemplate(selected, pageName, currentPage?.id))}
-                      className="flex-1 h-8 rounded-md bg-[var(--status-warning)] text-[#2A2215] text-xs font-semibold cursor-pointer"
+                      className="flex-1 h-8 rounded-md bg-[var(--status-warning)] hover:brightness-110 text-[#1A140A] text-xs font-semibold cursor-pointer"
                     >
                       Replace page
                     </button>
                     <button
+                      type="button"
                       onClick={() => setConfirmReplace(false)}
-                      className="flex-1 h-8 rounded-md border border-[var(--border-subtle)] text-[var(--text-primary)] text-xs cursor-pointer"
+                      className="flex-1 h-8 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-panel)] text-[var(--text-primary)] text-xs cursor-pointer"
                     >
                       Keep it
                     </button>
@@ -289,8 +294,9 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
               )}
               {!selected.builtIn && (
                 <button
+                  type="button"
                   onClick={() => removeCustom(selected)}
-                  className="h-8 rounded-md border border-[var(--status-error)]/40 text-[var(--status-error)] hover:bg-[#2A1521] text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="h-8 rounded-md border border-[var(--status-error)]/40 text-[var(--status-error)] hover:bg-[var(--status-error)]/10 text-xs flex items-center justify-center gap-1.5 cursor-pointer"
                 >
                   <Trash2 size={13} /> Delete this template
                 </button>
@@ -309,9 +315,10 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                   className="flex-1 min-w-0 h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
                 />
                 <button
+                  type="button"
                   onClick={saveCurrent}
                   disabled={!currentPage}
-                  className="h-8 px-3 rounded-md bg-[var(--accent-soft)] hover:bg-[#3C2D63] text-[var(--text-primary)] text-xs font-medium flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                  className="h-8 px-3 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/40 hover:bg-[var(--accent-primary)] text-[var(--accent-text)] hover:text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
                 >
                   <BookmarkPlus size={13} /> Save
                 </button>

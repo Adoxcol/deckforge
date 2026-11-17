@@ -40,18 +40,26 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
         ) : null}
       </div>
 
-      <button type="button" onClick={onBrowse} className="h-9 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/50 text-xs font-semibold text-[var(--accent-text)] cursor-pointer">Browse media library</button>
+      <button
+        type="button"
+        onClick={onBrowse}
+        className="h-9 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/45 hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/20 text-xs font-semibold text-[var(--accent-text)] hover:text-white cursor-pointer transition-colors"
+      >
+        Browse media library
+      </button>
       <div className="flex gap-1.5">
         <button
+          type="button"
           onClick={onUpload}
-          className="flex-1 h-8 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/50 text-[11.5px] font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer"
+          className="flex-1 h-8 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)]/60 hover:bg-[var(--bg-elevated)] text-[11.5px] font-semibold text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
         >
           <ImagePlus size={13} />
           Upload image or GIF
         </button>
         <button
+          type="button"
           onClick={onSample}
-          className="h-8 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+          className="h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
         >
           Sample
         </button>
@@ -99,15 +107,16 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
             <span className="text-[11.5px] text-[var(--text-secondary)]">Loop animation</span>
             <button
               type="button"
+              role="switch"
               aria-label="Loop animation"
-              aria-pressed={config.loopPlayback}
+              aria-checked={config.loopPlayback}
               onClick={() => onChange({ loopPlayback: !config.loopPlayback })}
-              className={`w-10 h-5 rounded-full p-0.5 cursor-pointer ${
-                config.loopPlayback ? "bg-[var(--accent-primary)]" : "bg-[var(--border-subtle)]"
+              className={`w-10 h-5 rounded-full p-0.5 cursor-pointer transition-colors ${
+                config.loopPlayback ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"
               }`}
             >
               <div
-                className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${
                   config.loopPlayback ? "translate-x-5" : "translate-x-0"
                 }`}
               />
@@ -117,8 +126,9 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
             The deck plays each frame at this speed, with at least 80ms between frames so the LCD bus stays stable. Press Apply to Device to push every screen.
           </p>
           <button
+            type="button"
             onClick={onClear}
-            className="h-7 rounded-md border border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--status-error)] hover:border-[var(--status-error)] flex items-center justify-center gap-1 cursor-pointer"
+            className="h-7 rounded-md border border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--status-error)] hover:border-[var(--status-error)]/60 hover:bg-[var(--status-error)]/10 flex items-center justify-center gap-1 cursor-pointer transition-colors"
           >
             <Trash2 size={12} />
             Remove image

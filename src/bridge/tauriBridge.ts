@@ -724,6 +724,20 @@ export const deckforgeApi = {
     return `Brightness set to ${percent}% (CRT\\0\\0LIG 0x${percent.toString(16).toUpperCase().padStart(2, "0")})`;
   },
 
+  async setKnobLeds(deviceId: string, colors: string[]): Promise<string> {
+    if (isTauriRuntime()) {
+      return await invoke<string>("set_knob_leds", { deviceId, colors });
+    }
+    return `Knob LEDs updated (CRT\\0\\0SETLB ${colors.join(" ")})`;
+  },
+
+  async resetKnobLeds(deviceId: string): Promise<string> {
+    if (isTauriRuntime()) {
+      return await invoke<string>("reset_knob_leds", { deviceId });
+    }
+    return "Knob LEDs reset to factory default (CRT\\0\\0DELED)";
+  },
+
   async applyProfileToDevice(deviceId: string, profileId: string, pageId: string): Promise<SyncKeyResult> {
     if (isTauriRuntime()) {
       return await invoke<SyncKeyResult>("apply_profile_to_device", { deviceId, profileId, pageId });
