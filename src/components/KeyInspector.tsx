@@ -311,7 +311,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   {ledOff ? "OFF" : ledColor}
                 </span>
               </div>
-              <div className="flex items-center flex-wrap gap-1.5">
+              <div className="grid grid-cols-6 gap-2">
                 {KNOB_LED_PRESETS.map((hex) => {
                   const selected = ledColor === hex;
                   return (
@@ -322,7 +322,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                       aria-label={`Set knob LED to ${hex}`}
                       onClick={() => onKnobLedChange(activeEncoder.index, hex)}
                       style={{ backgroundColor: hex }}
-                      className={`w-6 h-6 rounded-md cursor-pointer transition-transform ${
+                      className={`w-6 h-6 rounded-md justify-self-center cursor-pointer transition-transform ${
                         selected
                           ? "ring-2 ring-white scale-110"
                           : "border border-white/15 hover:scale-105"
@@ -333,7 +333,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 <button
                   type="button"
                   onClick={() => onKnobLedChange(activeEncoder.index, "#000000")}
-                  className={`h-6 px-2 rounded-md text-[10.5px] font-medium border cursor-pointer ${
+                  className={`col-span-2 h-7 rounded-md text-[10.5px] font-medium border cursor-pointer ${
                     ledOff
                       ? "bg-[var(--accent-soft)] border-[var(--accent-primary)] text-white"
                       : "bg-[var(--bg-input)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -343,7 +343,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 </button>
                 <label
                   title="Custom RGB color"
-                  className="h-6 px-1.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] flex items-center gap-1 cursor-pointer hover:border-[var(--accent-primary)]"
+                  className="col-span-2 h-7 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] flex items-center justify-center gap-1 cursor-pointer hover:border-[var(--accent-primary)]"
                 >
                   <input
                     type="color"
@@ -355,18 +355,20 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   <span className="text-[10.5px] text-[var(--text-secondary)]">Pick</span>
                 </label>
               </div>
-              <div className="flex items-center gap-1.5 pt-0.5">
+              <div className="grid grid-cols-2 gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => onKnobLedChange("all", ledColor)}
-                  className="flex-1 h-7 px-2 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                  title="Apply this color to all four knob LEDs"
+                  aria-label="Apply this color to all four knob LEDs"
+                  className="min-w-0 min-h-8 px-1 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                 >
-                  Same color on all 4 knobs
+                  Apply to all
                 </button>
                 <button
                   type="button"
                   onClick={onResetKnobLeds}
-                  className="h-7 px-2.5 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--status-warning)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                  className="min-w-0 min-h-8 px-1 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--status-warning)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
                 >
                   Reset LEDs
                 </button>
