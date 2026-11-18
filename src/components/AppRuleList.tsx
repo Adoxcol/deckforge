@@ -4,6 +4,7 @@ import { deckforgeApi } from "../bridge/tauriBridge";
 import type { AutoSwitchRule, Profile } from "../types/deckforge";
 import { assignUnrestrictedApp, conflictingRule } from "../lib/appRuleConflicts";
 import { createAppIconLoader } from "../lib/appIconCache";
+import { previewAppSwitch } from "../lib/appSwitchPreview";
 
 /** Friendly names for common apps, so a rule reads "OBS Studio" rather than "obs64.exe". */
 const KNOWN_APPS: Record<string, string> = {
@@ -136,16 +137,29 @@ interface Props {
   saveRules: (rules: AutoSwitchRule[]) => void;
   /** Only list this profile's pages; the rest are still used to find rules with no home. */
   showProfileId?: string;
+  currentPageIndex?: number;
 }
 
 /** Pages listed with the apps that open them. Drag an app onto another page to move it. */
-export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showProfileId }) => {
+export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showProfileId, currentPageIndex = 0 }) => {
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [addingAt, setAddingAt] = React.useState<string | null>(null);
   const [draft, setDraft] = React.useState("");
   const [dropAt, setDropAt] = React.useState<string | null>(null);
   const [profileDraft, setProfileDraft] = React.useState("");
   const [addingProfile, setAddingProfile] = React.useState<string | null>(null);
+  const [previewExe, setPreviewExe] = React.useState("");
+  const [previewTitle, setPreviewTitle] = React.useState("");
+  const [previewGame, setPreviewGame] = React.useState(false);
+  const [previewProfileId, setPreviewProfileId] = React.useState<string | null>(null);
+  const activePreviewProfileId = previewProfileId && profiles.some(p => p.id === previewProfileId) ? previewProfileId : (showProfileId ?? profiles[0]?.id ?? "");
+  const previewPageIndex = activePreviewProfileId === showProfileId ? currentPageIndex : 0;
+  const preview = previewExe.trim() || previewGame
+    ? previewAppSwitch(rules, profiles, activePreviewProfileId, previewPageIndex, previewExe, previewTitle, previewGame)
+    : null;
+  const previewProfile = profiles.find(p => p.id === preview?.profileId);
+  const previewRule = rules.find(r => r.id === preview?.ruleId);
+  const previewPageRule = rules.find(r => r.id === preview?.pageRuleId);
   const patch = (id: string, change: Partial<AutoSwitchRule>) =>
     saveRules(rules.map((r) => (r.id === id ? { ...r, ...change } : r)));
 
@@ -191,6 +205,26 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
           Profile rules work anywhere. Page rules work only while that profile is active.
         </p>
       </div>
+
+      <details className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-2 text-xs">
+        <summary className="cursor-pointer font-medium text-[var(--text-primary)]">Preview a switch</summary>
+        <div className="mt-2 flex flex-col gap-2">
+          <label className="flex flex-col gap-1">Starting profile
+            <select aria-label="Preview starting profile" className={field} value={activePreviewProfileId} onChange={e => setPreviewProfileId(e.target.value)}>
+              {profiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
+            </select>
+          </label>
+          <input aria-label="Preview app executable" className={field} value={previewExe} onChange={e => setPreviewExe(e.target.value)} placeholder="App, e.g. spotify.exe" />
+          <input aria-label="Preview window title" className={field} value={previewTitle} onChange={e => setPreviewTitle(e.target.value)} placeholder="Window title (optional)" />
+          <label className="flex items-center gap-2"><input type="checkbox" checked={previewGame} onChange={e => setPreviewGame(e.target.checked)} /> Treat as a game</label>
+          {preview && <div role="status" className="rounded-md bg-[var(--bg-input)] p-2 leading-relaxed">
+            <strong className="block text-[var(--text-primary)]">{preview.switches ? `Opens ${previewProfile?.name ?? preview.profileId} / ${previewProfile?.pages[preview.pageIndex]?.name ?? "page 1"}` : "Stays on the current page"}</strong>
+            <span>{preview.reason}</span>
+            {previewRule && <span className="block mt-1 text-[var(--text-muted)]">Winning rule: {previewRule.processName}{previewRule.windowTitleContains ? ` · title contains “${previewRule.windowTitleContains}”` : ""}{previewPageRule ? ` · page rule: ${previewPageRule.processName}` : ""}</span>}
+          </div>}
+          <p className="text-[var(--text-muted)]">Preview only. It does not change the deck. Game detection and the current foreground window are simulated.</p>
+        </div>
+      </details>
 
       <datalist id="deckforge-known-apps">
         <option value={ANY_GAME}>Any game</option>

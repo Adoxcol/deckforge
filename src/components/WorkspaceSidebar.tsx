@@ -14,6 +14,7 @@ interface WorkspaceSidebarProps {
   onExportProfile: () => void;
   onImportProfile: () => void;
   profiles: Profile[];
+  selectedPageIdx: number;
   saveRules: (rules: AutoSwitchRule[]) => void;
   setDevices: React.Dispatch<React.SetStateAction<DeviceDescriptor[]>>;
   setSelectedKeyIdx: React.Dispatch<React.SetStateAction<number>>;
@@ -30,6 +31,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   onExportProfile,
   onImportProfile,
   profiles,
+  selectedPageIdx,
   saveRules,
   setDevices,
   setSelectedKeyIdx,
@@ -226,7 +228,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
         </div>
       </div>
 
-      <AppRuleList rules={autoSwitchRules} profiles={profiles} showProfileId={activeProfile?.id} saveRules={saveRules} />
+      <AppRuleList rules={autoSwitchRules} profiles={profiles} showProfileId={activeProfile?.id} currentPageIndex={selectedPageIdx} saveRules={saveRules} />
     </aside>
   );
 };
