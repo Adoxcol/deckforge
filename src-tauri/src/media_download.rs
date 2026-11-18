@@ -51,7 +51,7 @@ pub async fn search_commons_gifs(query: String) -> Result<Vec<CommonsGif>, Strin
     ]);
     let client = reqwest::Client::builder().https_only(true)
         .timeout(std::time::Duration::from_secs(15))
-        .user_agent("DeckForge/0.4.9 (https://github.com/Adoxcol/deckforge)")
+        .user_agent(format!("DeckForge/{} (https://github.com/Adoxcol/deckforge)", env!("CARGO_PKG_VERSION")))
         .build().map_err(|e| e.to_string())?;
     let response = client.get(url).send().await.map_err(|_| "Could not search Commons. Check your connection.".to_string())?
         .error_for_status().map_err(|e| format!("Commons search returned {}", e.status().map(|s| s.as_u16()).unwrap_or(0)))?;
