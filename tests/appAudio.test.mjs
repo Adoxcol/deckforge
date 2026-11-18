@@ -38,3 +38,9 @@ test("knobs mixing app and master audio do not present a single app meter", () =
     }
   }
 });
+test("foreground knob shows the active app and never falls back to master volume", () => {
+  const knob = { cwAction: "audio.app_volume_up", cwParam: "@foreground", ccwAction: "audio.app_volume_down", ccwParam: "@foreground", pushAction: "audio.app_mute", pushParam: "@foreground" };
+  assert.deepEqual(encoderAudioLook(knob, { ...face, foregroundAudioExe: "spotify.exe" }), { title: "spotify 20%", level: 20, muted: false });
+  assert.deepEqual(encoderAudioLook(knob, { ...face, foregroundAudioExe: null }), { title: "Focus app", level: null, muted: false });
+  assert.equal(appAudioLook("@foreground", { ...face, foregroundAudioExe: "discord.exe" }).title, "discord No session");
+});

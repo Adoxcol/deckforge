@@ -31,6 +31,8 @@ pub struct DeckFaceState {
     pub volume_percent: Option<u8>,
     #[serde(default)]
     pub app_audio: Option<std::collections::BTreeMap<String, actions::app_audio::AudioApp>>,
+    #[serde(default)]
+    pub foreground_audio_exe: Option<String>,
     pub game_mode: Option<bool>,
     pub game_mode_busy: bool,
     #[serde(default)]

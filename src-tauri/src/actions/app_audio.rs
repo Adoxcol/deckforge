@@ -1,4 +1,5 @@
 //! App volume targets use executable names, never saved process IDs.
+pub const FOREGROUND_TARGET: &str = "@foreground";
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct AudioApp {
@@ -30,6 +31,13 @@ fn target(raw: &str) -> Result<String, String> {
     }
     Ok(name)
 }
+fn resolve_target(raw: &str, foreground: Option<&str>) -> Result<String, String> {
+    if raw.trim().eq_ignore_ascii_case(FOREGROUND_TARGET) {
+        let exe = foreground.ok_or("Focus an audio app before using the foreground mixer")?;
+        if exe.eq_ignore_ascii_case("deckforge.exe") { return Err("Focus an audio app outside DeckForge first".into()); }
+        target(exe)
+    } else { target(raw) }
+}
 fn adjusted(volume: f32, up: bool) -> f32 { (volume + if up { 0.02 } else { -0.02 }).clamp(0.0, 1.0) }
 fn mute_target(muted: impl Iterator<Item = bool>) -> bool { !muted.fold(true, |all, value| all && value) }
 
@@ -50,7 +58,10 @@ pub fn list() -> Result<Vec<AudioApp>, String> {
 }
 
 pub fn execute(action: &str, param: &str) -> Result<String, String> {
-    let exe = target(param)?;
+    let foreground = if param.trim().eq_ignore_ascii_case(FOREGROUND_TARGET) {
+        crate::actions::foreground_window().map(|window| window.exe_name)
+    } else { None };
+    let exe = resolve_target(param, foreground.as_deref())?;
     if !matches!(action, "audio.app_volume_up" | "audio.app_volume_down" | "audio.app_mute") {
         return Err("Unknown app audio action".into());
     }
@@ -150,6 +161,13 @@ mod tests {
     fn targets_are_exact_executable_names_not_paths_or_wildcards() {
         assert_eq!(target(" Spotify.EXE ").unwrap(), "spotify.exe");
         for name in ["", "spotify", ".exe", "*.exe", "C:\\Apps\\spotify.exe", "foo/bar.exe"] { assert!(target(name).is_err()); }
+    }
+    #[test]
+    fn foreground_target_requires_an_external_audio_app() {
+        assert_eq!(resolve_target("@foreground", Some("Spotify.EXE")).unwrap(), "spotify.exe");
+        assert!(resolve_target("@foreground", None).is_err());
+        assert!(resolve_target("@foreground", Some("deckforge.exe")).is_err());
+        assert_eq!(resolve_target("spotify.exe", None).unwrap(), "spotify.exe");
     }
     #[test]
     fn volume_is_clamped_and_mixed_sessions_mute_together() {

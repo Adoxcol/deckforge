@@ -251,6 +251,7 @@ export interface AudioAppState {
 
 export interface DeckFaceState {
   appAudio?: Record<string, AudioAppState> | null;
+  foregroundAudioExe?: string | null;
   mediaPlaying: boolean | null;
   mediaTitle: string;
   micMuted: boolean | null;

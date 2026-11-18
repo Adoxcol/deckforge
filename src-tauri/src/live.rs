@@ -209,15 +209,27 @@ pub(crate) fn lcd_title(raw: &str) -> String {
 
 fn app_audio_label(param: &str, face: &DeckFaceState) -> String {
     if param.trim().is_empty() { return "Choose app".into(); }
+    let foreground = param.trim().eq_ignore_ascii_case(actions::app_audio::FOREGROUND_TARGET);
+    let exe = if foreground {
+        match face.foreground_audio_exe.as_deref() { Some(exe) => exe, None => return "Focus app".into() }
+    } else { param.trim() };
     match &face.app_audio {
         None => "Unavailable".into(),
-        Some(apps) => apps.get(&param.trim().to_lowercase()).map(|app| app.label()).unwrap_or_else(|| "No session".into()),
+        Some(apps) => {
+            let state = apps.get(&exe.to_lowercase()).map(|app| app.label()).unwrap_or_else(|| "No session".into());
+            if foreground { format!("{} {state}", exe.trim_end_matches(".exe")) } else { state }
+        },
     }
+}
+
+fn audio_face_target<'a>(param: &'a str, face: &'a DeckFaceState) -> Option<&'a str> {
+    if param.trim().eq_ignore_ascii_case(actions::app_audio::FOREGROUND_TARGET) { face.foreground_audio_exe.as_deref() }
+    else { Some(param.trim()) }
 }
 
 fn key_level_for(key: &KeyConfig, face: &DeckFaceState) -> Option<u8> {
     if key.action_id.starts_with("audio.app_") {
-        let app = face.app_audio.as_ref()?.get(&key.action_param.trim().to_lowercase())?;
+        let app = face.app_audio.as_ref()?.get(&audio_face_target(&key.action_param, face)?.to_lowercase())?;
         return if app.muted { Some(0) } else if app.min_volume == app.max_volume && !app.mixed_mute { Some(app.min_volume) } else { None };
     }
     key_level(&key.action_id, face)
@@ -839,17 +851,25 @@ pub(crate) fn resolve_page_index(guard: &ManagedAppState, param: &str) -> Option
 
 /// Windows media/COM calls may block. Never hold app state while sampling them.
 pub(crate) fn sample_face(shared: &SharedState) -> bool {
-    let needs_apps = {
+    let (needs_apps, needs_foreground) = {
         let guard = shared.lock_safe();
         let uses = |page: &ProfilePage| {
             page.keys.iter().any(|k| k.action_id.starts_with("audio.app_"))
                 || page.touch_zones.iter().any(|z| z.tap_action_id.starts_with("audio.app_"))
                 || page.encoders.iter().any(|e| [&e.cw_action, &e.ccw_action, &e.push_action].iter().any(|a| a.starts_with("audio.app_")))
         };
-        guard.profiles.iter().flat_map(|p| &p.pages).any(uses)
-            || guard.applied_layout.as_ref().is_some_and(|a| uses(&a.page))
+        let uses_foreground = |page: &ProfilePage| {
+            let is_target = |action: &str, param: &str| action.starts_with("audio.app_") && param.trim().eq_ignore_ascii_case(actions::app_audio::FOREGROUND_TARGET);
+            page.keys.iter().any(|k| is_target(&k.action_id, &k.action_param))
+                || page.touch_zones.iter().any(|z| is_target(&z.tap_action_id, &z.tap_action_param))
+                || page.encoders.iter().any(|e| is_target(&e.cw_action, &e.cw_param) || is_target(&e.ccw_action, &e.ccw_param) || is_target(&e.push_action, &e.push_param))
+        };
+        let mut pages = guard.profiles.iter().flat_map(|p| &p.pages);
+        let applied = guard.applied_layout.as_ref().map(|a| &a.page);
+        (pages.clone().any(uses) || applied.is_some_and(uses),
+         pages.any(uses_foreground) || applied.is_some_and(uses_foreground))
     };
-    sample_face_with(shared, |previous| read_face(previous, needs_apps))
+    sample_face_with(shared, |previous| read_face(previous, needs_apps, needs_foreground))
 }
 
 fn sample_face_with(
@@ -872,7 +892,7 @@ fn sample_face_with(
     changed || refresh_requested
 }
 
-fn read_face(previous: &DeckFaceState, needs_apps: bool) -> DeckFaceState {
+fn read_face(previous: &DeckFaceState, needs_apps: bool, needs_foreground: bool) -> DeckFaceState {
     let _timing = performance::timer(performance::Stage::Media);
     let (playing, title) = read_media_face();
     let audio = read_audio_face();
@@ -891,6 +911,7 @@ fn read_face(previous: &DeckFaceState, needs_apps: bool) -> DeckFaceState {
         speaker_muted: audio.speaker_muted,
         volume_percent: audio.volume_percent,
         app_audio: if needs_apps { actions::app_audio::list().ok().map(|apps| apps.into_iter().map(|app| (app.exe.clone(), app)).collect()) } else { None },
+        foreground_audio_exe: if needs_foreground { foreground_window().map(|window| window.exe_name.to_lowercase()).filter(|exe| exe != "deckforge.exe") } else { None },
         game_mode: Some(game_mode::is_active()),
         game_mode_busy: game_mode::is_busy(),
         cpu_percent: stats.cpu_percent,

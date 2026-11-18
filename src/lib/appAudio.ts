@@ -6,9 +6,12 @@ export function appAudioLabel(app: AudioAppState): string {
   return app.mixedMute ? `${volume} MIX` : volume;
 }
 export function appAudioLook(param: string, face: DeckFaceState | null) {
-  const app = face?.appAudio?.[param.trim().toLowerCase()];
+  const foreground = param.trim().toLowerCase() === "@foreground";
+  const target = foreground ? face?.foregroundAudioExe?.toLowerCase() : param.trim().toLowerCase();
+  const app = target ? face?.appAudio?.[target] : undefined;
+  const name = foreground && target ? `${target.replace(/\.exe$/i, "")} ` : "";
   return {
-    title: !param.trim() ? "Choose app" : !face?.appAudio ? "Unavailable" : app ? appAudioLabel(app) : "No session",
+    title: !param.trim() ? "Choose app" : foreground && !target ? "Focus app" : !face?.appAudio ? "Unavailable" : `${name}${app ? appAudioLabel(app) : "No session"}`,
     level: !app ? null : app.muted ? 0 : app.minVolume === app.maxVolume && !app.mixedMute ? app.minVolume : null,
     muted: app?.muted ?? false,
   };
