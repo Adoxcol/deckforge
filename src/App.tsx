@@ -95,7 +95,7 @@ import { outputParamOptions } from "./lib/audioOutputs";
 
 import { ACTION_CATALOG, type ActionTemplate } from "./data/actionCatalog";
 import { bytesToBase64, buildPulseFrames, errorText } from "./lib/format";
-import { buildProfileFile, placeBackup, parseProfileFile, pickJsonFile, placeImportedProfile, slugify } from "./lib/shareFiles";
+import { macroIdsUsed, placeBackup, parseProfileFile, pickJsonFile, placeImportedProfile, slugify } from "./lib/shareFiles";
 import { LevelMeter, liveKeyLook, liveZoneValue } from "./components/LiveFace";
 import { onUpdateReady } from "./lib/updates";
 
@@ -1146,13 +1146,13 @@ export const App: React.FC = () => {
   const handleExportProfile = async () => {
     if (!activeProfile) return;
     try {
-      const { file, mediaRemoved } = buildProfileFile(activeProfile, macros, autoSwitchRules);
-      const where = await deckforgeApi.saveExportFile(
-        `deckforge-profile-${slugify(activeProfile.name)}.json`,
-        JSON.stringify(file, null, 2)
+      const used = new Set(macroIdsUsed(activeProfile));
+      const where = await deckforgeApi.exportProfilePack(
+        activeProfile,
+        macros.filter(macro => used.has(macro.id)),
+        autoSwitchRules.filter(rule => rule.targetProfileId === activeProfile.id && rule.processName.trim()),
       );
-      const left = mediaRemoved > 0 ? ` ${mediaRemoved} picture${mediaRemoved === 1 ? "" : "s"} or animation${mediaRemoved === 1 ? " was" : "s were"} left out.` : "";
-      triggerToast(`Saved "${activeProfile.name}" to ${where}.${left}`, "success");
+      triggerToast(`Saved portable profile "${activeProfile.name}" with its media to ${where}.`, "success");
     } catch (err) {
       triggerToast(`Could not export the profile: ${errorText(err)}`, "warning");
     }
@@ -1163,10 +1163,21 @@ export const App: React.FC = () => {
     try {
       picked = await pickJsonFile();
       if (!picked) return;
-      const parsed = parseProfileFile(picked.text);
+      let kind: string | undefined;
+      try { kind = JSON.parse(picked.text)?.kind; } catch { /* Legacy parser reports invalid JSON. */ }
+      const restoredPack = kind === "deckforge.profile-pack" ? await deckforgeApi.restoreProfilePack(picked.text) : null;
+      const parsed = restoredPack ? {
+        profile: restoredPack.profiles[0],
+        macros: restoredPack.macros,
+        appRules: (restoredPack.appRules ?? []).map(rule => ({
+          processName: rule.processName, windowTitleContains: rule.windowTitleContains,
+          pageId: rule.targetPageId ?? "", enabled: rule.enabled,
+        })),
+      } : parseProfileFile(picked.text);
       const placed = placeImportedProfile(parsed, profiles, macros);
       const next = [...profiles, placed.profile];
       pushUndoSnapshot();
+      if (restoredPack) setMediaLibrary(prev => ({ ...prev, ...Object.fromEntries(restoredPack.mediaLibrary.map(media => [media.id, media])) }));
       setProfiles(next);
       if (placed.addedMacros > 0) {
         persistMacros(placed.macros);

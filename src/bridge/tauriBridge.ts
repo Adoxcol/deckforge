@@ -703,6 +703,15 @@ export const deckforgeApi = {
     return invoke<RestoredBackup>("restore_profiles_backup", { contents });
   },
 
+  async exportProfilePack(profile: Profile, macros: MacroSequence[], appRules: AutoSwitchRule[]): Promise<string> {
+    if (!isTauriRuntime()) throw new Error("Portable profile packs require the desktop app.");
+    return invoke<string>("export_profile_pack", { profile, macros, appRules });
+  },
+  async restoreProfilePack(contents: string): Promise<RestoredBackup> {
+    if (!isTauriRuntime()) throw new Error("Portable profile packs require the desktop app.");
+    return invoke<RestoredBackup>("restore_profile_pack", { contents });
+  },
+
   async saveStartupProfile(profileId: string | null): Promise<void> {
     if (isTauriRuntime()) return invoke<void>("save_startup_profile", { profileId });
     if (profileId) localStorage.setItem("deckforge-preview-startup-profile", profileId);

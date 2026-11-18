@@ -1,9 +1,8 @@
 /**
  * Share files: export a profile or a Game Mode to a JSON file and read one back.
  *
- * Everything that comes out of a file is rebuilt field by field, so a hand-edited or damaged
- * file cannot put odd values into the editor. Pictures and animations are left out of exports
- * because they live in this PC's media library and would not exist on another PC.
+ * Legacy version-1 profile files are rebuilt field by field. Portable profile packs use the
+ * Rust backup validator so their media checksums and references are verified before import.
  */
 import type {
   AutoSwitchRule,

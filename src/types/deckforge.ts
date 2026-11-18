@@ -563,6 +563,7 @@ export interface RestoredBackup {
   profiles: Profile[];
   macros: MacroSequence[];
   mediaLibrary: MediaPreview[];
+  appRules?: AutoSwitchRule[];
 }
 
 export interface RecoveryDraft {

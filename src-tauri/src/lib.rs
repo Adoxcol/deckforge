@@ -141,6 +141,8 @@ pub fn run() {
             save_export_file,
             backup::export_profiles_backup,
             backup::restore_profiles_backup,
+            backup::export_profile_pack,
+            backup::restore_profile_pack,
             import_legacy_sdprofiles,
             get_telemetry,
             get_performance_snapshot,
