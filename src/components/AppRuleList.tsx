@@ -3,6 +3,7 @@ import { Gamepad2, Plus, Trash2 } from "lucide-react";
 import { deckforgeApi } from "../bridge/tauriBridge";
 import type { AutoSwitchRule, Profile } from "../types/deckforge";
 import { assignUnrestrictedApp, conflictingRule } from "../lib/appRuleConflicts";
+import { createAppIconLoader } from "../lib/appIconCache";
 
 /** Friendly names for common apps, so a rule reads "OBS Studio" rather than "obs64.exe". */
 const KNOWN_APPS: Record<string, string> = {
@@ -41,7 +42,7 @@ const appName = (exe: string) => {
 /** Stable hue per app, used for the letter tile when no real icon is available. */
 const hueFor = (text: string) => [...text.toLowerCase()].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 
-const iconCache = new Map<string, string | null>();
+const loadAppIcon = createAppIconLoader(exe => deckforgeApi.appIcon(exe));
 
 /** Programs with an open window, loaded while `active` is true. */
 const useOpenApps = (active: boolean) => {
@@ -74,21 +75,11 @@ const AppIcon: React.FC<{ exe: string; size?: number }> = ({ exe, size = 32 }) =
 
 const ProgramIcon: React.FC<{ exe: string; size?: number }> = ({ exe, size = 32 }) => {
   const key = exe.trim().toLowerCase();
-  const [src, setSrc] = React.useState<string | null>(iconCache.get(key) ?? null);
+  const [src, setSrc] = React.useState<string | null>(null);
   React.useEffect(() => {
     let alive = true;
-    if (!key) return;
-    if (iconCache.get(key)) {
-      setSrc(iconCache.get(key)!);
-      return;
-    }
-    deckforgeApi
-      .appIcon(key)
-      .then((url) => {
-        if (url) iconCache.set(key, url);
-        if (alive) setSrc(url);
-      })
-      .catch(() => {});
+    setSrc(null);
+    loadAppIcon(key).then(url => { if (alive) setSrc(url); }).catch(() => {});
     return () => {
       alive = false;
     };
