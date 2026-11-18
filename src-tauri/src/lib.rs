@@ -143,6 +143,8 @@ pub fn run() {
             backup::restore_profiles_backup,
             backup::export_profile_pack,
             backup::restore_profile_pack,
+            media_download::search_commons_gifs,
+            media_download::open_commons_file_page,
             import_legacy_sdprofiles,
             get_telemetry,
             get_performance_snapshot,

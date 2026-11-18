@@ -19,6 +19,7 @@ import type {
   GameModeStatus,
   GameModeTarget,
   MediaPreview,
+  CommonsGif,
   ObsSettings,
   Profile,
   AutoSwitchRule,
@@ -992,6 +993,14 @@ export const deckforgeApi = {
   async importMediaUrl(url: string): Promise<MediaPreview> {
     if (!isTauriRuntime()) throw new Error("Link imports are available in the desktop app. You can still upload local files here.");
     return invoke<MediaPreview>("import_media_url", { id: `media-${crypto.randomUUID()}`, url });
+  },
+  async searchCommonsGifs(query: string): Promise<CommonsGif[]> {
+    if (!isTauriRuntime()) throw new Error("GIF search requires the desktop app.");
+    return invoke<CommonsGif[]>("search_commons_gifs", { query });
+  },
+  async openCommonsFilePage(url: string): Promise<void> {
+    if (!isTauriRuntime()) { window.open(url, "_blank", "noopener,noreferrer"); return; }
+    return invoke<void>("open_commons_file_page", { url });
   },
 
   async stageScreenMedia(id: string, fileName: string, dataBase64: string): Promise<MediaPreview> {

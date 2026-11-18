@@ -567,6 +567,14 @@ export interface RestoredBackup {
   appRules?: AutoSwitchRule[];
 }
 
+export interface CommonsGif {
+  title: string;
+  thumbnailUrl: string;
+  imageUrl: string;
+  sourceUrl: string;
+  size: number;
+}
+
 export interface RecoveryDraft {
   draft: { version: number; profiles: Profile[]; baseProfiles: Profile[]; updatedAtMs: number };
   savedProfilesChanged: boolean;
