@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import ts from "typescript";
 const source = await readFile(new URL("../src/lib/shareFiles.ts", import.meta.url), "utf8");
 const { outputText } = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } });
-const { placeBackup } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
+const { placeBackup, placeImportedProfile } = await import(`data:text/javascript;base64,${Buffer.from(outputText).toString("base64")}`);
 
 const profiles = [
   { id: "a", name: "Streaming", pages: [{ id: "page1", name: "Home", stripMedia: { mediaId: "restored-media" },
@@ -38,4 +38,17 @@ test("repeated restores allocate unique IDs and names without replacing existing
   assert.equal(new Set([...existing, ...second.profiles].map(p => p.id)).size, 6);
   assert.equal(new Set([...existing, ...second.profiles].map(p => p.name)).size, 6);
   assert.notEqual(first.macros[0].id, second.macros[0].id);
+});
+
+test("portable profile macros switch to the newly imported profile", () => {
+  const original = { id: "source", name: "Stream", pages: [{ id: "home", name: "Home",
+    keys: [{ actionId: "macro.run", actionParam: "return" }], touchZones: [], encoders: [], stripMedia: { mediaId: "image" } }] };
+  const macro = { id: "return", name: "Return", steps: [{ stepType: "SwitchProfile", parameter: "source" }] };
+  const placed = placeImportedProfile({ profile: original, macros: [macro], appRules: [] }, [], []);
+  assert.equal(placed.macros[0].steps[0].parameter, placed.profile.id);
+  assert.equal(placed.profile.pages[0].keys[0].actionParam, "return");
+  assert.deepEqual(placed.profile.pages[0].stripMedia, original.pages[0].stripMedia);
+  const collision = placeImportedProfile({ profile: original, macros: [macro], appRules: [] }, [], [macro]);
+  assert.notEqual(collision.macros[1].id, macro.id);
+  assert.equal(collision.profile.pages[0].keys[0].actionParam, collision.macros[1].id);
 });

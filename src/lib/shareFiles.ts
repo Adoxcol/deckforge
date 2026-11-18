@@ -350,19 +350,22 @@ export function placeImportedProfile(
   const macroRemap = new Map<string, string>();
   const nextMacros = [...existingMacros];
   let addedMacros = 0;
+  const oldId = parsed.profile.id;
   for (const macro of parsed.macros) {
     const same = nextMacros.find((m) => m.id === macro.id);
-    if (same && JSON.stringify(same.steps) === JSON.stringify(macro.steps)) continue;
+    const switchesToImportedProfile = macro.steps.some(step => step.stepType === "SwitchProfile" && step.parameter === oldId);
+    if (same && !switchesToImportedProfile && JSON.stringify(same.steps) === JSON.stringify(macro.steps)) continue;
     let macroId = macro.id;
     if (same) {
       for (let n = 2; nextMacros.some((m) => m.id === macroId); n++) macroId = `${macro.id}-${n}`;
       macroRemap.set(macro.id, macroId);
     }
-    nextMacros.push({ ...macro, id: macroId, name: same ? `${macro.name} (imported)` : macro.name });
+    nextMacros.push({ ...macro, id: macroId, name: same ? `${macro.name} (imported)` : macro.name,
+      steps: macro.steps.map(step => step.stepType === "SwitchProfile" && step.parameter === oldId
+        ? { ...step, parameter: id } : step) });
     addedMacros += 1;
   }
 
-  const oldId = parsed.profile.id;
   const profile = rewriteActions({ ...parsed.profile, id, name }, (actionId, param) => {
     if (actionId === "profile.switch" && param === oldId) return { actionId, param: id };
     if (actionId === "macro.run" && macroRemap.has(param)) return { actionId, param: macroRemap.get(param) ?? param };
