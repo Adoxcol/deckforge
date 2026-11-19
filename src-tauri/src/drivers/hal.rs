@@ -352,6 +352,8 @@ pub fn send_hardware_brightness(
         return Ok(format!("Simulator brightness set to {}%", percent));
     }
 
+    ensure_akp_io_target(dev)?;
+
     // Brightness is LIG only. A handshake (`CRT HAN`) switches the backlight off,
     // which is the fade-to-black the deck shows after an ordinary control.
     deck_write(vec![(pkt.to_vec(), 0)])?;
@@ -397,6 +399,7 @@ pub fn write_knob_led_rgb(dev: &DeviceDescriptor, rgb: &[[u8; 3]; 4]) -> Result<
     if !dev.connected || dev.is_simulator {
         return Ok(());
     }
+    ensure_akp_io_target(dev)?;
     let pkt = build_knob_led_packet(rgb);
     deck_write(vec![(pkt.to_vec(), 0)])
 }
@@ -438,6 +441,8 @@ pub fn send_hardware_knob_leds(
         return Ok(format!("Simulator knob LEDs updated on {}", dev.model_name));
     }
 
+    ensure_akp_io_target(dev)?;
+
     deck_write(vec![(pkt.to_vec(), 0)])?;
 
     diagnostics.push(DiagnosticEntry {
@@ -478,6 +483,8 @@ pub fn reset_hardware_knob_leds(
         });
         return Ok(format!("Simulator knob LEDs reset on {}", dev.model_name));
     }
+
+    ensure_akp_io_target(dev)?;
 
     deck_write(vec![(pkt.to_vec(), 0)])?;
 
@@ -522,6 +529,8 @@ pub fn send_hardware_led_brightness(
         return Ok(format!("Simulator LED brightness set to {}%", clamped));
     }
 
+    ensure_akp_io_target(dev)?;
+
     deck_write(vec![(pkt.to_vec(), 0)])?;
 
     diagnostics.push(DiagnosticEntry {
@@ -565,6 +574,8 @@ pub fn send_hardware_led_sleep_mode(
         return Ok(format!("Simulator LED mode set to {}", mode_label));
     }
 
+    ensure_akp_io_target(dev)?;
+
     deck_write(vec![(pkt.to_vec(), 0)])?;
 
     diagnostics.push(DiagnosticEntry {
@@ -586,6 +597,7 @@ pub fn wake_panel(dev: &DeviceDescriptor) -> Result<(), String> {
     if !dev.connected || debug_flag("no-wake") {
         return Ok(());
     }
+    ensure_akp_io_target(dev)?;
     // Brightness only. DIS clears every picture and leaves the backlight off.
     let brightness = panel_brightness(dev);
     deck_write(vec![
@@ -599,6 +611,7 @@ pub fn write_panel_brightness(dev: &DeviceDescriptor, percent: u8) -> Result<(),
     if !dev.connected {
         return Ok(());
     }
+    ensure_akp_io_target(dev)?;
     let pkt = build_brightness_packet(percent.min(100));
     deck_write(vec![(pkt.to_vec(), 0)])
 }
@@ -696,6 +709,16 @@ pub fn device_uses_akp05e_face(dev: &DeviceDescriptor) -> bool {
         && dev.keys.rows == 2
         && dev.keys.cols == 5
         && dev.touch_strip.is_some()
+}
+
+/// The single live HID connection still opens VID 0300:PID 3013 only. Do not
+/// accidentally send a selected, unverified device's command to that handle.
+fn ensure_akp_io_target(dev: &DeviceDescriptor) -> Result<(), String> {
+    if dev.vid == 0x0300 && dev.pid == 0x3013 && dev.id == "ajazz-akp05e-pro" {
+        Ok(())
+    } else {
+        Err(format!("{} is not yet supported by the live HID connection", dev.model_name))
+    }
 }
 
 pub fn key_image_slot(dev: &DeviceDescriptor, visual_index: u8) -> u8 {
@@ -1068,6 +1091,7 @@ fn write_reports(
     if !dev.connected || dev.is_simulator {
         return Err("Deck is not connected".into());
     }
+    ensure_akp_io_target(dev)?;
     if bursts.is_empty() { return Ok(()); }
     // DIS is only for a full connect. Ajazz names that packet disconnect, and
     // sending it before a one-key update clears every icon that was not in the update.
@@ -1122,6 +1146,7 @@ pub fn write_one_report(dev: &DeviceDescriptor, report: &[u8]) -> Result<(), Str
     if !dev.connected || dev.is_simulator {
         return Err("Deck is not connected".into());
     }
+    ensure_akp_io_target(dev)?;
     if report.is_empty() { return Ok(()); }
     deck_write(vec![(report.to_vec(), 0)])
 }
@@ -1907,6 +1932,18 @@ mod tests {
             key_image_slot(&dev, 0), &jpeg,
         );
         assert_eq!(actual.reports, expected.into_iter().map(|packet| packet.to_vec()).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn unverified_device_cannot_write_to_the_akp_connection() {
+        let mut catalog = builtin_device_catalog();
+        let mut other = catalog.remove(2);
+        other.connected = true;
+        other.is_simulator = false;
+        let mut diagnostics = Vec::new();
+        assert!(send_hardware_brightness(&other, 50, &mut diagnostics).unwrap_err().contains("not yet supported"));
+        assert!(write_animation_frames(&other, &[key_image_burst(&other, 1, &[1, 2, 3])]).is_err());
+        assert!(write_one_report(&other, &[0; 32]).is_err());
     }
 
     #[test]
