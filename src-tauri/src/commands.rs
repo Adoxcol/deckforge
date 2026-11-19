@@ -100,6 +100,7 @@ pub fn set_knob_leds(
     let res = send_hardware_knob_leds(&dev, &colors, &mut diags)?;
     {
         let mut guard = state.lock_safe();
+        guard.custom_knob_leds_active = true;
         guard.diagnostics.extend(diags);
         let excess = guard.diagnostics.len().saturating_sub(80);
         guard.diagnostics.drain(..excess);
@@ -125,6 +126,7 @@ pub fn reset_knob_leds(
     let res = reset_hardware_knob_leds(&dev, &mut diags)?;
     {
         let mut guard = state.lock_safe();
+        guard.custom_knob_leds_active = false;
         guard.diagnostics.extend(diags);
         let excess = guard.diagnostics.len().saturating_sub(80);
         guard.diagnostics.drain(..excess);

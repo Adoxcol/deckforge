@@ -482,21 +482,49 @@ pub(crate) fn push_connected_layout(shared: &SharedState) {
     }
 }
 
-pub(crate) fn sync_page_knob_leds(shared: &SharedState, dev: &DeviceDescriptor, page: &ProfilePage) {
-    if !page.encoders.iter().any(|e| !e.led_color.trim().is_empty()) {
-        return;
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum KnobLedSyncAction {
+    None,
+    Set(Vec<String>),
+    Reset,
+}
+
+pub(crate) fn plan_page_knob_leds(page: &ProfilePage, custom_active: bool) -> KnobLedSyncAction {
+    if page.encoders.iter().any(|e| !e.led_color.trim().is_empty()) {
+        let colors: Vec<String> = (0..4)
+            .map(|i| {
+                page.encoders
+                    .iter()
+                    .find(|e| e.index as usize == i)
+                    .map(|e| e.led_color.clone())
+                    .unwrap_or_default()
+            })
+            .collect();
+        KnobLedSyncAction::Set(colors)
+    } else if custom_active {
+        KnobLedSyncAction::Reset
+    } else {
+        KnobLedSyncAction::None
     }
-    let colors: Vec<String> = (0..4)
-        .map(|i| {
-            page.encoders
-                .iter()
-                .find(|e| e.index as usize == i)
-                .map(|e| e.led_color.clone())
-                .unwrap_or_default()
-        })
-        .collect();
+}
+
+pub(crate) fn sync_page_knob_leds(shared: &SharedState, dev: &DeviceDescriptor, page: &ProfilePage) {
+    let custom_active = shared.lock_safe().custom_knob_leds_active;
+    let action = plan_page_knob_leds(page, custom_active);
     let mut diags = Vec::new();
-    let _ = send_hardware_knob_leds(dev, &colors, &mut diags);
+    match action {
+        KnobLedSyncAction::None => return,
+        KnobLedSyncAction::Set(colors) => {
+            if send_hardware_knob_leds(dev, &colors, &mut diags).is_ok() {
+                shared.lock_safe().custom_knob_leds_active = true;
+            }
+        }
+        KnobLedSyncAction::Reset => {
+            if reset_hardware_knob_leds(dev, &mut diags).is_ok() {
+                shared.lock_safe().custom_knob_leds_active = false;
+            }
+        }
+    }
     if !diags.is_empty() {
         let mut guard = shared.lock_safe();
         guard.diagnostics.extend(diags);
@@ -1181,7 +1209,20 @@ mod live_tests {
             obs: ObsSettings::default(),
             sample_after_ms: 0,
             auto_switch_hold_until_ms: 0,
+            custom_knob_leds_active: false,
         }))
+    }
+
+    #[test]
+    fn page_without_custom_leds_resets_after_custom_led_page() {
+        let mut page = db::default_profiles().remove(0).pages.remove(0);
+        assert_eq!(plan_page_knob_leds(&page, false), KnobLedSyncAction::None);
+        assert_eq!(plan_page_knob_leds(&page, true), KnobLedSyncAction::Reset);
+        page.encoders[0].led_color = "#FF0000".into();
+        assert_eq!(
+            plan_page_knob_leds(&page, false),
+            KnobLedSyncAction::Set(vec!["#FF0000".into(), "".into(), "".into(), "".into()])
+        );
     }
 
     #[test]

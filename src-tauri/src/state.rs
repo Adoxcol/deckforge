@@ -154,6 +154,7 @@ pub struct ManagedAppState {
     pub obs: ObsSettings,
     pub sample_after_ms: u64,
     pub auto_switch_hold_until_ms: u64,
+    pub custom_knob_leds_active: bool,
 }
 
 impl Default for ManagedAppState {
@@ -236,6 +237,7 @@ impl Default for ManagedAppState {
             obs: ObsSettings::load(),
             sample_after_ms: 0,
             auto_switch_hold_until_ms: 0,
+            custom_knob_leds_active: false,
         }
     }
 }
