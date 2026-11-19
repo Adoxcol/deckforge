@@ -40,6 +40,8 @@ cd src-tauri
 cargo test --locked -- --nocapture
 ```
 
+For release validation, see [RELEASING.md](RELEASING.md).
+
 ### Media library
 
 Select a key, touch zone, or strip and choose **Browse media library**. The library includes four original CC0 starter animations, search over saved media, favorites, and recent selections. Preview an item, then choose **Use on screen**; adjust fit, speed, and looping in the editor and choose **Apply to Device** when ready.
