@@ -98,18 +98,19 @@ enum InputWork {
         ts: u64,
         raw_hex: String,
         queued_at: std::time::Instant,
+        received_at: std::time::Instant,
     },
 }
 
 fn run_input_work(app_handle: &tauri::AppHandle, shared: &SharedState, work: InputWork) {
-    let (action, ts, raw_hex, queued_at) = match work {
+    let (action, ts, raw_hex, queued_at, received_at) = match work {
         InputWork::FullLayout(generation) => {
             // Several resend/reconnect requests may arrive while an action is
             // running. Only the newest generation should reset the panel.
             if generation == deck_generation() { push_connected_layout(shared); }
             return;
         }
-        InputWork::Press { action, ts, raw_hex, queued_at } => (action, ts, raw_hex, queued_at),
+        InputWork::Press { action, ts, raw_hex, queued_at, received_at } => (action, ts, raw_hex, queued_at, received_at),
     };
     // Presses suppressed during a layout transition must not queue extra wake
     // writes behind that transfer and delay the next valid action.
@@ -119,6 +120,7 @@ fn run_input_work(app_handle: &tauri::AppHandle, shared: &SharedState, work: Inp
     let action_timing = performance::timer(performance::Stage::Action);
     let result = dispatch_live_action(app_handle, shared, &action);
     drop(action_timing);
+    performance::record(performance::Stage::InputToAction, received_at.elapsed());
     // Waking the panel includes a firmware pause. Start the user's action first
     // so that display housekeeping cannot delay a hotkey or media command.
     let dev = shared
@@ -181,6 +183,7 @@ pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: 
             let Some(raw) = deck_next_report(60) else {
                 continue;
             };
+            let received_at = std::time::Instant::now();
             let n = raw.len().min(buf.len());
             buf[..n].copy_from_slice(&raw[..n]);
             {
@@ -263,6 +266,7 @@ pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: 
                                     ts,
                                     raw_hex: evt.raw_hex.clone(),
                                     queued_at: std::time::Instant::now(),
+                                    received_at,
                                 });
                             }
                         }

@@ -4,8 +4,8 @@ use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 const WINDOW: usize = 128;
 #[derive(Clone, Copy)]
-pub(crate) enum Stage { ActionQueue, Action, Media, Telemetry, FullRender, FaceRender, Animation, UsbQueue, UsbWrite }
-const LABELS: [&str; 9] = ["Action queue wait", "Action handling", "Windows media polling", "Telemetry scan", "Full layout rendering", "Live image rendering", "Animation packet assembly", "USB queue wait", "USB job execution"];
+pub(crate) enum Stage { ActionQueue, Action, Media, Telemetry, FullRender, FaceRender, Animation, UsbQueue, UsbWrite, InputToAction }
+const LABELS: [&str; 10] = ["Action queue wait", "Action handling", "Windows media polling", "Telemetry scan", "Full layout rendering", "Live image rendering", "Animation packet assembly", "USB queue wait", "USB job execution", "HID report to action dispatch"];
 struct Samples { values: [f64; WINDOW], count: u64, next: usize, len: usize }
 impl Default for Samples {
     fn default() -> Self { Self { values: [0.0; WINDOW], count: 0, next: 0, len: 0 } }
@@ -37,7 +37,7 @@ pub(crate) struct Timing {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Snapshot { window_size: usize, elapsed_seconds: f64, timings: Vec<Timing> }
-struct Store { started: Instant, stages: [Samples; 9] }
+struct Store { started: Instant, stages: [Samples; 10] }
 impl Default for Store {
     fn default() -> Self { Self { started: Instant::now(), stages: std::array::from_fn(|_| Samples::default()) } }
 }
