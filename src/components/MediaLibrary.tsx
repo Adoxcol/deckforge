@@ -80,7 +80,7 @@ export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
     <div className="p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between"><div><h2 id="media-library-title" className="text-lg font-bold">Media library</h2><p className="text-xs text-[var(--text-secondary)]">Animated icons and images, ready for your deck.</p></div><button type="button" className={button} disabled={busy} onClick={onClose} aria-label="Close media library"><X size={16}/></button></div>
       <div className="flex gap-2 flex-wrap">{["Starter pack", "My media", "Favorites", "Recent", "Find GIFs"].map(name => <button type="button" key={name} className={button} aria-pressed={tab === name} style={tab === name ? { borderColor: "var(--accent-primary)", backgroundColor: "var(--accent-soft)", color: "var(--accent-text)" } : undefined} onClick={() => setTab(name)}>{name}</button>)}</div>
-      {tab === "Find GIFs" ? <form className="flex items-center gap-2" onSubmit={event => { event.preventDefault(); void run(async () => { const term = gifQuery.trim(); setGifResults(await deckforgeApi.searchCommonsGifs(term)); setGifSearched(term); setGifSelected(null); }); }}>
+      {tab === "Find GIFs" ? <form className="flex items-center gap-2" onSubmit={event => { event.preventDefault(); void run(async () => { const term = gifQuery.trim(); setGifResults([]); setGifSelected(null); setGifSearched(term); setGifResults(await deckforgeApi.searchCommonsGifs(term)); }); }}>
         <Search size={16} className="text-[var(--text-muted)] shrink-0"/>
         <input aria-label="Search Wikimedia Commons GIFs" placeholder="Search GIFs on Wikimedia Commons..." value={gifQuery} onChange={e => setGifQuery(e.target.value)} className="min-w-0 flex-1 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] outline-none px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"/>
         <button type="submit" className={button} disabled={busy || gifQuery.trim().length < 2}>Search</button>
@@ -109,7 +109,7 @@ export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
             <span className="block truncate text-[11px] mt-2" title={gif.title}>{gif.title}</span>
             <span className="text-[10px] text-[var(--text-muted)]">{(gif.size / 1024 / 1024).toFixed(1)} MB</span>
           </button>)}
-          {!gifResults.length && <p className="col-span-full py-8 text-center text-sm text-[var(--text-secondary)]">{gifSearched ? `No usable GIFs found for “${gifSearched}”.` : "Search for an animated GIF to use on your deck."}</p>}
+          {!gifResults.length && !error && <p className="col-span-full py-8 text-center text-sm text-[var(--text-secondary)]">{gifSearched ? `No usable GIFs found for “${gifSearched}”.` : "Search for an animated GIF to use on your deck."}</p>}
         </div>
         <div className="flex gap-3 items-center border-t border-[var(--border-subtle)] pt-3">
           <div className="h-16 w-16 shrink-0 rounded bg-black/30 overflow-hidden">{gifSelected && <img src={gifSelected.imageUrl} alt="Selected GIF preview" className="w-full h-full object-cover"/>}</div>
