@@ -68,7 +68,7 @@ const OutputPair: React.FC<{ value: string; options: { value: string; label: str
       <select
         value={current}
         onChange={(event) => set(event.target.value)}
-        className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
+        className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
       >
         <option value="">Not set</option>
         {current && !options.some((o) => o.value === current) && <option value={current}>{current} (not plugged in)</option>}
@@ -128,7 +128,7 @@ export const ActionBinding: React.FC<{
         <select
           value={actionParam}
           onChange={(event) => onChange(actionId, event.target.value)}
-          className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-xs text-[var(--text-primary)] outline-none"
+          className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
         >
           {!paramOptions.some((option) => option.value === actionParam) && actionParam && (
           <option value={actionParam}>{actionParam}</option>
@@ -147,10 +147,10 @@ export const ActionBinding: React.FC<{
               <button
                 type="button"
                 onClick={onRecord}
-                className={`px-2 py-0.5 rounded text-[10.5px] font-semibold cursor-pointer ${
+                className={`px-2 py-0.5 rounded text-[10.5px] font-semibold cursor-pointer transition-colors ${
                   recording
                     ? "bg-[var(--status-error)] text-white animate-pulse"
-                    : "bg-[var(--accent-soft)] text-[var(--accent-primary)] border border-[var(--accent-primary)]/50"
+                    : "bg-[var(--accent-soft)] text-[var(--accent-text)] border border-[var(--accent-primary)]/45 hover:bg-[var(--accent-primary)] hover:text-white"
                 }`}
               >
                 {recording ? "Press any key..." : "Record keybind"}

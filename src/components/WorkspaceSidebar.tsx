@@ -54,11 +54,11 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   const iconButtonClass =
     "w-6 h-6 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] transition-all duration-150 flex items-center justify-center cursor-pointer";
   return (
-    <aside className="bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-3.5 flex flex-col gap-5 overflow-y-auto">
+    <aside className="bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-3.5 flex flex-col gap-4 overflow-y-auto">
       {/* Devices Section */}
       <div>
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[12px] font-semibold text-[var(--text-primary)]">Devices</span>
+          <span className="text-[11.5px] font-semibold tracking-wide text-[var(--text-secondary)]">Devices</span>
           <button
             type="button"
             onClick={() => {
@@ -76,26 +76,26 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
 
         <div className="flex flex-col gap-1.5">
           {connectedDevices.length === 0 ? (
-            <div className="px-2.5 py-3 rounded-lg border border-dashed border-[var(--border-subtle)] text-[11px] leading-relaxed text-[var(--text-muted)]">
+            <div className="px-2.5 py-3 rounded-lg border border-dashed border-[var(--border-subtle)] bg-[var(--bg-panel)]/40 text-[11px] leading-relaxed text-[var(--text-muted)]">
               No device connected. Plug in a deck, then rescan.
             </div>
           ) : (
             connectedDevices.map((dev) => (
               <div
                 key={dev.id}
-                className="p-2.5 rounded-lg border flex items-center gap-2.5 bg-[var(--accent-soft)] border-[var(--accent-primary)]/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                className="p-2.5 rounded-lg border flex items-center gap-2.5 bg-[var(--accent-soft)]/80 border-[var(--accent-primary)]/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
               >
-                <div className="w-8 h-6 rounded bg-[var(--bg-input)] border border-[var(--accent-primary)]/70 p-1 grid grid-cols-5 gap-0.5 shrink-0">
+                <div className="w-8 h-6 rounded bg-[var(--bg-input)] border border-[var(--accent-primary)]/60 p-1 grid grid-cols-5 gap-0.5 shrink-0">
                   {Array.from({ length: 10 }).map((_, idx) => (
-                    <span key={idx} className="rounded-[1px] bg-[var(--accent-primary)]" />
+                    <span key={idx} className="rounded-[1px] bg-[var(--accent-primary)]/90" />
                   ))}
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="text-[12px] font-semibold text-[var(--text-primary)] truncate">
                     {dev.modelName}
                   </div>
-                  <div className="flex items-center gap-1.5 text-[10.5px]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-success)]" />
+                  <div className="flex items-center gap-1.5 text-[10.5px] mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-success)] shadow-[0_0_6px_var(--status-success)]" />
                     <span className="text-[var(--status-success)] font-medium">Connected</span>
                   </div>
                 </div>
@@ -106,9 +106,9 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
       </div>
 
       {/* Profiles Section */}
-      <div className="relative flex-1 flex flex-col">
+      <div className="relative flex-1 flex flex-col pt-3.5 border-t border-[var(--border-subtle)]">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[12px] font-semibold text-[var(--text-primary)]">Profiles</span>
+          <span className="text-[11.5px] font-semibold tracking-wide text-[var(--text-secondary)]">Profiles</span>
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -145,7 +145,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                   <div
                     role="menu"
                     aria-label="Create profile from template"
-                    className="absolute left-0 right-0 top-8 z-50 p-1.5 rounded-[var(--radius-md)] bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl flex flex-col gap-0.5 animate-pop-in"
+                    className="absolute left-0 right-0 top-11 z-50 p-1.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl flex flex-col gap-0.5 animate-pop-in"
                   >
                     <div className="px-2 pt-1 pb-1.5 text-[11px] font-medium text-[var(--text-muted)]">Start a new profile from</div>
                     {STARTER_PROFILES.map((starter) => (
@@ -202,7 +202,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
                 }}
                 className={`px-2.5 py-2 rounded-lg border flex items-center justify-between gap-2 cursor-pointer transition-all duration-150 ${
                   isSel
-                    ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/55 text-[var(--text-primary)] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]"
+                    ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/50 text-[var(--text-primary)] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                     : "bg-transparent border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:border-[var(--border-subtle)] hover:text-[var(--text-primary)]"
                 }`}
               >
@@ -228,7 +228,9 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
         </div>
       </div>
 
-      <AppRuleList rules={autoSwitchRules} profiles={profiles} showProfileId={activeProfile?.id} currentPageIndex={selectedPageIdx} saveRules={saveRules} />
+      <div className="pt-3.5 border-t border-[var(--border-subtle)]">
+        <AppRuleList rules={autoSwitchRules} profiles={profiles} showProfileId={activeProfile?.id} currentPageIndex={selectedPageIdx} saveRules={saveRules} />
+      </div>
     </aside>
   );
 };

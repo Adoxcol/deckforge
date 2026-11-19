@@ -106,26 +106,30 @@ export const ActionDrawer = React.memo(function ActionDrawer({
     );
   };
   return (
-    <div className="h-[210px] bg-[var(--bg-sidebar)] border-t border-[var(--border-subtle)] grid grid-cols-[165px_1fr] p-3 gap-4 shrink-0">
+    <div className="h-[214px] bg-[var(--bg-sidebar)] border-t border-[var(--border-subtle)] grid grid-cols-[172px_1fr] p-3 gap-4 shrink-0">
       {/* Left Category Filter Rail */}
       <div className="border-r border-[var(--border-subtle)] pr-3 flex flex-col gap-0.5 overflow-y-auto">
-        <div className="text-[11px] font-semibold text-[var(--text-secondary)] px-2 mb-1">Actions</div>
+        <div className="text-[11px] font-semibold tracking-wide text-[var(--text-muted)] px-2 mb-1">Actions</div>
         {["All", "Custom", "Shortcuts", "Macro", "OBS", "Media", "System", "Navigation"].map(
           (cat) => {
             const isAct = actionCategoryFilter === cat;
+            const count = cat === "All"
+              ? actions.length
+              : actions.filter((a) => a.category.toLowerCase() === cat.toLowerCase()).length;
             return (
               <button
                 key={cat}
                 type="button"
                 aria-pressed={isAct}
                 onClick={() => setActionCategoryFilter(cat)}
-                className={`text-left px-2.5 py-1.5 rounded-md text-[11.5px] cursor-pointer transition-colors ${
+                className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-md text-[11.5px] cursor-pointer transition-colors ${
                   isAct
                     ? "bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold"
                     : "text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"
                 }`}
               >
-                {cat === "All" ? "All Actions" : cat === "Custom" ? "★ Custom Actions" : cat}
+                <span className="truncate">{cat === "All" ? "All Actions" : cat === "Custom" ? "★ Custom Actions" : cat}</span>
+                <span className={`text-[10px] font-mono tabular-nums ${isAct ? "text-[var(--accent-text)]" : "text-[var(--text-muted)]"}`}>{count}</span>
               </button>
             );
           }
@@ -144,21 +148,21 @@ export const ActionDrawer = React.memo(function ActionDrawer({
             value={actionSearch}
             onChange={(e) => setActionSearch(e.target.value)}
             placeholder="Search actions..."
-            className="w-full h-8 pl-8 pr-8 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+            className="w-full h-8 pl-8 pr-8 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] transition-colors"
           />
           {actionSearch && (
             <button
               type="button"
               aria-label="Clear search"
               onClick={() => setActionSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer"
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
             >
               <X size={12} />
             </button>
           )}
         </div>
 
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(195px,1fr))] gap-1.5 overflow-y-auto pr-1 content-start">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(195px,1fr))] gap-1.5 overflow-y-auto pr-1 pt-0.5 content-start">
           {filteredActions.length === 0 ? (
             <div className="col-span-full py-6 text-center text-xs text-[var(--text-muted)]">
               No actions match “{actionSearch.trim()}”{actionCategoryFilter !== "All" ? ` in ${actionCategoryFilter}` : ""}.
@@ -182,11 +186,15 @@ export const ActionDrawer = React.memo(function ActionDrawer({
                     assignAction(act);
                   }
                 }}
-                className="p-2 rounded-[var(--radius-md)] bg-[var(--bg-panel)]/65 border border-[var(--border-subtle)]/70 hover:border-[var(--accent-primary)]/45 hover:bg-[var(--bg-elevated)] flex items-center justify-between gap-2.5 cursor-grab active:cursor-grabbing transition-all duration-150"
+                className="group p-2 rounded-[var(--radius-md)] bg-[var(--bg-panel)]/75 border border-[var(--border-subtle)]/80 hover:border-[var(--accent-primary)]/50 hover:bg-[var(--bg-elevated)] hover:-translate-y-[1px] hover:shadow-md flex items-center justify-between gap-2.5 cursor-grab active:cursor-grabbing transition-all duration-150"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div
-                    className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center shrink-0 bg-[var(--bg-elevated)] border border-[var(--border-subtle)]"
+                    className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center shrink-0 transition-transform duration-150 group-hover:scale-105"
+                    style={{
+                      backgroundColor: act.accentColor ? `${act.accentColor}1C` : "var(--bg-elevated)",
+                      border: `1px solid ${act.accentColor ? `${act.accentColor}44` : "var(--border-subtle)"}`,
+                    }}
                   >
                     <DeckIcon name={act.iconName} size={16} color={act.accentColor || "var(--text-primary)"} />
                   </div>

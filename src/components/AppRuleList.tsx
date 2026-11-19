@@ -198,31 +198,31 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
     !!r.targetPageId && !profiles.find((p) => p.id === r.targetProfileId)?.pages.some((pg) => pg.id === r.targetPageId);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2.5">
       <div>
-        <div className="text-[13px] font-semibold text-[var(--text-primary)]">App switching</div>
-        <p className="text-[11.5px] leading-snug text-[var(--text-muted)] mt-0.5">
+        <div className="text-[11.5px] font-semibold tracking-wide text-[var(--text-secondary)]">App switching</div>
+        <p className="text-[11px] leading-snug text-[var(--text-muted)] mt-0.5">
           Profile rules work anywhere. Page rules work only while that profile is active.
         </p>
       </div>
 
-      <details className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-2 text-xs">
-        <summary className="cursor-pointer font-medium text-[var(--text-primary)]">Preview a switch</summary>
-        <div className="mt-2 flex flex-col gap-2">
-          <label className="flex flex-col gap-1">Starting profile
+      <details className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)]/70 p-2 text-xs">
+        <summary className="cursor-pointer select-none text-[11.5px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Preview a switch</summary>
+        <div className="mt-2.5 flex flex-col gap-2">
+          <label className="flex flex-col gap-1 text-[11px] text-[var(--text-secondary)]">Starting profile
             <select aria-label="Preview starting profile" className={field} value={activePreviewProfileId} onChange={e => setPreviewProfileId(e.target.value)}>
               {profiles.map(profile => <option key={profile.id} value={profile.id}>{profile.name}</option>)}
             </select>
           </label>
           <input aria-label="Preview app executable" className={field} value={previewExe} onChange={e => setPreviewExe(e.target.value)} placeholder="App, e.g. spotify.exe" />
           <input aria-label="Preview window title" className={field} value={previewTitle} onChange={e => setPreviewTitle(e.target.value)} placeholder="Window title (optional)" />
-          <label className="flex items-center gap-2"><input type="checkbox" checked={previewGame} onChange={e => setPreviewGame(e.target.checked)} /> Treat as a game</label>
-          {preview && <div role="status" className="rounded-md bg-[var(--bg-input)] p-2 leading-relaxed">
+          <label className="flex items-center gap-2 text-[11.5px] text-[var(--text-secondary)] cursor-pointer"><input type="checkbox" className="accent-[var(--accent-primary)]" checked={previewGame} onChange={e => setPreviewGame(e.target.checked)} /> Treat as a game</label>
+          {preview && <div role="status" className="rounded-md border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2 leading-relaxed">
             <strong className="block text-[var(--text-primary)]">{preview.switches ? `Opens ${previewProfile?.name ?? preview.profileId} / ${previewProfile?.pages[preview.pageIndex]?.name ?? "page 1"}` : "Stays on the current page"}</strong>
             <span>{preview.reason}</span>
             {previewRule && <span className="block mt-1 text-[var(--text-muted)]">Winning rule: {previewRule.processName}{previewRule.windowTitleContains ? ` · title contains “${previewRule.windowTitleContains}”` : ""}{previewPageRule ? ` · page rule: ${previewPageRule.processName}` : ""}</span>}
           </div>}
-          <p className="text-[var(--text-muted)]">Preview only. It does not change the deck. Game detection and the current foreground window are simulated.</p>
+          <p className="text-[10.5px] text-[var(--text-muted)] leading-snug">Preview only. It does not change the deck. Game detection and the current foreground window are simulated.</p>
         </div>
       </details>
 
@@ -238,19 +238,70 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
       <div className="flex flex-col gap-3">
         {shown.map((prof) => (
           <div key={prof.id} className="flex flex-col gap-2">
-            <div className="text-[11px] font-medium text-[var(--text-muted)] px-1 pb-1">{prof.name}</div>
-            <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] p-2">
+            <div className="text-[11px] font-medium text-[var(--text-muted)] px-1">{prof.name}</div>
+            <div className="rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-panel)]/45 p-2.5">
               <div className="text-[11px] font-semibold text-[var(--text-primary)]">Switch to this profile</div>
-              <div className="text-[10px] text-[var(--text-muted)]">These apps switch profiles from anywhere.</div>
-              <div className="flex flex-wrap items-center gap-1 mt-1">
-                {rules.filter(r => r.targetProfileId === prof.id && !r.targetPageId).map(r => <button key={r.id} type="button" onClick={() => setSelectedId(selectedId === r.id ? null : r.id)} className="rounded bg-[var(--bg-input)] px-1.5 py-1 text-[11px]" title={`${appName(r.processName)}${r.enabled ? "" : " (off)"}`}>{appName(r.processName)}{r.enabled ? "" : " (off)"}</button>)}
-                <button type="button" onClick={() => setAddingProfile(addingProfile === prof.id ? null : prof.id)} className="rounded border border-dashed border-[var(--border-strong)] px-1.5 py-1 text-[11px]">+ App</button>
+              <div className="text-[10.5px] text-[var(--text-muted)] mt-0.5">These apps switch profiles from anywhere.</div>
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                {rules.filter(r => r.targetProfileId === prof.id && !r.targetPageId).map(r => (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setSelectedId(selectedId === r.id ? null : r.id)}
+                    className={`rounded-md border px-2 py-1 text-[11px] font-medium cursor-pointer transition-colors ${
+                      selectedId === r.id
+                        ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/60 text-[var(--text-primary)]"
+                        : "bg-[var(--bg-input)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+                    } ${r.enabled ? "" : "opacity-50"}`}
+                    title={`${appName(r.processName)}${r.enabled ? "" : " (off)"}`}
+                  >
+                    {appName(r.processName)}{r.enabled ? "" : " (off)"}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setAddingProfile(addingProfile === prof.id ? null : prof.id)}
+                  className="rounded-md border border-dashed border-[var(--border-strong)] px-2 py-1 text-[11px] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
+                >
+                  + App
+                </button>
               </div>
-              {addingProfile === prof.id && <div className="flex gap-1 mt-2"><input aria-label="App for profile switching" list="deckforge-known-apps" value={profileDraft} onChange={e => setProfileDraft(e.target.value)} onKeyDown={e => { if (e.key === "Enter") addProfileApp(prof.id); }} placeholder="Program, e.g. spotify.exe" className={field}/><button type="button" onClick={() => addProfileApp(prof.id)} className="text-xs px-2">Add</button></div>}
-              {selected && selected.targetProfileId === prof.id && !selected.targetPageId && <div className="mt-2 flex items-center gap-2 text-xs"><span>{appName(selected.processName)}</span><Switch checked={selected.enabled} onChange={enabled => patch(selected.id, {enabled})} label={`Switch to ${prof.name} for ${appName(selected.processName)}`}/><input aria-label="Only when window title contains" value={selected.windowTitleContains} placeholder="Window title (optional)" onChange={e => patch(selected.id, {windowTitleContains:e.target.value})} className={field}/><button type="button" onClick={() => { saveRules(rules.filter(r => r.id !== selected.id)); setSelectedId(null); }} className="text-[var(--status-error)]">Remove</button></div>}
+              {addingProfile === prof.id && (
+                <div className="flex gap-1.5 mt-2">
+                  <input
+                    aria-label="App for profile switching"
+                    list="deckforge-known-apps"
+                    value={profileDraft}
+                    onChange={e => setProfileDraft(e.target.value)}
+                    onKeyDown={e => { if (e.key === "Enter") addProfileApp(prof.id); if (e.key === "Escape") setAddingProfile(null); }}
+                    placeholder="Program, e.g. spotify.exe"
+                    className={field}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addProfileApp(prof.id)}
+                    className="h-7 px-2.5 rounded-[var(--radius-sm)] bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-[11px] font-semibold cursor-pointer shrink-0 transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
+              )}
+              {selected && selected.targetProfileId === prof.id && !selected.targetPageId && (
+                <div className="mt-2 flex flex-col gap-1.5 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] p-2">
+                  <div className="flex items-center gap-2">
+                    <AppIcon exe={selected.processName} size={20} />
+                    <span className="text-[12px] font-medium text-[var(--text-primary)] truncate flex-1">{appName(selected.processName)}</span>
+                    <Switch checked={selected.enabled} onChange={enabled => patch(selected.id, {enabled})} label={`Switch to ${prof.name} for ${appName(selected.processName)}`}/>
+                  </div>
+                  <input aria-label="Only when window title contains" value={selected.windowTitleContains} placeholder="Window title (optional)" onChange={e => patch(selected.id, {windowTitleContains:e.target.value})} className={field}/>
+                  <button type="button" onClick={() => { saveRules(rules.filter(r => r.id !== selected.id)); setSelectedId(null); }} className="self-start flex items-center gap-1.5 text-[11.5px] text-[var(--status-error)] hover:underline cursor-pointer">
+                    <Trash2 size={12} /> Remove
+                  </button>
+                </div>
+              )}
             </div>
             <div className="text-[11px] font-semibold text-[var(--text-primary)] px-1">Switch pages within {prof.name}</div>
-            <div className="flex flex-col rounded-[var(--radius-md)] border border-[var(--border-subtle)] divide-y divide-[var(--border-subtle)]">
+            <div className="flex flex-col rounded-[var(--radius-md)] border border-[var(--border-subtle)] bg-[var(--bg-panel)]/35 divide-y divide-[var(--border-subtle)]">
               {prof.pages.map((pg) => {
                 const key = `${prof.id}:${pg.id}`;
                 const apps = rules.filter((r) => r.targetProfileId === prof.id && !!r.targetPageId && pageOf(r)?.id === pg.id);
@@ -268,7 +319,7 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
                       setDropAt(null);
                       if (id) patch(id, { targetProfileId: prof.id, targetPageId: pg.id });
                     }}
-                    className={`px-2 py-1.5 flex flex-col gap-1.5 transition-colors ${dropAt === key ? "bg-[var(--bg-elevated)]" : ""}`}
+                    className={`px-2.5 py-2 flex flex-col gap-1.5 transition-colors ${dropAt === key ? "bg-[var(--bg-elevated)]" : ""}`}
                   >
                     <div className="flex items-center gap-2 min-h-[26px]">
                       <span className="text-[12.5px] text-[var(--text-primary)] truncate min-w-0 flex-1">{pg.name}</span>
@@ -284,8 +335,8 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
                             }}
                             onClick={() => setSelectedId(selectedId === r.id ? null : r.id)}
                             title={conflict(r) ? `${appName(r.processName)}: another enabled rule wins. Move this app to resolve the duplicate.` : isStale(r) ? `${appName(r.processName)}: its page was deleted, so it opens page 1. Drag it to a page to fix.` : `${appName(r.processName)}${r.enabled ? "" : " (off)"}`}
-                            className={`rounded-[var(--radius-sm)] cursor-grab active:cursor-grabbing outline outline-2 outline-offset-1 ${
-                              selectedId === r.id ? "outline-[var(--accent-primary)]" : "outline-transparent"
+                            className={`rounded-[var(--radius-sm)] cursor-grab active:cursor-grabbing transition-all ${
+                              selectedId === r.id ? "ring-2 ring-[var(--accent-primary)] ring-offset-1 ring-offset-[var(--bg-sidebar)]" : "hover:brightness-110"
                             } ${r.enabled ? "" : "opacity-40 grayscale"}`}
                           >
                             <span className="relative block">
@@ -448,7 +499,7 @@ export const PageApps: React.FC<{
           type="button"
           onClick={() => setOpen(open === r.id ? null : r.id)}
           title={r.targetPageId && r.targetPageId !== page.id ? `${appName(r.processName)}: its page was deleted, so it opens page 1. Drag it to a page to fix.` : `${appName(r.processName)}${r.enabled ? "" : " (off)"}`}
-          className={`relative rounded-[4px] cursor-pointer outline outline-2 outline-offset-1 ${open === r.id ? "outline-[var(--accent-primary)]" : "outline-transparent"} ${
+          className={`relative rounded-[4px] cursor-pointer transition-all ${open === r.id ? "ring-2 ring-[var(--accent-primary)] ring-offset-1 ring-offset-[var(--bg-panel)]" : "hover:brightness-110"} ${
             r.enabled ? "" : "opacity-40 grayscale"
           }`}
         >
@@ -465,13 +516,13 @@ export const PageApps: React.FC<{
           setOpen(open === "add" ? null : "add");
         }}
         title={`Add an app that opens ${page.name}`}
-        className="w-5 h-5 rounded-[4px] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer"
+        className="w-5 h-5 rounded-[4px] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
       >
         <Plus size={12} />
       </button>
 
       {open && (
-        <div className="absolute bottom-full mb-2 left-0 z-30 w-60 p-2.5 rounded-[var(--radius-md)] bg-[var(--bg-elevated)] border border-[var(--border-subtle)] shadow-lg flex flex-col gap-2">
+        <div className="absolute bottom-full mb-2 left-0 z-30 w-64 p-3 rounded-[var(--radius-md)] bg-[var(--bg-elevated)] border border-[var(--border-strong)] shadow-2xl flex flex-col gap-2 animate-pop-in">
           {open === "add" ? (
             <>
               <div className="text-[12px] font-medium text-[var(--text-primary)]">Open {page.name} when this app is in front</div>
@@ -527,7 +578,7 @@ export const PageApps: React.FC<{
               <button
                 type="button"
                 onClick={() => add()}
-                className="h-7 rounded-[var(--radius-sm)] bg-[var(--accent-primary)] text-white text-[12px] font-medium cursor-pointer"
+                className="h-7 rounded-[var(--radius-sm)] bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-[12px] font-semibold cursor-pointer transition-colors"
               >
                 Add app
               </button>

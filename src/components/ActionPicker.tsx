@@ -112,7 +112,7 @@ export const ActionPicker: React.FC<{
             event.preventDefault();
           }
         }}
-        className="w-full h-8 pl-2 pr-1.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)]/60 text-xs text-[var(--text-primary)] outline-none focus-visible:border-[var(--accent-primary)] flex items-center gap-2 cursor-pointer"
+        className="w-full h-8 pl-2 pr-1.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus-visible:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none flex items-center gap-2 cursor-pointer transition-colors"
       >
         {current?.iconName && <DeckIcon name={current.iconName} size={13} className="shrink-0 text-[var(--text-secondary)]" />}
         <span className="truncate text-left flex-1">{current ? current.actionLabel : value || "Choose an action"}</span>
@@ -123,7 +123,7 @@ export const ActionPicker: React.FC<{
           <>
             <div className="fixed inset-0 z-[90]" onMouseDown={() => setOpen(false)} />
             <div
-              className="fixed z-[91] flex flex-col rounded-lg border border-[var(--border-strong)] bg-[var(--bg-panel)] shadow-2xl overflow-hidden animate-pop-in"
+              className="fixed z-[91] flex flex-col rounded-xl border border-[var(--border-strong)] bg-[var(--bg-panel)]/98 backdrop-blur-md shadow-2xl overflow-hidden animate-pop-in"
               style={{ left: Math.min(rect.left, window.innerWidth - rect.width - 8), top: rect.top, width: rect.width, maxHeight: PANEL_HEIGHT }}
               onKeyDown={onKey}
             >
@@ -136,7 +136,7 @@ export const ActionPicker: React.FC<{
                   placeholder="Search actions…"
                   className="flex-1 bg-transparent text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"
                 />
-                <span className="text-[10px] text-[var(--text-secondary)] tabular-nums">{flat.length}</span>
+                <span className="text-[10px] font-mono text-[var(--text-muted)] tabular-nums">{flat.length}</span>
               </div>
               <div ref={listRef} className="overflow-y-auto py-1" role="listbox">
                 {flat.length === 0 && (
@@ -144,7 +144,7 @@ export const ActionPicker: React.FC<{
                 )}
                 {groups.map(([group, items]) => (
                   <div key={group}>
-                    <div className="px-3 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-secondary)]">{group}</div>
+                    <div className="px-3 pt-2 pb-1 text-[10.5px] font-semibold text-[var(--text-muted)]">{group}</div>
                     {items.map((choice) => {
                       index += 1;
                       const i = index;
@@ -160,9 +160,9 @@ export const ActionPicker: React.FC<{
                           onMouseMove={() => setCursor(i)}
                           onClick={() => choose(choice)}
                           title={choice.description}
-                          className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs cursor-pointer ${
+                          className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs cursor-pointer transition-colors ${
                             active ? "bg-[var(--accent-soft)]" : ""
-                          } ${selected ? "text-[var(--accent-primary)] font-semibold" : "text-[var(--text-primary)]"}`}
+                          } ${selected ? "text-[var(--accent-text)] font-semibold" : "text-[var(--text-primary)]"}`}
                         >
                           {choice.iconName ? (
                             <DeckIcon name={choice.iconName} size={13} className="shrink-0 opacity-80" />

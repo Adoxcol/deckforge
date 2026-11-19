@@ -129,7 +129,7 @@ export const IconStudio: React.FC<{
   const timing = delays.reduce((sum, value) => sum + value, 0);
 
   return (
-    <div className="flex-1 grid grid-cols-[280px_1fr_300px] overflow-hidden">
+    <div className="flex-1 grid grid-cols-[288px_1fr_300px] overflow-hidden">
       <aside className="bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
         <div className="text-[11px] font-semibold text-[var(--text-secondary)]">This page</div>
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(1, columns)}, 44px)` }}>
@@ -259,30 +259,38 @@ export const IconStudio: React.FC<{
             </button>
             {clip && face.media && (
               <>
-                <div className="grid grid-cols-3 gap-1">
+                <div className="grid grid-cols-3 gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
                   {(["cover", "contain", "stretch"] as const).map((fit) => (
                     <button
                       key={fit}
                       type="button"
                       onClick={() => onMediaPatch({ fit })}
-                      className={`h-7 rounded text-[11px] capitalize cursor-pointer transition-colors ${
-                        face.media?.fit === fit ? "bg-[var(--accent-soft)] text-white font-semibold" : "bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      className={`h-7 rounded text-[11px] capitalize cursor-pointer transition-all border ${
+                        face.media?.fit === fit
+                          ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-white font-semibold shadow-xs"
+                          : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
                       }`}
                     >
                       {fit}
                     </button>
                   ))}
                 </div>
-                <label className="text-[11px] text-[var(--text-secondary)]">Speed {face.media.speed.toFixed(2)}×</label>
-                <input
-                  type="range"
-                  min={0.25}
-                  max={3}
-                  step={0.25}
-                  value={face.media.speed}
-                  onChange={(event) => onMediaPatch({ speed: Number(event.target.value) })}
-                  className="accent-[var(--accent-primary)] cursor-pointer"
-                />
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
+                    <label>Speed</label>
+                    <span className="font-mono text-[var(--text-primary)]">{face.media.speed.toFixed(2)}×</span>
+                  </div>
+                  <input
+                    aria-label="Animation speed"
+                    type="range"
+                    min={0.25}
+                    max={3}
+                    step={0.25}
+                    value={face.media.speed}
+                    onChange={(event) => onMediaPatch({ speed: Number(event.target.value) })}
+                    className="accent-[var(--accent-primary)] cursor-pointer"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => onMediaPatch({ loopPlayback: !face.media?.loopPlayback })}
@@ -320,14 +328,16 @@ export const IconStudio: React.FC<{
               {face.showTitle ? <Eye size={13} /> : <EyeOff size={13} />}
               {face.showTitle ? "Title is on the key" : "Title is hidden"}
             </button>
-            <div className="grid grid-cols-3 gap-1">
+            <div className="grid grid-cols-3 gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
               {(["Small", "Medium", "Large"] as const).map((size) => (
                 <button
                   key={size}
                   type="button"
                   onClick={() => onChange({ titleSize: size })}
-                  className={`h-7 rounded text-[11px] cursor-pointer transition-colors ${
-                    face.titleSize === size ? "bg-[var(--accent-soft)] text-white font-semibold" : "bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  className={`h-7 rounded text-[11px] cursor-pointer transition-all border ${
+                    face.titleSize === size
+                      ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-white font-semibold shadow-xs"
+                      : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
                   }`}
                 >
                   {size}
@@ -377,46 +387,57 @@ export const IconStudio: React.FC<{
                 />
               ))}
             </div>
-            <label className="text-[11px] text-[var(--text-secondary)]">Accent</label>
-            <input
-              aria-label="Accent color"
-              type="color"
-              value={face.accentColor}
-              onChange={(event) => onChange({ accentColor: event.target.value })}
-              className="h-8 w-full bg-transparent cursor-pointer rounded"
-            />
-            <label className="text-[11px] text-[var(--text-secondary)]">Surface</label>
-            <input
-              aria-label="Surface color"
-              type="color"
-              value={face.bgColor}
-              onChange={(event) => onChange({ bgColor: event.target.value })}
-              className="h-8 w-full bg-transparent cursor-pointer rounded"
-            />
-            <div className="grid grid-cols-2 gap-1">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] text-[var(--text-secondary)]">Accent</label>
+              <input
+                aria-label="Accent color"
+                type="color"
+                value={face.accentColor}
+                onChange={(event) => onChange({ accentColor: event.target.value })}
+                className="h-8 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 cursor-pointer rounded-md"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] text-[var(--text-secondary)]">Surface</label>
+              <input
+                aria-label="Surface color"
+                type="color"
+                value={face.bgColor}
+                onChange={(event) => onChange({ bgColor: event.target.value })}
+                className="h-8 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 cursor-pointer rounded-md"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
               {(["Gradient", "Solid"] as const).map((style) => (
                 <button
                   key={style}
                   type="button"
                   onClick={() => onChange({ backgroundStyle: style })}
-                  className={`h-7 rounded text-[11px] cursor-pointer transition-colors ${
-                    face.backgroundStyle === style ? "bg-[var(--accent-soft)] text-white font-semibold" : "bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  className={`h-7 rounded text-[11px] cursor-pointer transition-all border ${
+                    face.backgroundStyle === style
+                      ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-white font-semibold shadow-xs"
+                      : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
                   }`}
                 >
                   {style}
                 </button>
               ))}
             </div>
-            <label className="text-[11px] text-[var(--text-secondary)]">Corners {face.cornerRadius}px</label>
-            <input
-              aria-label="Corner radius"
-              type="range"
-              min={2}
-              max={18}
-              value={face.cornerRadius}
-              onChange={(event) => onChange({ cornerRadius: Number(event.target.value) })}
-              className="accent-[var(--accent-primary)] cursor-pointer"
-            />
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
+                <label>Corners</label>
+                <span className="font-mono text-[var(--text-primary)]">{face.cornerRadius}px</span>
+              </div>
+              <input
+                aria-label="Corner radius"
+                type="range"
+                min={2}
+                max={18}
+                value={face.cornerRadius}
+                onChange={(event) => onChange({ cornerRadius: Number(event.target.value) })}
+                className="accent-[var(--accent-primary)] cursor-pointer"
+              />
+            </div>
           </>
         )}
 

@@ -182,8 +182,10 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               role="tab"
               aria-selected={tab === t}
               onClick={() => setTab(t)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-colors ${
-                tab === t ? "bg-[var(--accent-soft)] text-white font-semibold shadow-xs" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-all border ${
+                tab === t
+                  ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-white font-semibold shadow-xs"
+                  : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
               }`}
             >
               {t}

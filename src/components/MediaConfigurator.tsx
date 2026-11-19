@@ -73,15 +73,16 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
             {` · ${clip.frameCount} frame${clip.frameCount === 1 ? "" : "s"}`}
             {clip.sourceFrameCount > clip.frameCount ? ` (from ${clip.sourceFrameCount})` : ""}
           </div>
-          <div className="grid grid-cols-3 gap-1">
+          <div className="grid grid-cols-3 gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
             {(["cover", "contain", "stretch"] as const).map((fit) => (
               <button
                 key={fit}
+                type="button"
                 onClick={() => onChange({ fit })}
-                className={`h-7 rounded text-[11px] capitalize cursor-pointer ${
+                className={`h-7 rounded text-[11px] capitalize cursor-pointer transition-all border ${
                   config.fit === fit
-                    ? "bg-[var(--accent-soft)] text-white font-semibold"
-                    : "bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-white font-semibold shadow-xs"
+                    : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
                 }`}
               >
                 {fit}

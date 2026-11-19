@@ -142,9 +142,10 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
             aria-label="Close templates"
-            className="w-8 h-8 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] flex items-center justify-center cursor-pointer"
+            className="w-8 h-8 rounded-md text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] flex items-center justify-center cursor-pointer transition-colors"
           >
             <X size={16} />
           </button>
@@ -190,12 +191,13 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                   return (
                     <button
                       key={tpl.id}
+                      type="button"
                       onClick={() => choose(tpl)}
                       onDoubleClick={() => onAdd(instantiateTemplate(tpl, tpl.name))}
-                      className={`text-left rounded-lg border p-3 flex flex-col gap-2.5 cursor-pointer transition-colors ${
+                      className={`text-left rounded-xl border p-3 flex flex-col gap-2.5 cursor-pointer transition-all duration-150 ${
                         active
-                          ? "border-[var(--accent-primary)] bg-[var(--accent-soft)]"
-                          : "border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:border-[var(--border-strong)]"
+                          ? "border-[var(--accent-primary)] bg-[var(--accent-soft)] shadow-[0_0_0_1px_rgba(124,131,247,0.3)]"
+                          : "border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:border-[var(--border-strong)] hover:-translate-y-[1px] hover:shadow-md"
                       }`}
                     >
                       <KeyGrid page={tpl.page} size="sm" />

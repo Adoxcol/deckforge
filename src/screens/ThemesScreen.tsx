@@ -163,9 +163,9 @@ export const ThemesScreen: React.FC<{
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
+    <div className="flex-1 overflow-y-auto p-6 max-w-6xl mx-auto w-full flex flex-col gap-6">
       <div>
-        <h1 className="text-lg font-bold flex items-center gap-2"><Sparkles size={18} /> Themes</h1>
+        <h1 className="text-xl font-bold flex items-center gap-2"><Sparkles size={18} className="text-[var(--accent-text)]" /> Themes</h1>
         <p className="text-xs text-[var(--text-secondary)] mt-1">
           Animated looks for the current page. Each key keeps its own icon on top. Press Apply to Device afterwards to see them on the deck.
         </p>
@@ -173,7 +173,7 @@ export const ThemesScreen: React.FC<{
 
       <section className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="font-bold text-sm flex items-center gap-2"><Wand2 size={15} /> Full-deck wallpaper</div>
+          <div className="font-bold text-sm flex items-center gap-2"><Wand2 size={15} className="text-[var(--accent-text)]" /> Full-deck wallpaper</div>
           <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-xl">
             Pick a GIF or picture and it is split across every key, so the whole deck plays one big animation, like the skins in the AJAZZ app.
             Long GIFs are trimmed to {MAX_WALLPAPER_FRAMES} frames.
@@ -194,7 +194,7 @@ export const ThemesScreen: React.FC<{
           type="button"
           disabled={busy !== null}
           onClick={() => fileInput.current?.click()}
-          className="h-9 px-4 shrink-0 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          className="h-9 px-4 shrink-0 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-[0.98] transition-all"
         >
           <ImagePlus size={14} /> {busy === "wallpaper" ? "Splitting…" : "Choose GIF"}
         </button>
@@ -202,7 +202,7 @@ export const ThemesScreen: React.FC<{
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
         {KEY_THEMES.map((theme) => (
-          <div key={theme.id} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors flex flex-col gap-3">
+          <div key={theme.id} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:shadow-lg transition-all flex flex-col gap-3">
             <ThemePreview theme={theme.id} icons={previewIcons} />
             <div>
               <div className="font-bold text-sm">{theme.name}</div>
@@ -213,7 +213,7 @@ export const ThemesScreen: React.FC<{
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void applyTheme(theme.id, false)}
-                className="flex-1 h-8 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer disabled:opacity-50"
+                className="flex-1 h-8 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer disabled:opacity-50 transition-colors"
               >
                 {busy === `${theme.id}:false` ? "Drawing…" : "Apply to page"}
               </button>
@@ -221,7 +221,7 @@ export const ThemesScreen: React.FC<{
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void applyTheme(theme.id, true)}
-                className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs cursor-pointer disabled:opacity-50"
+                className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer disabled:opacity-50 transition-colors"
               >
                 {busy === `${theme.id}:true` ? "Drawing…" : `Key ${selectedIndex + 1} only`}
               </button>

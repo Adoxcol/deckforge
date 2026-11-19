@@ -96,8 +96,8 @@ const Checkbox: React.FC<{ checked: boolean }> = ({ checked }) => (
 );
 
 const Stat: React.FC<{ label: string; value: string; hint?: string; tone?: "good" | "warn" }> = ({ label, value, hint, tone }) => (
-  <div className="bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] rounded-lg px-3.5 py-3 min-w-0">
-    <div className="text-[10.5px] uppercase tracking-wider text-[var(--text-muted)]">{label}</div>
+  <div className="bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] rounded-xl px-3.5 py-3 min-w-0">
+    <div className="text-[11px] font-medium text-[var(--text-muted)]">{label}</div>
     <div className={`mt-1 text-[15px] font-semibold truncate ${tone === "good" ? "text-[var(--status-success)]" : tone === "warn" ? "text-[var(--status-warning)]" : "text-[var(--text-primary)]"}`}>
       {value}
     </div>
@@ -725,7 +725,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               </div>
             </div>
             <p className="text-[11.5px] text-[var(--text-muted)] -mt-1">{tab.blurb}</p>
-            <div className="max-h-80 overflow-y-auto grid grid-cols-2 gap-1.5 pr-1">
+            <div className="max-h-80 overflow-y-auto grid grid-cols-1 lg:grid-cols-2 gap-1.5 pr-1">
               {pickTab !== "services" &&
                 (pickTab === "apps" ? appRows : backgroundRows).map((p) => {
                   const on = ticked(p.takenById);
@@ -805,7 +805,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               Nothing is picked, so starting this mode only applies the power plan and tweaks below. Pick apps or services above, or add a launcher.
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
               {selectedTargets.map((t) => {
                 const custom = config.customTargets.find((c) => c.id === t.id);
                 const detail = t.custom
@@ -873,7 +873,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Power plan</h2>
             <span className="text-[11px] text-[var(--text-muted)]">The plans installed on this PC. Windows is using {scan.powerPlan || "an unknown plan"} now.</span>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
             {[{ guid: "", name: "Leave it as it is", active: false }, ...scan.powerPlans].map((plan) => {
               const on = mode.powerPlan === plan.guid || (plan.guid === "" && planMissing);
               return (
@@ -919,7 +919,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             <Zap size={14} />
             <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Tweaks while you play</h2>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
             {scan.tweaks.map((tweak) => (
               <Toggle key={tweak.id} on={mode.tweaks.includes(tweak.id)} onClick={() => toggleTweak(tweak.id)} title={tweak.label} hint={tweak.note} label={tweak.label} />
             ))}
@@ -1169,7 +1169,7 @@ const StartAppsSection: React.FC<{
               className="flex-1 h-7 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-[11.5px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] placeholder:text-[var(--text-muted)]"
             />
             <label className="flex items-center gap-1.5 text-[11.5px] text-[var(--text-secondary)] cursor-pointer select-none shrink-0">
-              <input type="checkbox" checked={app.closeOnEnd} onChange={(e) => patch(i, { closeOnEnd: e.target.checked })} />
+              <input type="checkbox" className="accent-[var(--accent-primary)] cursor-pointer" checked={app.closeOnEnd} onChange={(e) => patch(i, { closeOnEnd: e.target.checked })} />
               Close when Game Mode ends
             </label>
           </div>

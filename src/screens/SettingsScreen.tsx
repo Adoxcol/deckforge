@@ -39,26 +39,26 @@ export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: s
   const link = (label: string, screen: NavScreenId) => <button type="button" className={action} onClick={() => onNavigate(screen)}>{label}<ArrowUpRight size={14} /></button>;
   const selected = sections.find(item => item.id === section)!;
 
-  return <div className="flex-1 min-h-0 grid grid-cols-[220px_1fr] overflow-hidden">
-    <nav aria-label="Settings sections" className="bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 space-y-2">
-      <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-widest text-[var(--text-muted)]">Preferences</p>
+  return <div className="flex-1 min-h-0 grid grid-cols-[224px_1fr] overflow-hidden">
+    <nav aria-label="Settings sections" className="bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 space-y-1.5">
+      <p className="px-3 py-1.5 text-[11px] font-semibold tracking-wide text-[var(--text-muted)]">Preferences</p>
       {sections.map(({ id, name, hint, icon: Icon }) => <button type="button" key={id} onClick={() => setSection(id)}
         aria-current={section === id ? "page" : undefined} aria-controls="settings-content"
-        className={`w-full flex items-start gap-3 text-left rounded-lg px-3 py-3 border cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)] ${section === id ? "border-[var(--accent-primary)]/50 bg-[var(--accent-soft)] text-white" : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"}`}>
-        <Icon size={16} className="mt-0.5 shrink-0" /><span><span className="block text-xs font-semibold">{name}</span><span className="block text-[10px] text-[var(--text-secondary)] mt-1">{hint}</span></span>
+        className={`w-full flex items-start gap-3 text-left rounded-lg px-3 py-2.5 border cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)] ${section === id ? "border-[var(--accent-primary)]/45 bg-[var(--accent-soft)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"}`}>
+        <Icon size={16} className="mt-0.5 shrink-0" /><span><span className="block text-xs font-semibold">{name}</span><span className="block text-[10.5px] text-[var(--text-secondary)] mt-0.5">{hint}</span></span>
       </button>)}
     </nav>
     <main id="settings-content" aria-labelledby="settings-heading" className="overflow-y-auto p-6 lg:p-8">
       <div className="max-w-3xl mx-auto space-y-5 text-sm text-[var(--text-secondary)]">
         <header className="flex items-start justify-between gap-4 pb-2">
           <div><h1 id="settings-heading" className="text-xl font-bold text-[var(--text-primary)]">{selected.name}</h1><p className="text-xs mt-1">{selected.hint}</p></div>
-          <span className="text-[10px] px-2.5 py-1 rounded-full border border-[var(--border-strong)] text-[var(--text-secondary)]">{desktop ? "Desktop app" : "Browser preview"}</span>
+          <span className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">{desktop ? "Desktop app" : "Browser preview"}</span>
         </header>
         {section === "general" && <>
           <section className={card} aria-labelledby="startup-heading">
             <div className="flex items-center gap-2 text-[var(--text-primary)]"><Power size={17} /><h2 id="startup-heading" className="font-semibold">Windows sign-in</h2></div>
-            <label className="flex gap-3 items-center py-2 text-[var(--text-primary)]">
-              <input type="checkbox" className="accent-[var(--accent-primary)] w-4 h-4" checked={launchAtLogin} disabled={loading || !desktop} onChange={toggleStartup} aria-describedby="startup-help" />
+            <label className={`flex gap-3 items-center py-1.5 text-[var(--text-primary)] ${desktop ? "cursor-pointer" : "cursor-default"}`}>
+              <input type="checkbox" className="accent-[var(--accent-primary)] w-4 h-4 cursor-pointer disabled:cursor-default" checked={launchAtLogin} disabled={loading || !desktop} onChange={toggleStartup} aria-describedby="startup-help" />
               Start DeckForge in the tray when I sign in
             </label>
             <p id="startup-help" className="text-xs leading-relaxed">{desktop ? "Uses this executable path. Enable from the installed app; if you move it, enable this setting again." : "This preference is available in the Windows desktop app. Browser preview does not change Windows settings."}</p>
@@ -67,7 +67,7 @@ export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: s
           </section>
           <section className={card} aria-labelledby="default-profile-heading">
             <h2 id="default-profile-heading" className="font-semibold text-[var(--text-primary)]">Default profile on launch</h2>
-            <select aria-label="Default profile on launch" className="w-full rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-input)] p-2 text-sm text-[var(--text-primary)]" value={startupProfileId ?? ""} onChange={async e => {
+            <select aria-label="Default profile on launch" className="w-full h-9 rounded-lg border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)] outline-none cursor-pointer transition-colors" value={startupProfileId ?? ""} onChange={async e => {
               const id = e.target.value || null;
               try { await onStartupProfileChange(id); setStartupProfileError(null); }
               catch (err) { setStartupProfileError(String(err)); }

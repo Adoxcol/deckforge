@@ -54,7 +54,7 @@
 .uppercase { text-transform: none; letter-spacing: 0; }
 
 @layer base {
-  button, input, select, textarea, [role="button"] {
+  button, input, select, textarea, [role="button"], summary {
     transition-property: background-color, border-color, color, box-shadow, opacity, transform;
     transition-duration: 150ms;
     transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
@@ -69,10 +69,18 @@
   select:focus-visible,
   textarea:focus-visible,
   a:focus-visible,
+  summary:focus-visible,
   [role="button"]:focus-visible,
   [tabindex]:focus-visible {
     outline: 2px solid var(--accent-primary);
     outline-offset: 1px;
+  }
+
+  input.outline-none:focus-visible,
+  select.outline-none:focus-visible,
+  textarea.outline-none:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(124, 131, 247, 0.28);
   }
 
   input[type="range"] {
@@ -97,6 +105,22 @@
   }
 
   input[type="range"]::-webkit-slider-thumb:hover {
+    background: var(--accent-hover);
+    transform: scale(1.12);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 9999px;
+    background: var(--accent-primary);
+    border: 2px solid var(--bg-panel);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+    cursor: pointer;
+    transition: transform 120ms ease, background-color 120ms ease;
+  }
+
+  input[type="range"]::-moz-range-thumb:hover {
     background: var(--accent-hover);
     transform: scale(1.12);
   }
