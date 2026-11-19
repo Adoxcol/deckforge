@@ -1130,6 +1130,61 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleApplyKnobLedPalette = (colors: readonly string[], label: string) => {
+    if (!activeProfile || !activePage || !activeDevice) return;
+    const normalized = [0, 1, 2, 3].map((i) => (colors[i] || DEFAULT_KNOB_LED_COLORS[i] || "#35C98B").toUpperCase());
+    lastKnobUndoRef.current = null;
+    pushUndoSnapshot();
+    setProfiles((prev) =>
+      prev.map((prof) =>
+        prof.id !== activeProfile.id
+          ? prof
+          : {
+              ...prof,
+              lastModifiedMs: Date.now(),
+              pages: prof.pages.map((pg, pIdx) =>
+                pIdx !== selectedPageIdx
+                  ? pg
+                  : {
+                      ...pg,
+                      encoders: pg.encoders.map((enc) => ({
+                        ...enc,
+                        ledColor: normalized[enc.index] ?? normalized[0],
+                      })),
+                    }
+              ),
+            }
+      )
+    );
+    void flushKnobLedSend(activeDevice.id, normalized);
+    triggerToast(`Applied ${label} knob LED palette`, "info");
+  };
+
+  const handleApplyKnobLedsToAllPages = () => {
+    if (!activeProfile || !activePage) return;
+    const byIndex = new Map(activePage.encoders.map((enc) => [enc.index, enc.ledColor ?? ""]));
+    lastKnobUndoRef.current = null;
+    pushUndoSnapshot();
+    setProfiles((prev) =>
+      prev.map((prof) =>
+        prof.id !== activeProfile.id
+          ? prof
+          : {
+              ...prof,
+              lastModifiedMs: Date.now(),
+              pages: prof.pages.map((pg) => ({
+                ...pg,
+                encoders: pg.encoders.map((enc) => ({
+                  ...enc,
+                  ledColor: byIndex.get(enc.index) ?? enc.ledColor ?? "",
+                })),
+              })),
+            }
+      )
+    );
+    triggerToast(`Copied knob LED colors to all ${activeProfile.pages.length} pages in ${activeProfile.name}`, "success");
+  };
+
   const [ledBrightness, setLedBrightness] = useState(100);
   const [ledFollowSleep, setLedFollowSleep] = useState(true);
 
@@ -1652,7 +1707,7 @@ export const App: React.FC = () => {
           </main>
 
           {/* RIGHT INSPECTOR PANE (320px — Button Properties matching Reference Screenshot) */}
-          <KeyInspector mediaLibrary={mediaLibrary} onMediaStored={clip => setMediaLibrary(prev => ({ ...prev, [clip.id]: clip }))} activeDevice={activeDevice} activeEncoder={activeEncoder} activeKey={activeKey} activeZone={activeZone} allActionTemplates={allActionTemplates} assignMedia={assignMedia} clipFor={clipFor} clipboardKey={clipboardKey} currentMedia={currentMedia} face={face} fileRef={fileRef} handleClearSelectedKey={handleClearSelectedKey} handleTestSelectedAction={handleTestSelectedAction} hotkeyTarget={hotkeyTarget} ingestFile={ingestFile} inspectorTab={inspectorTab} macros={macros} obsSettings={obsSettings} paramOptionsFor={paramOptionsFor} patchCurrentMedia={patchCurrentMedia} saveObs={saveObs} setActionCategoryFilter={setActionCategoryFilter} setClipboardKey={setClipboardKey} setCustomActions={setCustomActions} setHotkeyTarget={setHotkeyTarget} setInspectorTab={setInspectorTab} surface={surface} surfaceIndex={surfaceIndex} triggerToast={triggerToast} updateSelectedEncoder={updateSelectedEncoder} onKnobLedChange={handleKnobLedChange} onResetKnobLeds={() => void handleResetKnobLeds()} updateSelectedKey={updateSelectedKey} updateSelectedZone={updateSelectedZone} useSampleAnimation={useSampleAnimation} />
+          <KeyInspector mediaLibrary={mediaLibrary} onMediaStored={clip => setMediaLibrary(prev => ({ ...prev, [clip.id]: clip }))} activeDevice={activeDevice} activeEncoder={activeEncoder} activeKey={activeKey} activeZone={activeZone} allActionTemplates={allActionTemplates} assignMedia={assignMedia} clipFor={clipFor} clipboardKey={clipboardKey} currentMedia={currentMedia} face={face} fileRef={fileRef} handleClearSelectedKey={handleClearSelectedKey} handleTestSelectedAction={handleTestSelectedAction} hotkeyTarget={hotkeyTarget} ingestFile={ingestFile} inspectorTab={inspectorTab} macros={macros} obsSettings={obsSettings} paramOptionsFor={paramOptionsFor} patchCurrentMedia={patchCurrentMedia} saveObs={saveObs} setActionCategoryFilter={setActionCategoryFilter} setClipboardKey={setClipboardKey} setCustomActions={setCustomActions} setHotkeyTarget={setHotkeyTarget} setInspectorTab={setInspectorTab} surface={surface} surfaceIndex={surfaceIndex} triggerToast={triggerToast} updateSelectedEncoder={updateSelectedEncoder} onKnobLedChange={handleKnobLedChange} onResetKnobLeds={() => void handleResetKnobLeds()} profileColorStrip={activeProfile.colorStrip} onApplyKnobLedPalette={handleApplyKnobLedPalette} onApplyKnobLedsToAllPages={handleApplyKnobLedsToAllPages} updateSelectedKey={updateSelectedKey} updateSelectedZone={updateSelectedZone} useSampleAnimation={useSampleAnimation} />
         </div>
       )}
 

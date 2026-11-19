@@ -33,6 +33,13 @@ const KNOB_LED_PRESETS = [
   "#FFFFFF",
 ] as const;
 
+const KNOB_LED_PALETTES: ReadonlyArray<{ name: string; colors: readonly [string, string, string, string] }> = [
+  { name: "Studio", colors: ["#35C98B", "#56B9F2", "#8B5CF6", "#F4B860"] },
+  { name: "Cyber", colors: ["#00E5FF", "#EC4899", "#8B5CF6", "#00E5FF"] },
+  { name: "Warm", colors: ["#F4B860", "#F16B79", "#FF8A3D", "#FFD166"] },
+  { name: "Stealth", colors: ["#1E293B", "#334155", "#334155", "#1E293B"] },
+];
+
 interface KeyInspectorProps {
   mediaLibrary: Record<string, MediaPreview>;
   onMediaStored: (clip: MediaPreview) => void;
@@ -68,6 +75,9 @@ interface KeyInspectorProps {
   updateSelectedEncoder: (index: number, patch: Partial<EncoderConfig>) => void;
   onKnobLedChange: (knobIndex: number | "all", colorHex: string) => void;
   onResetKnobLeds: () => void;
+  profileColorStrip?: string;
+  onApplyKnobLedPalette: (colors: readonly string[], label: string) => void;
+  onApplyKnobLedsToAllPages: () => void;
   updateSelectedKey: (patch: Partial<KeyConfig>) => void;
   updateSelectedZone: (index: number, patch: Partial<TouchZoneConfig>) => void;
   useSampleAnimation: (target: ScreenTarget, index: number) => Promise<void>;
@@ -108,17 +118,20 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
   updateSelectedEncoder,
   onKnobLedChange,
   onResetKnobLeds,
+  profileColorStrip,
+  onApplyKnobLedPalette,
+  onApplyKnobLedsToAllPages,
   updateSelectedKey,
   updateSelectedZone,
   useSampleAnimation,
 }) => {
   const [library, setLibrary] = React.useState<{ use: (clip: MediaPreview) => void } | null>(null);
   return (
-    <aside className="bg-[var(--bg-sidebar)] border-l border-[var(--border-subtle)] p-4 flex flex-col justify-between overflow-y-auto">
+    <aside className="bg-[var(--bg-sidebar)] border-l border-[var(--border-subtle)] p-4 flex flex-col justify-between gap-4 overflow-y-auto">
       {library && <MediaLibrary clips={mediaLibrary} onStored={onMediaStored} onUse={library.use} onClose={() => setLibrary(null)} />}
       <div className="flex flex-col gap-3.5">
         <div className="flex items-center justify-between">
-          <h2 className="text-[14px] font-bold text-[var(--text-primary)]">
+          <h2 className="text-[13.5px] font-bold text-[var(--text-primary)] tracking-tight">
             {surface === "zone"
               ? "Touch Zone"
               : surface === "strip"
@@ -127,7 +140,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
               ? "Rotary Encoder"
               : "Button Properties"}
           </h2>
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
             {surface === "zone"
               ? `Zone #${(activeZone?.index ?? 0) + 1}`
               : surface === "strip"
@@ -150,7 +163,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   ? `radial-gradient(circle at 50% 30%, ${activeKey.accentColor}55, ${activeKey.bgColor})`
                   : activeKey.bgColor,
             }}
-            className="relative w-16 h-16 overflow-hidden border border-[var(--accent-primary)] flex items-center justify-center shrink-0"
+            className="relative w-16 h-16 overflow-hidden border border-[var(--accent-primary)]/80 shadow-[0_4px_14px_rgba(0,0,0,0.35)] flex items-center justify-center shrink-0"
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault();
@@ -236,19 +249,23 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
         )}
 
         {surface === "zone" && activeZone && (
-          <div className="flex flex-col gap-2">
-            <label className="text-[11.5px] text-[var(--text-secondary)]">Zone label</label>
-            <input
-              value={activeZone.label}
-              onChange={(e) => updateSelectedZone(activeZone.index, { label: e.target.value })}
-              className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
-            />
-            <label className="text-[11.5px] text-[var(--text-secondary)]">Value text</label>
-            <input
-              value={activeZone.valueText}
-              onChange={(e) => updateSelectedZone(activeZone.index, { valueText: e.target.value })}
-              className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
-            />
+          <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11.5px] text-[var(--text-secondary)]">Zone label</label>
+              <input
+                value={activeZone.label}
+                onChange={(e) => updateSelectedZone(activeZone.index, { label: e.target.value })}
+                className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
+              />
+            </div>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11.5px] text-[var(--text-secondary)]">Value text</label>
+              <input
+                value={activeZone.valueText}
+                onChange={(e) => updateSelectedZone(activeZone.index, { valueText: e.target.value })}
+                className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
+              />
+            </div>
             <ActionBinding
               label="Tap"
               actionId={activeZone.tapActionId}
@@ -288,13 +305,15 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
           ).toUpperCase();
           const ledOff = ledColor === "#000000";
           return (
-          <div className="flex flex-col gap-2">
-            <label className="text-[11.5px] text-[var(--text-secondary)]">Label</label>
-            <input
-              value={activeEncoder.label}
-              onChange={(e) => updateSelectedEncoder(activeEncoder.index, { label: e.target.value })}
-              className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
-            />
+          <div className="flex flex-col gap-2.5">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11.5px] text-[var(--text-secondary)]">Label</label>
+              <input
+                value={activeEncoder.label}
+                onChange={(e) => updateSelectedEncoder(activeEncoder.index, { label: e.target.value })}
+                className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
+              />
+            </div>
             <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[11.5px] font-semibold text-[var(--text-primary)]">
@@ -372,6 +391,45 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 >
                   Reset LEDs
                 </button>
+                {profileColorStrip && (
+                  <button
+                    type="button"
+                    onClick={() => onKnobLedChange("all", profileColorStrip)}
+                    title={`Set all 4 knobs to profile accent (${profileColorStrip})`}
+                    className="min-w-0 min-h-8 px-1.5 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center justify-center gap-1.5"
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: profileColorStrip }} />
+                    <span className="truncate">Match profile</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={onApplyKnobLedsToAllPages}
+                  title="Copy this page's 4 knob LED colors to every page in this profile"
+                  className="min-w-0 min-h-8 px-1 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                >
+                  All pages
+                </button>
+              </div>
+              <div className="pt-1 border-t border-[var(--border-subtle)] flex flex-col gap-1.5">
+                <span className="text-[10.5px] text-[var(--text-muted)]">Palettes</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {KNOB_LED_PALETTES.map((palette) => (
+                    <button
+                      key={palette.name}
+                      type="button"
+                      onClick={() => onApplyKnobLedPalette(palette.colors, palette.name)}
+                      className="h-7 px-2 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] flex items-center justify-between gap-1.5 cursor-pointer"
+                    >
+                      <span className="text-[10.5px] font-medium text-[var(--text-secondary)]">{palette.name}</span>
+                      <span className="flex items-center gap-0.5">
+                        {palette.colors.map((c, idx) => (
+                          <span key={idx} className="w-2 h-2 rounded-full" style={{ backgroundColor: c }} />
+                        ))}
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             {(["cw", "ccw", "push"] as const).map((field) => {
@@ -451,7 +509,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
         )}
 
         {/* Segmented Tabs: General (Action) | Icon (Appearance) | Style (Behavior) */}
-        <div role="tablist" aria-label="Button properties" className="grid grid-cols-3 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
+        <div role="tablist" aria-label="Button properties" className="grid grid-cols-3 gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
           {(["Action", "Appearance", "Behavior"] as const).map((tab) => (
             <button
               key={tab}
@@ -459,10 +517,10 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
               role="tab"
               aria-selected={inspectorTab === tab}
               onClick={() => setInspectorTab(tab)}
-              className={`h-7 rounded text-[11.5px] font-medium cursor-pointer transition-all ${
+              className={`h-7 rounded text-[11.5px] font-medium cursor-pointer transition-all border ${
                 inspectorTab === tab
-                  ? "bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold shadow-xs"
-                  : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
+                  : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
               }`}
             >
               {tab === "Action" ? "General" : tab === "Appearance" ? "Icon" : "Style"}
