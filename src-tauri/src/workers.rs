@@ -117,6 +117,10 @@ fn run_input_work(app_handle: &tauri::AppHandle, shared: &SharedState, work: Inp
     if !drivers::hal::deck_control_available() { return; }
     performance::record(performance::Stage::ActionQueue, queued_at.elapsed());
     let action_timing = performance::timer(performance::Stage::Action);
+    let result = dispatch_live_action(app_handle, shared, &action);
+    drop(action_timing);
+    // Waking the panel includes a firmware pause. Start the user's action first
+    // so that display housekeeping cannot delay a hotkey or media command.
     let dev = shared
         .lock_safe()
         .devices
@@ -126,8 +130,6 @@ fn run_input_work(app_handle: &tauri::AppHandle, shared: &SharedState, work: Inp
     if let Some(dev) = dev {
         let _ = wake_panel(&dev);
     }
-    let result = dispatch_live_action(app_handle, shared, &action);
-    drop(action_timing);
     let mut guard = shared.lock_safe();
     guard.diagnostics.push(DiagnosticEntry {
         id: format!("diag-hw-{}", ts),

@@ -52,7 +52,7 @@ export function PerformancePanel() {
           </tr>)}</tbody>
         </table>
       </div>
-      <p className="text-xs text-[var(--text-muted)] leading-relaxed">p95: 95% of recent samples finished within this time. A dash means no samples. Stages can overlap; do not add them together. Action handling includes panel wake-up and dispatch; asynchronous macros and Game Mode report dispatch only. USB execution includes protocol waits. Failed operations are included where measured. These are internal timings, not physical button-to-screen latency or CPU usage.</p>
+      <p className="text-xs text-[var(--text-muted)] leading-relaxed">p95: 95% of recent samples finished within this time. A dash means no samples. Stages can overlap; do not add them together. Action handling measures dispatch before panel wake-up; asynchronous macros and Game Mode report dispatch only. USB execution includes protocol waits. Failed operations are included where measured. These are internal timings, not physical button-to-screen latency or CPU usage.</p>
     </>}
   </section>;
 }
