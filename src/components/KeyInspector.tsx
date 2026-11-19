@@ -431,6 +431,30 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   ))}
                 </div>
               </div>
+              <div className="pt-1 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
+                <div>
+                  <div className="text-[11px] font-medium text-[var(--text-primary)]">Reactive LED</div>
+                  <div className="text-[10px] text-[var(--text-muted)]">
+                    Turns red when muted; highlights when active
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={!!activeEncoder.ledReactive}
+                  aria-label="Toggle reactive knob LED"
+                  onClick={() => updateSelectedEncoder(activeEncoder.index, { ledReactive: !activeEncoder.ledReactive })}
+                  className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
+                    activeEncoder.ledReactive ? "bg-[var(--accent-primary)]" : "bg-[var(--border-subtle)]"
+                  }`}
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-white transition-transform ${
+                      activeEncoder.ledReactive ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
             {(["cw", "ccw", "push"] as const).map((field) => {
               const stored = field === "cw" ? activeEncoder.cwAction : field === "ccw" ? activeEncoder.ccwAction : activeEncoder.pushAction;

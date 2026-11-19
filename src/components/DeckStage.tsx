@@ -79,10 +79,11 @@ export const DeckStage: React.FC<DeckStageProps> = ({
   const [draggingKey, setDraggingKey] = React.useState<number | null>(null);
   const [dropPage, setDropPage] = React.useState<number | null>(null);
   return (
-    <div className="min-h-0 flex-1 flex flex-col items-center justify-start px-6 py-4 gap-3 overflow-y-auto">
+    <div className="min-h-0 flex-1 flex flex-col items-center px-6 py-4 overflow-y-auto">
+      <div className="my-auto w-full flex flex-col items-center gap-3.5">
       <div
         style={{ transform: `scale(${canvasZoom / 100})` }}
-        className="shrink-0 origin-top bg-[var(--bg-panel)] border border-[var(--border-strong)]/70 rounded-[var(--radius-lg)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_16px_40px_rgba(0,0,0,0.45)] transition-transform max-w-[650px] w-full flex flex-col gap-3"
+        className="shrink-0 origin-top bg-gradient-to-b from-[var(--bg-elevated)]/85 to-[var(--bg-panel)] border border-[var(--border-strong)]/80 rounded-2xl p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_20px_48px_rgba(0,0,0,0.5)] transition-transform max-w-[650px] w-full flex flex-col gap-3.5"
       >
         {/* Dynamic Key Grid matching real hardware rows x cols */}
         <div
@@ -145,14 +146,14 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                       ? `radial-gradient(circle at 50% 28%, ${k.accentColor}44, ${k.bgColor})`
                       : k.bgColor,
                 }}
-                className={`aspect-[1/0.9] border border-[var(--border-subtle)] p-2 flex flex-col items-center justify-center gap-1.5 relative overflow-hidden cursor-pointer active:cursor-grabbing transition-[outline-color,border-color,filter,transform] duration-150 outline outline-2 outline-offset-2 group hover:brightness-110 ${
+                className={`aspect-[1/0.9] border border-[var(--border-subtle)] p-2 flex flex-col items-center justify-center gap-1.5 relative overflow-hidden cursor-pointer active:cursor-grabbing active:scale-[0.97] transition-[box-shadow,border-color,filter,transform] duration-150 group hover:brightness-110 ${
                   dropTarget === k.index
-                    ? "outline-[var(--accent-hover)] scale-[1.03]"
+                    ? "ring-2 ring-[var(--accent-hover)] ring-offset-2 ring-offset-[var(--bg-panel)] scale-[1.03]"
                     : isLivePressed
-                    ? "outline-[var(--status-success)] scale-95"
+                    ? "ring-2 ring-[var(--status-success)] ring-offset-2 ring-offset-[var(--bg-panel)] scale-95"
                     : isSelected
-                    ? "outline-[var(--accent-primary)] shadow-[0_0_16px_rgba(124,131,247,0.2)]"
-                    : "outline-transparent hover:border-[var(--border-strong)]"
+                    ? "ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-panel)] shadow-[0_0_18px_rgba(124,131,247,0.24)]"
+                    : "hover:border-[var(--border-strong)] hover:-translate-y-[1px]"
                 }`}
               >
                 {clip ? (
@@ -309,7 +310,18 @@ export const DeckStage: React.FC<DeckStageProps> = ({
           >
             {activePage.encoders.slice(0, activeDevice.encoders.count).map((enc) => {
               const knobValue = encoderAudioLook(enc, face);
+              const reactiveColor = (() => {
+                if (!enc.ledReactive || !face) return null;
+                const actions = [enc.pushAction, enc.cwAction, enc.ccwAction];
+                if (actions.includes("audio.mute_mic") && face.micMuted) return "#F16B79";
+                if (actions.some((a) => a === "audio.volume_mute" || a === "audio.volume_up" || a === "audio.volume_down") && face.speakerMuted) return "#F16B79";
+                if (knobValue.muted) return "#F16B79";
+                if (actions.includes("sys.game_mode") && face.gameMode) return "#35C98B";
+                if (actions.some((a) => a === "media.play_pause" || a === "media.next" || a === "media.prev") && face.mediaPlaying) return "#35C98B";
+                return null;
+              })();
               const ledColor = (
+                reactiveColor ||
                 enc.ledColor ||
                 DEFAULT_KNOB_LED_COLORS[enc.index] ||
                 "#35C98B"
@@ -470,7 +482,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
         </div>
       ) : (
       <div className="flex items-center flex-wrap justify-center gap-1.5">
-        <div className="flex items-center bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-[var(--radius-sm)] h-8 px-1">
+        <div className="flex items-center bg-[var(--bg-panel)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] rounded-[var(--radius-sm)] h-8 px-1 transition-colors">
           <button
             type="button"
             disabled={selectedPageIdx === 0}
@@ -519,7 +531,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
           onClick={handleAddPage}
           title="Add a page"
           aria-label="Add a page"
-          className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer"
+          className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer transition-colors"
         >
           <Plus size={13} />
         </button>
@@ -528,13 +540,14 @@ export const DeckStage: React.FC<DeckStageProps> = ({
           onClick={() => setTemplatesOpen(true)}
           title="Page templates"
           aria-label="Page templates"
-          className="h-8 px-2.5 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1.5 text-[11px] font-medium cursor-pointer"
+          className="h-8 px-2.5 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1.5 text-[11px] font-medium cursor-pointer transition-colors"
         >
           <LayoutTemplate size={13} /> Templates
         </button>
         <PageApps rules={autoSwitchRules} profile={activeProfile} pageIndex={selectedPageIdx} saveRules={saveRules} />
       </div>
       )}
+      </div>
     </div>
   );
 };

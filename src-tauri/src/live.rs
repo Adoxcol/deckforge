@@ -489,18 +489,81 @@ pub(crate) enum KnobLedSyncAction {
     Reset,
 }
 
+pub(crate) fn reactive_encoder_color(enc: &db::EncoderConfig, face: &DeckFaceState) -> Option<&'static str> {
+    if !enc.led_reactive {
+        return None;
+    }
+    let slots = [
+        (&enc.push_action, &enc.push_param),
+        (&enc.cw_action, &enc.cw_param),
+        (&enc.ccw_action, &enc.ccw_param),
+    ];
+    for (action, param) in slots {
+        match action.as_str() {
+            "audio.mute_mic" if face.mic_muted == Some(true) => return Some("#F16B79"),
+            "audio.volume_mute" | "audio.volume_up" | "audio.volume_down"
+                if face.speaker_muted == Some(true) =>
+            {
+                return Some("#F16B79")
+            }
+            "audio.app_mute" | "audio.app_volume_up" | "audio.app_volume_down" => {
+                let target = if param.trim().eq_ignore_ascii_case(actions::app_audio::FOREGROUND_TARGET) {
+                    face.foreground_audio_exe.as_deref().unwrap_or("")
+                } else {
+                    param.trim()
+                };
+                if !target.is_empty() {
+                    if let Some(apps) = &face.app_audio {
+                        let lower = target.to_lowercase();
+                        if apps.iter().any(|(exe, st)| exe.eq_ignore_ascii_case(&lower) && st.muted) {
+                            return Some("#F16B79");
+                        }
+                    }
+                }
+            }
+            "sys.game_mode" if face.game_mode == Some(true) => return Some("#35C98B"),
+            "media.play_pause" | "media.next" | "media.prev"
+                if face.media_playing == Some(true) =>
+            {
+                return Some("#35C98B")
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
+pub(crate) fn effective_page_knob_colors(page: &ProfilePage, face: &DeckFaceState) -> Vec<String> {
+    (0..4)
+        .map(|i| {
+            page.encoders
+                .iter()
+                .find(|e| e.index as usize == i)
+                .map(|e| {
+                    reactive_encoder_color(e, face)
+                        .map(str::to_string)
+                        .unwrap_or_else(|| e.led_color.clone())
+                })
+                .unwrap_or_default()
+        })
+        .collect()
+}
+
+#[cfg(test)]
 pub(crate) fn plan_page_knob_leds(page: &ProfilePage, custom_active: bool) -> KnobLedSyncAction {
-    if page.encoders.iter().any(|e| !e.led_color.trim().is_empty()) {
-        let colors: Vec<String> = (0..4)
-            .map(|i| {
-                page.encoders
-                    .iter()
-                    .find(|e| e.index as usize == i)
-                    .map(|e| e.led_color.clone())
-                    .unwrap_or_default()
-            })
-            .collect();
-        KnobLedSyncAction::Set(colors)
+    plan_page_knob_leds_with_face(page, &DeckFaceState::default(), custom_active)
+}
+
+pub(crate) fn plan_page_knob_leds_with_face(
+    page: &ProfilePage,
+    face: &DeckFaceState,
+    custom_active: bool,
+) -> KnobLedSyncAction {
+    let has_override = page.encoders.iter().any(|e| {
+        !e.led_color.trim().is_empty() || reactive_encoder_color(e, face).is_some()
+    });
+    if has_override {
+        KnobLedSyncAction::Set(effective_page_knob_colors(page, face))
     } else if custom_active {
         KnobLedSyncAction::Reset
     } else {
@@ -509,19 +572,26 @@ pub(crate) fn plan_page_knob_leds(page: &ProfilePage, custom_active: bool) -> Kn
 }
 
 pub(crate) fn sync_page_knob_leds(shared: &SharedState, dev: &DeviceDescriptor, page: &ProfilePage) {
-    let custom_active = shared.lock_safe().custom_knob_leds_active;
-    let action = plan_page_knob_leds(page, custom_active);
+    let (custom_active, face) = {
+        let guard = shared.lock_safe();
+        (guard.custom_knob_leds_active, guard.face.clone())
+    };
+    let action = plan_page_knob_leds_with_face(page, &face, custom_active);
     let mut diags = Vec::new();
     match action {
         KnobLedSyncAction::None => return,
         KnobLedSyncAction::Set(colors) => {
             if send_hardware_knob_leds(dev, &colors, &mut diags).is_ok() {
-                shared.lock_safe().custom_knob_leds_active = true;
+                let mut guard = shared.lock_safe();
+                guard.custom_knob_leds_active = true;
+                guard.last_reactive_knob_leds = Some(colors);
             }
         }
         KnobLedSyncAction::Reset => {
             if reset_hardware_knob_leds(dev, &mut diags).is_ok() {
-                shared.lock_safe().custom_knob_leds_active = false;
+                let mut guard = shared.lock_safe();
+                guard.custom_knob_leds_active = false;
+                guard.last_reactive_knob_leds = None;
             }
         }
     }
@@ -952,8 +1022,34 @@ fn read_face(previous: &DeckFaceState, needs_apps: bool, needs_foreground: bool)
 
 pub(crate) fn push_face_deltas(shared: &SharedState, app: &tauri::AppHandle) {
     let _display = DISPLAY_WRITE.lock_safe();
-    let face = shared.lock_safe().face.clone();
+    let (face, reactive_target) = {
+        let guard = shared.lock_safe();
+        let target = if guard.layout_ready {
+            guard.applied_layout.as_ref().and_then(|applied| {
+                if !applied.page.encoders.iter().any(|e| e.led_reactive) {
+                    return None;
+                }
+                let dev = guard.devices.iter().find(|d| d.id == guard.playback_device_id && d.connected)?.clone();
+                let colors = effective_page_knob_colors(&applied.page, &guard.face);
+                if guard.last_reactive_knob_leds.as_ref() == Some(&colors) {
+                    return None;
+                }
+                Some((dev, colors))
+            })
+        } else {
+            None
+        };
+        (guard.face.clone(), target)
+    };
     let _ = app.emit("deck-face", &face);
+    if let Some((dev, colors)) = reactive_target {
+        let mut diags = Vec::new();
+        if send_hardware_knob_leds(&dev, &colors, &mut diags).is_ok() {
+            let mut guard = shared.lock_safe();
+            guard.custom_knob_leds_active = true;
+            guard.last_reactive_knob_leds = Some(colors);
+        }
+    }
     let prepared = face_delta_bursts(shared, &face);
     let Some((dev, bursts)) = prepared else {
         return;
@@ -1210,7 +1306,20 @@ mod live_tests {
             sample_after_ms: 0,
             auto_switch_hold_until_ms: 0,
             custom_knob_leds_active: false,
+            last_reactive_knob_leds: None,
         }))
+    }
+
+    #[test]
+    fn reactive_knob_led_turns_red_when_muted() {
+        let mut page = db::default_profiles().remove(0).pages.remove(0);
+        page.encoders[0].led_reactive = true;
+        page.encoders[0].led_color = "#35C98B".into();
+        let mut face = DeckFaceState::default();
+        assert_eq!(reactive_encoder_color(&page.encoders[0], &face), None);
+        face.speaker_muted = Some(true);
+        assert_eq!(reactive_encoder_color(&page.encoders[0], &face), Some("#F16B79"));
+        assert_eq!(effective_page_knob_colors(&page, &face)[0], "#F16B79");
     }
 
     #[test]

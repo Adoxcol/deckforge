@@ -237,6 +237,7 @@ function readEncoder(raw: Rec, fallbackIndex: number): EncoderConfig {
     ccwParam: str(raw.ccwParam),
     pushParam: str(raw.pushParam),
     ...(rawLed ? { ledColor: color(rawLed, "#35C98B") } : {}),
+    ...(bool(raw.ledReactive, false) ? { ledReactive: true } : {}),
   };
 }
 

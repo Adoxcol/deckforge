@@ -47,6 +47,10 @@ pub struct TouchZoneConfig {
     pub media: Option<ScreenMediaConfig>,
 }
 
+fn is_false(v: &bool) -> bool {
+    !*v
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EncoderConfig {
@@ -64,6 +68,8 @@ pub struct EncoderConfig {
     pub push_param: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub led_color: String,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub led_reactive: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -253,6 +259,7 @@ pub fn default_encoders() -> Vec<EncoderConfig> {
             ccw_param: String::new(),
             push_param: String::new(),
             led_color: String::new(),
+            led_reactive: false,
         },
         EncoderConfig {
             index: 1,
@@ -265,6 +272,7 @@ pub fn default_encoders() -> Vec<EncoderConfig> {
             ccw_param: String::new(),
             push_param: String::new(),
             led_color: String::new(),
+            led_reactive: false,
         },
         EncoderConfig {
             index: 2,
@@ -277,6 +285,7 @@ pub fn default_encoders() -> Vec<EncoderConfig> {
             ccw_param: String::new(),
             push_param: String::new(),
             led_color: String::new(),
+            led_reactive: false,
         },
         EncoderConfig {
             index: 3,
@@ -289,6 +298,7 @@ pub fn default_encoders() -> Vec<EncoderConfig> {
             ccw_param: String::new(),
             push_param: String::new(),
             led_color: String::new(),
+            led_reactive: false,
         },
     ]
 }

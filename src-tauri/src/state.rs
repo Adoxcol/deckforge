@@ -155,6 +155,7 @@ pub struct ManagedAppState {
     pub sample_after_ms: u64,
     pub auto_switch_hold_until_ms: u64,
     pub custom_knob_leds_active: bool,
+    pub last_reactive_knob_leds: Option<Vec<String>>,
 }
 
 impl Default for ManagedAppState {
@@ -238,6 +239,7 @@ impl Default for ManagedAppState {
             sample_after_ms: 0,
             auto_switch_hold_until_ms: 0,
             custom_knob_leds_active: false,
+            last_reactive_knob_leds: None,
         }
     }
 }

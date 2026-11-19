@@ -106,6 +106,7 @@ export interface EncoderConfig {
   ccwParam?: string;
   pushParam?: string;
   ledColor?: string;
+  ledReactive?: boolean;
 }
 
 export interface ProfilePage {
