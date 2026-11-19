@@ -13,6 +13,7 @@ import {
   type DeckFaceState,
   type DeviceDescriptor,
   type EncoderConfig,
+  type HotkeyCapture,
   type KeyConfig,
   type KnobLedEffect,
   type MacroSequence,
@@ -57,7 +58,7 @@ interface KeyInspectorProps {
   fileRef: React.RefObject<HTMLInputElement | null>;
   handleClearSelectedKey: () => void;
   handleTestSelectedAction: () => Promise<void>;
-  hotkeyTarget: "key" | "zone" | "push" | "cw" | "ccw" | null;
+  hotkeyTarget: HotkeyCapture | null;
   ingestFile: (file: File, target: ScreenTarget, index: number) => Promise<void>;
   inspectorTab: "Action" | "Appearance" | "Behavior";
   macros: MacroSequence[];
@@ -68,7 +69,7 @@ interface KeyInspectorProps {
   setActionCategoryFilter: React.Dispatch<React.SetStateAction<string>>;
   setClipboardKey: React.Dispatch<React.SetStateAction<KeyConfig | null>>;
   setCustomActions: React.Dispatch<React.SetStateAction<ActionTemplate[]>>;
-  setHotkeyTarget: React.Dispatch<React.SetStateAction<"key" | "zone" | "push" | "cw" | "ccw" | null>>;
+  setHotkeyTarget: React.Dispatch<React.SetStateAction<HotkeyCapture | null>>;
   setInspectorTab: React.Dispatch<React.SetStateAction<"Action" | "Appearance" | "Behavior">>;
   surface: "key" | "zone" | "strip" | "encoder";
   surfaceIndex: number;
@@ -516,7 +517,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
         {surface === "key" && (
         <>
         <ActionBinding
-          label="Action"
+          label="Tap"
           actionId={activeKey.actionId}
           actionParam={activeKey.actionParam}
           choices={allActionTemplates}
@@ -552,7 +553,42 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
           }}
           paramOptions={paramOptionsFor(activeKey.actionId)}
         />
-        {activeKey.actionId.startsWith("obs.") && (
+        <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
+          A double-press waits a moment so it can be told apart from a tap. A hold runs when the key stays down.
+        </p>
+        {(["doublePress", "hold"] as const).map((which) => {
+          const label = which === "doublePress" ? "Double-press" : "Hold";
+          const target = which === "doublePress" ? "double" : "hold";
+          const gesture = activeKey[which];
+          const choices = [{ id: "none", actionLabel: "Not set", title: "Not set", category: "System", defaultParam: "" }, ...allActionTemplates];
+          return (
+            <ActionBinding
+              key={which}
+              label={label}
+              actionId={gesture?.actionId || "none"}
+              actionParam={gesture?.actionParam ?? ""}
+              choices={choices}
+              recording={hotkeyTarget === target}
+              onRecord={() => setHotkeyTarget(target)}
+              onChange={(actionId, actionParam) => {
+                if (!actionId || actionId === "none") {
+                  updateSelectedKey({ [which]: null });
+                  return;
+                }
+                const tpl = allActionTemplates.find((item) => item.id === actionId);
+                updateSelectedKey({
+                  [which]: {
+                    actionId,
+                    actionParam,
+                    actionLabel: tpl && actionId !== gesture?.actionId ? tpl.actionLabel : gesture?.actionLabel || tpl?.actionLabel || actionId,
+                  },
+                });
+              }}
+              paramOptions={paramOptionsFor(gesture?.actionId || "none")}
+            />
+          );
+        })}
+        {[activeKey.actionId, activeKey.doublePress?.actionId, activeKey.hold?.actionId].some((action) => action?.startsWith("obs.")) && (
           <ObsConnection obsSettings={obsSettings} onSave={saveObs} />
         )}
 

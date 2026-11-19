@@ -77,6 +77,7 @@ import {
   FrameCacheStats,
   EncoderConfig,
   KeyConfig,
+  type HotkeyCapture,
   type KnobLedEffect,
   LegacyStreamDockSummary,
   PluginView,
@@ -109,7 +110,7 @@ type EditorActions = {
   recoveryError: string | null;
   quitOpen: boolean;
   showOnboarding: boolean;
-  hotkeyTarget: "key" | "zone" | "cw" | "ccw" | "push" | null;
+  hotkeyTarget: HotkeyCapture | null;
   activeKey: KeyConfig | null;
   activeZone: TouchZoneConfig | null;
   activeEncoder: EncoderConfig | null;
@@ -485,7 +486,7 @@ export const App: React.FC = () => {
     );
   };
 
-  const [hotkeyTarget, setHotkeyTarget] = useState<"key" | "zone" | "cw" | "ccw" | "push" | null>(null);
+  const [hotkeyTarget, setHotkeyTarget] = useState<HotkeyCapture | null>(null);
   const [customActions, setCustomActions] = useState<ActionTemplate[]>([]);
 
   const [plugins, setPlugins] = useState<PluginView[]>([]);
@@ -539,6 +540,16 @@ export const App: React.FC = () => {
               activeKey?.actionId === "none" || activeKey?.actionId === "custom.hotkey"
                 ? "Custom: Keyboard Shortcut / Hotkey"
                 : activeKey?.actionLabel,
+          });
+        } else if ((hotkeyTarget === "double" || hotkeyTarget === "hold") && activeKey) {
+          const which = hotkeyTarget === "double" ? "doublePress" : "hold";
+          const prev = activeKey[which];
+          editor.updateSelectedKey({
+            [which]: {
+              actionId: prev?.actionId === "sys.hotkey" ? "sys.hotkey" : "custom.hotkey",
+              actionLabel: prev?.actionLabel || "Custom: Keyboard Shortcut / Hotkey",
+              actionParam: combo,
+            },
           });
         } else if (hotkeyTarget === "zone" && activeZone) {
           editor.updateSelectedZone(activeZone.index, { tapActionId: "custom.hotkey", tapActionParam: combo });
@@ -795,7 +806,8 @@ export const App: React.FC = () => {
     const source = activeProfile.pages[selectedPageIdx]?.keys.find((k) => k.index === keyIndex);
     const target = activeProfile.pages[pageIndex];
     if (!source || !target) return;
-    const isEmpty = (k: KeyConfig) => k.actionId === "none" && !k.customImageDataUrl;
+    const gestureSet = (gesture?: { actionId: string } | null) => !!gesture && gesture.actionId !== "" && gesture.actionId !== "none";
+    const isEmpty = (k: KeyConfig) => k.actionId === "none" && !k.customImageDataUrl && !gestureSet(k.doublePress) && !gestureSet(k.hold);
     const slot = target.keys.find((k) => k.index === keyIndex && isEmpty(k)) ?? target.keys.find(isEmpty);
     if (!slot) {
       triggerToast(`${target.name} has no empty key. Clear one there first.`, "warning");
@@ -811,6 +823,8 @@ export const App: React.FC = () => {
       actionCategory: "System",
       customImageDataUrl: undefined,
       actionParam: "",
+      doublePress: null,
+      hold: null,
       accentColor: "#394158",
       bgColor: "#151925",
     };
@@ -1124,6 +1138,8 @@ export const App: React.FC = () => {
       actionCategory: "System",
       customImageDataUrl: undefined,
       actionParam: "",
+      doublePress: null,
+      hold: null,
       accentColor: "#394158",
       bgColor: "#151925",
       media: null,

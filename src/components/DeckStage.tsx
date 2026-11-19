@@ -106,7 +106,7 @@ export const DeckStage = React.memo(function DeckStage({
                 key={k.index}
                 type="button"
                 aria-pressed={isSelected}
-                aria-label={`Key ${k.index + 1}: ${look.title || "Empty"}`}
+                aria-label={`Key ${k.index + 1}: ${look.title || "Empty"}${k.doublePress ? ", double-press" : ""}${k.hold ? ", hold" : ""}`}
                 onClick={() => {
                   setSurface("key");
                   setSurfaceIndex(k.index);

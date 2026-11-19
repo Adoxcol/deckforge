@@ -64,6 +64,15 @@ export interface MediaPreview {
   frames: string[];
 }
 
+/** A second or third action on one key. Absent means that gesture does nothing extra. */
+export interface KeyGestureBinding {
+  actionId: string;
+  actionLabel: string;
+  actionParam: string;
+}
+
+export type HotkeyCapture = "key" | "double" | "hold" | "zone" | "cw" | "ccw" | "push";
+
 export interface KeyConfig {
   index: number;
   title: string;
@@ -75,6 +84,8 @@ export interface KeyConfig {
   actionLabel: string;
   actionCategory: string;
   actionParam: string;
+  doublePress?: KeyGestureBinding | null;
+  hold?: KeyGestureBinding | null;
   accentColor: string;
   bgColor: string;
   showTitle: boolean;

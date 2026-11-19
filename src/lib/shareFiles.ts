@@ -111,7 +111,18 @@ export function rewriteActions(
       ...page,
       keys: page.keys.map((key) => {
         const next = fn(key.actionId, key.actionParam);
-        return { ...key, actionId: next.actionId, actionParam: next.param };
+        const rewriteGesture = (gesture: KeyConfig["doublePress"]) => {
+          if (!gesture) return gesture;
+          const mapped = fn(gesture.actionId, gesture.actionParam);
+          return { ...gesture, actionId: mapped.actionId, actionParam: mapped.param };
+        };
+        return {
+          ...key,
+          actionId: next.actionId,
+          actionParam: next.param,
+          doublePress: rewriteGesture(key.doublePress),
+          hold: rewriteGesture(key.hold),
+        };
       }),
       touchZones: page.touchZones.map((zone) => {
         const next = fn(zone.tapActionId, zone.tapActionParam ?? "");
@@ -190,6 +201,26 @@ export function buildProfileFile(
 
 const TITLE_SIZES = ["Small", "Medium", "Large"] as const;
 const BACKGROUNDS = ["Gradient", "Solid", "Image"] as const;
+function readGesture(raw: unknown): KeyConfig["doublePress"] {
+  if (!isRec(raw)) return null;
+  const actionId = str(raw.actionId);
+  if (!actionId || actionId === "none") return null;
+  return {
+    actionId,
+    actionLabel: str(raw.actionLabel).slice(0, 80),
+    actionParam: str(raw.actionParam),
+  };
+}
+
+function gestureFields(raw: Rec): Pick<KeyConfig, "doublePress" | "hold"> {
+  const doublePress = readGesture(raw.doublePress);
+  const hold = readGesture(raw.hold);
+  return {
+    ...(doublePress ? { doublePress } : {}),
+    ...(hold ? { hold } : {}),
+  };
+}
+
 function readKey(raw: Rec, fallbackIndex: number): KeyConfig {
   const image = str(raw.customImageDataUrl);
   return {
@@ -203,6 +234,7 @@ function readKey(raw: Rec, fallbackIndex: number): KeyConfig {
     actionLabel: str(raw.actionLabel, "No action"),
     actionCategory: str(raw.actionCategory, "Custom"),
     actionParam: str(raw.actionParam),
+    ...gestureFields(raw),
     accentColor: color(raw.accentColor, "#8B5CF6"),
     bgColor: color(raw.bgColor, "#231B38"),
     showTitle: bool(raw.showTitle, true),
