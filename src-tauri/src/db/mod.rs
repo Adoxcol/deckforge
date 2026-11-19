@@ -12,6 +12,22 @@ pub struct ScreenMediaConfig {
     pub speed: f32,
 }
 
+/// A second or third action on one key. Missing on profiles saved before gestures existed.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct KeyGesture {
+    pub action_id: String,
+    pub action_label: String,
+    pub action_param: String,
+}
+
+impl KeyGesture {
+    pub fn is_set(&self) -> bool {
+        let id = self.action_id.trim();
+        !id.is_empty() && id != "none"
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct KeyConfig {
@@ -31,6 +47,10 @@ pub struct KeyConfig {
     pub corner_radius: u8,
     #[serde(default)]
     pub media: Option<ScreenMediaConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub double_press: Option<KeyGesture>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hold: Option<KeyGesture>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -202,6 +222,8 @@ pub fn default_keys() -> Vec<KeyConfig> {
             background_style: "Gradient".to_string(),
             corner_radius: 8,
             media: None,
+            double_press: None,
+            hold: None,
         });
     }
     out
@@ -335,6 +357,8 @@ fn paint_keys(specs: &[KeySpec], accent: &str, bg: &str) -> Vec<KeyConfig> {
             background_style: "Gradient".to_string(),
             corner_radius: 8,
             media: None,
+            double_press: None,
+            hold: None,
         });
     }
     out
@@ -845,6 +869,8 @@ fn parse_sdprofile_action(key_index: u8, act_val: &serde_json::Value) -> KeyConf
         background_style: "Gradient".to_string(),
         corner_radius: 8,
         media: None,
+        double_press: None,
+        hold: None,
     }
 }
 
@@ -922,6 +948,8 @@ pub fn parse_all_legacy_sdprofiles() -> Vec<Profile> {
                 background_style: "Gradient".to_string(),
                 corner_radius: 8,
                 media: None,
+                double_press: None,
+                hold: None,
             })
             .collect();
 
@@ -1396,6 +1424,17 @@ mod tests {
         for index in 1..1000 { fs::write(path.with_extension(format!("pre-v1-{index}.json")), "old backup").unwrap(); }
         assert!(write_profiles_at(&path, &default_profiles()).unwrap_err().contains("backup filename"));
         assert_eq!(fs::read_to_string(&path).unwrap(), "[]");
+    }
+
+    #[test]
+    fn a_key_saved_before_gestures_still_loads() {
+        let raw = r##"{"index":0,"title":"Start Stream","subtitle":"LIVE","iconName":"Radio","actionId":"obs.start_stream","actionLabel":"OBS","actionCategory":"OBS","actionParam":"","accentColor":"#F16B79","bgColor":"#2A1521","showTitle":true,"titleSize":"Medium","backgroundStyle":"Gradient","cornerRadius":8}"##;
+        let key: KeyConfig = serde_json::from_str(raw).unwrap();
+        assert!(key.double_press.is_none());
+        assert!(key.hold.is_none());
+        let stored = serde_json::to_string(&key).unwrap();
+        assert!(!stored.contains("doublePress"));
+        assert!(!stored.contains("hold"));
     }
 
     #[test]

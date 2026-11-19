@@ -1,4 +1,5 @@
 use super::*;
+use super::gestures::{GestureEdge, GestureKind, GestureTracker};
 
 pub(crate) fn spawn_desktop_worker(app: tauri::AppHandle, shared: SharedState) {
     std::thread::spawn(move || {
@@ -148,6 +149,44 @@ fn run_input_work(app_handle: &tauri::AppHandle, shared: &SharedState, work: Inp
     }
 }
 
+fn due_gestures(gestures: &mut GestureTracker, shared: &SharedState) -> (String, Vec<(u8, GestureKind)>) {
+    let guard = shared.lock_safe();
+    let device_id = if !guard.playback_device_id.is_empty() {
+        guard.playback_device_id.clone()
+    } else {
+        guard.devices.iter().find(|device| device.connected).map(|device| device.id.clone()).unwrap_or_default()
+    };
+    let fires = gestures.poll(now_ms(), |index| key_gesture_bindings(&guard, index));
+    (device_id, fires)
+}
+
+fn queue_key_gestures(
+    work_tx: &std::sync::mpsc::Sender<InputWork>,
+    shared: &SharedState,
+    device_id: &str,
+    raw_hex: &str,
+    ts: u64,
+    received_at: std::time::Instant,
+    fires: Vec<(u8, GestureKind)>,
+) {
+    if fires.is_empty() {
+        return;
+    }
+    let actions: Vec<LiveAction> = {
+        let guard = shared.lock_safe();
+        fires.into_iter().filter_map(|(index, kind)| action_for_key_gesture(&guard, device_id, index, kind)).collect()
+    };
+    for action in actions {
+        let _ = work_tx.send(InputWork::Press {
+            action: Some(action),
+            ts,
+            raw_hex: raw_hex.to_string(),
+            queued_at: std::time::Instant::now(),
+            received_at,
+        });
+    }
+}
+
 pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: SharedState) {
     // Actions, panel wake-ups and full layout pushes can take seconds (macros sleep, a
     // layout push retries). Running them here stopped the deck's buttons from being read
@@ -168,6 +207,7 @@ pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: 
         let mut last_tap_ms: Vec<(u8, u8, u64)> = Vec::new();
         let mut strip_gesture = StripGesture::default();
         let mut seen_generation = 0u64;
+        let mut gestures = GestureTracker::new();
         loop {
             let generation = deck_generation();
             if generation != seen_generation && generation > 0 {
@@ -177,10 +217,14 @@ pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: 
                 held.clear();
                 last_tap_ms.clear();
                 strip_gesture = StripGesture::default();
+                gestures = GestureTracker::new();
                 let _ = work_tx.send(InputWork::FullLayout(generation));
                 continue;
             }
-            let Some(raw) = deck_next_report(60) else {
+            let raw = deck_next_report(60);
+            let (device_id, fires) = due_gestures(&mut gestures, &shared);
+            queue_key_gestures(&work_tx, &shared, &device_id, "", now_ms(), std::time::Instant::now(), fires);
+            let Some(raw) = raw else {
                 continue;
             };
             let received_at = std::time::Instant::now();
@@ -249,18 +293,25 @@ pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: 
                                 }
                             }
                             let _ = app_handle.emit("hardware-input", &evt);
-                            let pending = if evt.pressed || is_turn {
-                                Some(shared.lock_safe()).and_then(|mut guard| {
+                            if evt.kind == InputControlKind::LcdKey {
+                                let mut guard = shared.lock_safe();
+                                guard.recent_input_events.push(evt.clone());
+                                if guard.recent_input_events.len() > 25 {
+                                    guard.recent_input_events.remove(0);
+                                }
+                                let bindings = key_gesture_bindings(&guard, evt.control_index);
+                                drop(guard);
+                                let edge = if evt.pressed { GestureEdge::Down } else { GestureEdge::Up };
+                                let fires = gestures.edge(evt.control_index, edge, ts, bindings);
+                                queue_key_gestures(&work_tx, &shared, &evt.device_id, &evt.raw_hex, ts, received_at, fires);
+                            } else if evt.pressed || is_turn {
+                                let pending = Some(shared.lock_safe()).and_then(|mut guard| {
                                     guard.recent_input_events.push(evt.clone());
                                     if guard.recent_input_events.len() > 25 {
                                         guard.recent_input_events.remove(0);
                                     }
                                     action_for_event(&guard, &evt)
-                                })
-                            } else {
-                                None
-                            };
-                            if evt.pressed || is_turn {
+                                });
                                 let _ = work_tx.send(InputWork::Press {
                                     action: pending,
                                     ts,

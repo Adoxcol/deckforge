@@ -1,4 +1,6 @@
 use super::*;
+use super::db::KeyGesture;
+use super::gestures::{GestureBindings, GestureKind};
 
 pub(crate) struct LiveAction {
     pub(crate) action_id: String,
@@ -23,24 +25,58 @@ pub(crate) fn kind_code(kind: &InputControlKind) -> u8 {
     }
 }
 
+pub(crate) fn key_gesture_bindings(guard: &ManagedAppState, index: u8) -> GestureBindings {
+    let Some(page) = guard.applied_layout.as_ref().map(|layout| &layout.page) else {
+        return GestureBindings { has_double: false, has_hold: false };
+    };
+    let Some(key) = page.keys.iter().find(|key| key.index == index) else {
+        return GestureBindings { has_double: false, has_hold: false };
+    };
+    GestureBindings {
+        has_double: key.double_press.as_ref().is_some_and(KeyGesture::is_set),
+        has_hold: key.hold.as_ref().is_some_and(KeyGesture::is_set),
+    }
+}
+
+pub(crate) fn action_for_key_gesture(guard: &ManagedAppState, device_id: &str, index: u8, kind: GestureKind) -> Option<LiveAction> {
+    if !guard.layout_ready {
+        return None;
+    }
+    let page = &guard.applied_layout.as_ref()?.page;
+    let key = page.keys.iter().find(|key| key.index == index)?;
+    let (action_id, label, param, note) = match kind {
+        GestureKind::Tap => {
+            if key.action_id.is_empty() || key.action_id == "none" {
+                return None;
+            }
+            (key.action_id.clone(), key.action_label.clone(), key.action_param.clone(), format!("Key #{} ({})", index + 1, key.title))
+        }
+        GestureKind::Double => {
+            let gesture = key.double_press.as_ref().filter(|gesture| gesture.is_set())?;
+            (gesture.action_id.clone(), gesture.action_label.clone(), gesture.action_param.clone(), format!("Key #{} ({}) double-press", index + 1, key.title))
+        }
+        GestureKind::Hold => {
+            let gesture = key.hold.as_ref().filter(|gesture| gesture.is_set())?;
+            (gesture.action_id.clone(), gesture.action_label.clone(), gesture.action_param.clone(), format!("Key #{} ({}) hold", index + 1, key.title))
+        }
+    };
+    Some(LiveAction {
+        action_id,
+        label,
+        param,
+        note,
+        device_id: device_id.to_string(),
+        key_index: Some(index),
+    })
+}
+
 pub(crate) fn action_for_event(guard: &ManagedAppState, evt: &HardwareInputEvent) -> Option<LiveAction> {
     if !guard.layout_ready {
         return None;
     }
     let page = &guard.applied_layout.as_ref()?.page;
     match evt.kind {
-        InputControlKind::LcdKey => {
-            let key = page.keys.iter().find(|key| key.index == evt.control_index)?;
-            if key.action_id.is_empty() || key.action_id == "none" { return None; }
-            Some(LiveAction {
-                action_id: key.action_id.clone(),
-                label: key.action_label.clone(),
-                param: key.action_param.clone(),
-                note: format!("Key #{} ({})", evt.control_index + 1, key.title),
-                device_id: evt.device_id.clone(),
-                key_index: Some(evt.control_index),
-            })
-        }
+        InputControlKind::LcdKey => action_for_key_gesture(guard, &evt.device_id, evt.control_index, GestureKind::Tap),
         InputControlKind::RotaryKnobTurnCw => {
             let encoder = page.encoders.iter().find(|encoder| encoder.index == evt.control_index);
             Some(binding_action(
@@ -1981,7 +2017,7 @@ mod live_tests {
             action_id: action.into(), action_label: String::new(), action_category: String::new(),
             action_param: String::new(), accent_color: "#fff".into(), bg_color: "#000".into(),
             show_title: true, title_size: "Medium".into(), background_style: "Gradient".into(),
-            corner_radius: 8, media: None,
+            corner_radius: 8, media: None, double_press: None, hold: None,
         };
         let face = DeckFaceState {
             cpu_percent: Some(42), ram_percent: Some(61), clock: "09:05".into(),

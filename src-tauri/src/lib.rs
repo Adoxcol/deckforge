@@ -46,6 +46,7 @@ mod commands;
 mod discovery;
 mod backup;
 mod draft;
+mod gestures;
 mod live;
 mod macro_run;
 mod state;
