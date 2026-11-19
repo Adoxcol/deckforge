@@ -31,6 +31,8 @@ interface DeckStageProps {
   handleAddPage: () => void;
   ingestFile: (file: File, target: ScreenTarget, index: number) => Promise<void>;
   livePressedKeyIdx: number | null;
+  liveEncoderEvent?: { index: number; kind: "cw" | "ccw" | "push" } | null;
+  liveTouchZoneIdx?: number | null;
   selectedPageIdx: number;
   setSelectedKeyIdx: React.Dispatch<React.SetStateAction<number>>;
   setSelectedPageIdx: React.Dispatch<React.SetStateAction<number>>;
@@ -59,6 +61,8 @@ export const DeckStage: React.FC<DeckStageProps> = ({
   handleAddPage,
   ingestFile,
   livePressedKeyIdx,
+  liveEncoderEvent,
+  liveTouchZoneIdx,
   selectedPageIdx,
   setSelectedKeyIdx,
   setSelectedPageIdx,
@@ -267,6 +271,8 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                     className={`relative min-h-14 overflow-hidden px-2.5 py-1.5 rounded-lg bg-[var(--bg-panel)] border cursor-pointer flex items-center justify-between transition-all duration-150 ${
                       dropZone === `zone-${tz.index}`
                         ? "border-[var(--accent-hover)] bg-[var(--bg-elevated)]"
+                        : liveTouchZoneIdx === tz.index
+                        ? "border-[var(--status-success)] ring-1 ring-[var(--status-success)]/50 scale-[0.98]"
                         : zoneSelected ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/40" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/60"
                     }`}
                   >
@@ -366,11 +372,21 @@ export const DeckStage: React.FC<DeckStageProps> = ({
                 className={`relative px-2.5 py-2 rounded-xl bg-[var(--bg-input)] border flex items-center gap-2.5 cursor-pointer transition-all duration-150 ${
                   dropZone === `enc-${enc.index}`
                     ? "border-[var(--accent-hover)] bg-[var(--bg-elevated)]"
+                    : liveEncoderEvent?.index === enc.index
+                    ? `border-[var(--status-success)] ring-1 ring-[var(--status-success)]/50 ${liveEncoderEvent.kind === "push" ? "scale-[0.97]" : ""}`
                     : isEncSelected
                     ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/40"
                     : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/60"
                 }`}
               >
+                {liveEncoderEvent?.index === enc.index && (
+                  <span
+                    aria-hidden
+                    className="absolute top-1 right-1.5 text-[10px] font-bold text-[var(--status-success)]"
+                  >
+                    {liveEncoderEvent.kind === "cw" ? "↻" : liveEncoderEvent.kind === "ccw" ? "↺" : "●"}
+                  </span>
+                )}
                 {dropZone === `enc-${enc.index}` && (
                   <div className="absolute inset-0 z-10 grid grid-cols-3 gap-px rounded-xl overflow-hidden bg-[var(--border-subtle)]">
                     {(

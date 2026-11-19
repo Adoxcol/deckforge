@@ -199,6 +199,10 @@ export const App: React.FC = () => {
   const [macroRunReport, setMacroRunReport] = useState<MacroRunReport | null>(null);
   const [showOnboarding, setShowOnboarding] = useState<boolean>(false);
   const [livePressedKeyIdx, setLivePressedKeyIdx] = useState<number | null>(null);
+  const [liveEncoderEvent, setLiveEncoderEvent] = useState<{ index: number; kind: "cw" | "ccw" | "push" } | null>(null);
+  const [liveTouchZoneIdx, setLiveTouchZoneIdx] = useState<number | null>(null);
+  const liveEncoderTimerRef = useRef<number | null>(null);
+  const liveZoneTimerRef = useRef<number | null>(null);
   const [face, setFace] = useState<DeckFaceState | null>(null);
   const [obsSettings, setObsSettings] = useState<ObsSettings>({ url: "ws://127.0.0.1:4455", password: "" });
 
@@ -259,6 +263,28 @@ export const App: React.FC = () => {
         triggerToast(
           `Physical Key #${evt.controlIndex + 1} Pressed (${evt.rawHex})`,
           "success"
+        );
+      } else if (
+        evt.kind === "rotaryKnobTurnCw" ||
+        evt.kind === "rotaryKnobTurnCcw" ||
+        evt.kind === "rotaryKnobPush"
+      ) {
+        const kind =
+          evt.kind === "rotaryKnobTurnCw" ? "cw" : evt.kind === "rotaryKnobTurnCcw" ? "ccw" : "push";
+        setLiveEncoderEvent({ index: evt.controlIndex, kind });
+        if (liveEncoderTimerRef.current !== null) window.clearTimeout(liveEncoderTimerRef.current);
+        liveEncoderTimerRef.current = window.setTimeout(() => setLiveEncoderEvent(null), 350);
+        triggerToast(
+          `Physical Input: ${evt.kind} #${evt.controlIndex + 1} (${evt.rawHex})`,
+          "info"
+        );
+      } else if (evt.kind === "touchStripTap") {
+        setLiveTouchZoneIdx(evt.controlIndex);
+        if (liveZoneTimerRef.current !== null) window.clearTimeout(liveZoneTimerRef.current);
+        liveZoneTimerRef.current = window.setTimeout(() => setLiveTouchZoneIdx(null), 350);
+        triggerToast(
+          `Physical Input: ${evt.kind} #${evt.controlIndex + 1} (${evt.rawHex})`,
+          "info"
         );
       } else {
         triggerToast(
@@ -1731,7 +1757,7 @@ export const App: React.FC = () => {
             <WorkspaceToolbar activeDevice={activeDevice} activeProfile={activeProfile} canvasZoom={canvasZoom} connectedDevices={connectedDevices} handleApplyToDevice={handleApplyToDevice} handleSaveLocally={handleSaveLocally} setCanvasZoom={setCanvasZoom} setSelectedDeviceId={setSelectedDeviceId} setSelectedKeyIdx={setSelectedKeyIdx} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} />
 
             {/* Central Hardware Bezel Stage */}
-            <DeckStage activeDevice={activeDevice} activeKey={activeKey} activePage={activePage} activeProfile={activeProfile} canvasZoom={canvasZoom} clipFor={clipFor} face={face} handleAddPage={handleAddPage} ingestFile={ingestFile} livePressedKeyIdx={livePressedKeyIdx} selectedPageIdx={selectedPageIdx} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} setTemplatesOpen={setTemplatesOpen} surface={surface} surfaceIndex={surfaceIndex} onDropAction={handleDropAction} onMoveKey={handleMoveKey} onMoveKeyToPage={handleMoveKeyToPage} autoSwitchRules={autoSwitchRules} saveRules={saveRules} />
+            <DeckStage activeDevice={activeDevice} activeKey={activeKey} activePage={activePage} activeProfile={activeProfile} canvasZoom={canvasZoom} clipFor={clipFor} face={face} handleAddPage={handleAddPage} ingestFile={ingestFile} livePressedKeyIdx={livePressedKeyIdx} liveEncoderEvent={liveEncoderEvent} liveTouchZoneIdx={liveTouchZoneIdx} selectedPageIdx={selectedPageIdx} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} setTemplatesOpen={setTemplatesOpen} surface={surface} surfaceIndex={surfaceIndex} onDropAction={handleDropAction} onMoveKey={handleMoveKey} onMoveKeyToPage={handleMoveKeyToPage} autoSwitchRules={autoSwitchRules} saveRules={saveRules} />
 
             {/* BOTTOM ACTION LIBRARY DRAWER (Matches Reference Screenshot Bottom Panel) */}
             <ActionDrawer actionCategoryFilter={actionCategoryFilter} activeEncoder={activeEncoder} activeKey={activeKey} activeZone={activeZone} actions={allActionTemplates} setActionCategoryFilter={setActionCategoryFilter} surface={surface} {...drawerCallbacks} />
