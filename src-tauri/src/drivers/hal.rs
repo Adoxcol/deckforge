@@ -1310,7 +1310,7 @@ pub fn deck_control_available() -> bool { CONTROL.lock_safe().available() }
 
 fn refresh_control_policy(last_scan: &mut Instant) {
     if last_scan.elapsed() >= Duration::from_secs(1) {
-        let running = !crate::actions::official_streamdock_processes().is_empty();
+        let running = crate::actions::vendor_app_running(false);
         CONTROL.lock_safe().observe_vendor(running);
         *last_scan = Instant::now();
     }
@@ -1324,7 +1324,7 @@ pub fn pause_deck_control() -> String {
 }
 
 pub fn resume_deck_control() -> Result<String, String> {
-    let running = !crate::actions::official_streamdock_processes().is_empty();
+    let running = crate::actions::vendor_app_running(true);
     {
         let mut control = CONTROL.lock_safe();
         control.observe_vendor(running);

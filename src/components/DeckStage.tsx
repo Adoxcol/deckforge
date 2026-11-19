@@ -50,7 +50,7 @@ interface DeckStageProps {
 
 const KEY_DRAG_TYPE = "application/x-deckforge-key";
 
-export const DeckStage: React.FC<DeckStageProps> = ({
+export const DeckStage = React.memo(function DeckStage({
   activeDevice,
   activeKey,
   activePage,
@@ -76,7 +76,7 @@ export const DeckStage: React.FC<DeckStageProps> = ({
   onMoveKeyToPage,
   autoSwitchRules,
   saveRules,
-}) => {
+}: DeckStageProps) {
   const [dropTarget, setDropTarget] = React.useState<number | null>(null);
   const [dropZone, setDropZone] = React.useState<string | null>(null);
   const [dropPart, setDropPart] = React.useState<KnobPart | null>(null);
@@ -566,4 +566,4 @@ export const DeckStage: React.FC<DeckStageProps> = ({
       </div>
     </div>
   );
-};
+});

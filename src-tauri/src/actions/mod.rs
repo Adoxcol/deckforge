@@ -633,29 +633,73 @@ fn is_official_streamdock_process(name: &str) -> bool {
     matches!(compact.trim_end_matches(".exe"), "streamdock" | "streamdockajazz" | "streamdockwatcher")
 }
 
-/// Process ids and names of the official Stream Dock app that are running right now.
-pub fn official_streamdock_processes() -> Vec<(u32, String)> {
-    let mut sys = System::new_with_specifics(RefreshKind::nothing());
-    sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
-    sys.processes()
-        .iter()
-        .filter_map(|(pid, proc)| {
-            let name = proc.name().to_string_lossy().to_string();
-            is_official_streamdock_process(&name).then(|| (pid.as_u32(), name))
+/// One process list for vendor detection, telemetry, and macro checks.
+/// The background scans share it for a second. A user action that must see a
+/// process that just started or just quit passes `force`.
+struct ProcessCache {
+    refreshed: Option<Instant>,
+    system: System,
+    entries: Vec<(u32, String)>,
+}
+
+fn cache_is_stale(refreshed: Option<Instant>, now: Instant, max_age: std::time::Duration, force: bool) -> bool {
+    force || refreshed.map(|at| now.saturating_duration_since(at) >= max_age).unwrap_or(true)
+}
+
+fn with_process_cache<T>(max_age: std::time::Duration, force: bool, f: impl FnOnce(&[(u32, String)]) -> T) -> T {
+    static CACHE: std::sync::OnceLock<std::sync::Mutex<ProcessCache>> = std::sync::OnceLock::new();
+    let cache = CACHE.get_or_init(|| {
+        std::sync::Mutex::new(ProcessCache {
+            refreshed: None,
+            system: System::new_with_specifics(RefreshKind::nothing()),
+            entries: Vec::new(),
         })
-        .collect()
+    });
+    let mut guard = cache.lock().unwrap_or_else(|err| err.into_inner());
+    if cache_is_stale(guard.refreshed, Instant::now(), max_age, force) {
+        guard.system.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
+        guard.entries = guard.system.processes().iter()
+            .map(|(pid, proc)| (pid.as_u32(), proc.name().to_string_lossy().into_owned()))
+            .collect();
+        guard.refreshed = Some(Instant::now());
+    }
+    f(&guard.entries)
+}
+
+fn without_exe(name: &str) -> &str {
+    let name = name.trim();
+    match name.len().checked_sub(4) {
+        Some(split) if name.is_char_boundary(split) && name[split..].eq_ignore_ascii_case(".exe") => &name[..split],
+        _ => name,
+    }
+}
+
+fn process_name_matches(current: &str, needle: &str) -> bool {
+    let needle = without_exe(needle);
+    !needle.is_empty() && without_exe(current).eq_ignore_ascii_case(needle)
+}
+
+fn obs_process(name: &str) -> bool {
+    let name = name.to_lowercase();
+    name.contains("obs64") || name == "obs.exe"
+}
+
+const PROCESS_CACHE_AGE: std::time::Duration = std::time::Duration::from_secs(1);
+
+/// True when the vendor app is running. `force` reads Windows again instead of the one-second cache.
+pub fn vendor_app_running(force: bool) -> bool {
+    with_process_cache(PROCESS_CACHE_AGE, force, |entries| {
+        entries.iter().any(|(_, name)| is_official_streamdock_process(name))
+    })
 }
 
 pub fn process_is_running(name: &str) -> bool {
-    let needle = name.trim().trim_end_matches(".exe").to_lowercase();
-    if needle.is_empty() {
+    if without_exe(name).is_empty() {
         return false;
     }
-    let mut sys = System::new_with_specifics(RefreshKind::nothing().with_processes(ProcessRefreshKind::nothing()));
-    sys.refresh_processes(ProcessesToUpdate::All, true);
-    sys.processes().values().any(|proc| {
-        let current = proc.name().to_string_lossy().to_lowercase();
-        current == needle || current == format!("{needle}.exe") || current.strip_suffix(".exe") == Some(needle.as_str())
+    // Macros check this immediately after launching a program, so skip the cache.
+    with_process_cache(PROCESS_CACHE_AGE, true, |entries| {
+        entries.iter().any(|(_, current)| process_name_matches(current, name))
     })
 }
 
@@ -668,47 +712,38 @@ pub fn collect_system_telemetry() -> SystemTelemetrySnapshot {
     static SYS: std::sync::OnceLock<std::sync::Mutex<System>> = std::sync::OnceLock::new();
     let slot = SYS.get_or_init(|| {
         std::sync::Mutex::new(System::new_with_specifics(
-            RefreshKind::nothing()
-                .with_memory(sysinfo::MemoryRefreshKind::everything())
-                .with_processes(ProcessRefreshKind::nothing()),
+            RefreshKind::nothing().with_memory(sysinfo::MemoryRefreshKind::everything()),
         ))
     });
     let mut sys = slot.lock().unwrap_or_else(|e| e.into_inner());
     sys.refresh_memory();
-    sys.refresh_processes_specifics(
-        ProcessesToUpdate::All,
-        true,
-        ProcessRefreshKind::nothing(),
-    );
-
-    static LAST: CpuSample = std::sync::Mutex::new(None);
-    let cpu_usage_percent = cpu_percent_since(&LAST).unwrap_or(0) as f32;
     let total_mem = sys.total_memory() as f64 / (1024.0 * 1024.0 * 1024.0);
     let used_mem = sys.used_memory() as f64 / (1024.0 * 1024.0 * 1024.0);
+    drop(sys);
+    static LAST: CpuSample = std::sync::Mutex::new(None);
+    let cpu_usage_percent = cpu_percent_since(&LAST).unwrap_or(0) as f32;
     let mem_pct = if total_mem > 0.0 {
         ((used_mem / total_mem) * 100.0) as f32
     } else {
         0.0
     };
 
-    let mut official_streamdock_running = false;
-    let mut obs_running = false;
-    for proc in sys.processes().values() {
-        let name = proc.name().to_string_lossy().to_lowercase();
-        if is_official_streamdock_process(&name) {
-            official_streamdock_running = true;
+    let (official_streamdock_running, obs_running, process_count) = with_process_cache(PROCESS_CACHE_AGE, false, |entries| {
+        let mut official = false;
+        let mut obs = false;
+        for (_, name) in entries {
+            if !official && is_official_streamdock_process(name) { official = true; }
+            if !obs && obs_process(name) { obs = true; }
         }
-        if name.contains("obs64") || name == "obs.exe" {
-            obs_running = true;
-        }
-    }
+        (official, obs, entries.len())
+    });
 
     SystemTelemetrySnapshot {
         cpu_usage_percent: (cpu_usage_percent * 10.0).round() / 10.0,
         memory_used_gb: ((used_mem * 10.0).round() / 10.0) as f32,
         memory_total_gb: ((total_mem * 10.0).round() / 10.0) as f32,
         memory_usage_percent: (mem_pct * 10.0).round() / 10.0,
-        process_count: sys.processes().len(),
+        process_count,
         official_streamdock_running,
         obs_running,
         timestamp_ms: now_ms(),
@@ -861,6 +896,26 @@ mod tests {
         for name in ["deckforge.exe", "streamdock-notes.exe", "my-streamdock-backup.exe"] {
             assert!(!super::is_official_streamdock_process(name));
         }
+    }
+
+    #[test]
+    fn process_cache_reuses_a_list_until_it_expires_unless_forced() {
+        use std::time::{Duration, Instant};
+        let now = Instant::now();
+        assert!(super::cache_is_stale(None, now, Duration::from_secs(1), false));
+        assert!(!super::cache_is_stale(Some(now), now, Duration::from_secs(1), false));
+        assert!(super::cache_is_stale(Some(now - Duration::from_secs(1)), now, Duration::from_secs(1), false));
+        assert!(super::cache_is_stale(Some(now), now, Duration::from_secs(1), true));
+    }
+
+    #[test]
+    fn process_names_match_with_or_without_the_exe_suffix() {
+        assert!(super::process_name_matches("OBS.EXE", "obs"));
+        assert!(super::process_name_matches("notepad", "NOTEPAD.EXE"));
+        assert!(!super::process_name_matches("notepad++.exe", "notepad"));
+        assert!(super::obs_process("obs64.exe"));
+        assert!(super::obs_process("OBS.exe"));
+        assert!(!super::obs_process("observer.exe"));
     }
 
     /// Every shortcut preset in the catalog must turn into one key per `+` part, or the

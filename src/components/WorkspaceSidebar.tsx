@@ -23,7 +23,7 @@ interface WorkspaceSidebarProps {
   triggerToast: (text: string, kind?: "success" | "info" | "warning") => void;
 }
 
-export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
+export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
   activeProfile,
   autoSwitchRules,
   connectedDevices,
@@ -38,7 +38,7 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
   setSelectedPageIdx,
   setSelectedProfileId,
   triggerToast,
-}) => {
+}: WorkspaceSidebarProps) {
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [rescanning, setRescanning] = React.useState(false);
 
@@ -233,4 +233,4 @@ export const WorkspaceSidebar: React.FC<WorkspaceSidebarProps> = ({
       </div>
     </aside>
   );
-};
+});

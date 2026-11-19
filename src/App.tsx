@@ -42,6 +42,7 @@ import {
 } from "lucide-react";
 import { deckforgeApi, isTauriRuntime } from "./bridge/tauriBridge";
 import { createProfilePersistence, profileSnapshot } from "./lib/profilePersistence";
+import { beginEdit, captureLibrary, initialClock, isClean, noteRestored, noteSaved, pushEntry, type HistoryEntry, type ProfileClock } from "./lib/profileHistory";
 import { buildStarterProfile, type StarterProfile } from "./data/starterProfiles";
 import { createDraftRecovery, type DraftStatus } from "./lib/draftRecovery";
 import { QuitDialog } from "./components/QuitDialog";
@@ -102,6 +103,40 @@ import { onUpdateReady } from "./lib/updates";
 
 type ToastAction = { label: string; run: () => void };
 
+type EditorActions = {
+  recoveryChecked: boolean;
+  recoveryDraft: RecoveryDraft | null;
+  recoveryError: string | null;
+  quitOpen: boolean;
+  showOnboarding: boolean;
+  hotkeyTarget: "key" | "zone" | "cw" | "ccw" | "push" | null;
+  activeKey: KeyConfig | null;
+  activeZone: TouchZoneConfig | null;
+  activeEncoder: EncoderConfig | null;
+  activeScreen: NavScreenId;
+  activeProfile: Profile | undefined;
+  updateSelectedKey: (patch: Partial<KeyConfig>) => void;
+  updateSelectedZone: (index: number, patch: Partial<TouchZoneConfig>) => void;
+  updateSelectedEncoder: (index: number, patch: Partial<EncoderConfig>) => void;
+  handleSaveLocally: () => void;
+  handleUndo: () => void;
+  handleRedo: () => void;
+  handleApplyToDevice: () => void | Promise<void>;
+  triggerToast: (text: string, kind?: "success" | "info" | "warning", action?: ToastAction) => void;
+  setHotkeyTarget: (target: "key" | "zone" | "cw" | "ccw" | "push" | null) => void;
+  setSelectedPageIdx: React.Dispatch<React.SetStateAction<number>>;
+  clipFor: (cfg?: ScreenMediaConfig | null) => MediaPreview | null;
+  handleAddPage: () => void;
+  ingestFile: (file: File, target: ScreenTarget, index: number) => Promise<void>;
+  handleDropAction: (target: "key" | "zone" | "encoder", index: number, actionId: string, part?: KnobPart) => void;
+  handleMoveKey: (from: number, to: number) => void;
+  handleMoveKeyToPage: (keyIndex: number, pageIndex: number) => void;
+  saveRules: (rules: AutoSwitchRule[]) => void;
+  handleAddProfile: (starter: StarterProfile) => void;
+  handleExportProfile: () => void | Promise<void>;
+  handleImportProfile: () => void | Promise<void>;
+};
+
 const NAV_ITEMS = [
     { id: "workspace", label: "Profiles and keys", icon: Layers },
     { id: "macros", label: "Macro studio", icon: Zap },
@@ -154,15 +189,27 @@ export const App: React.FC = () => {
   const [clipboardKey, setClipboardKey] = useState<KeyConfig | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState<boolean>(false);
 
-  // Sync & Persistence States (Spec Section 1 & 14: Distinguish Saved Locally vs Applied to Device)
-  const [savedSnapshot, setSavedSnapshot] = useState("[]");
-  // Live face/telemetry ticks do not change profiles. Avoid serializing the
-  // entire library and comparing large strings on each unrelated render.
-  const savedLocally = useMemo(
-    () => profileSnapshot(profiles) === savedSnapshot,
-    [profiles, savedSnapshot]
-  );
-  const [profilePersistence] = useState(() => createProfilePersistence<Profile[]>(deckforgeApi.saveProfiles, setSavedSnapshot));
+  // A revision counter tracks unsaved edits. Undo restores the revision, so
+  // returning to the saved profile is clean without stringifying the library.
+  const clockRef = useRef<ProfileClock>(initialClock());
+  const [clock, setClock] = useState<ProfileClock>(initialClock);
+  const savedProfilesRef = useRef<Profile[]>([]);
+  const savedLocally = isClean(clock);
+  const [profilePersistence] = useState(() => createProfilePersistence<Profile[]>(deckforgeApi.saveProfiles, (snapshot) => {
+    savedProfilesRef.current = JSON.parse(snapshot) as Profile[];
+  }));
+  const commitClock = (next: ProfileClock) => {
+    clockRef.current = next;
+    setClock(next);
+  };
+  const saveEditorProfiles = (value: Profile[]) => {
+    const at = clockRef.current.current;
+    return profilePersistence.save(value).then((result) => {
+      commitClock(noteSaved(clockRef.current, at));
+      return result;
+    });
+  };
+  const editorRef = useRef<EditorActions | null>(null);
   const [recoveryChecked, setRecoveryChecked] = useState(false);
   const [recoveryDraft, setRecoveryDraft] = useState<RecoveryDraft | null>(null);
   const [recoveryError, setRecoveryError] = useState<string | null>(null);
@@ -189,8 +236,8 @@ export const App: React.FC = () => {
     };
   });
   const [appliedRefresh, setAppliedRefresh] = useState(0);
-  const [undoStack, setUndoStack] = useState<Profile[][]>([]);
-  const [redoStack, setRedoStack] = useState<Profile[][]>([]);
+  const [undoStack, setUndoStack] = useState<HistoryEntry<Profile[]>[]>([]);
+  const [redoStack, setRedoStack] = useState<HistoryEntry<Profile[]>[]>([]);
   const [toastMessage, setToastMessage] = useState<{ text: string; kind: "success" | "info" | "warning"; action?: ToastAction } | null>(null);
 
   // Sub-screen states
@@ -229,8 +276,11 @@ export const App: React.FC = () => {
       if (disposed) return;
       setRecoveryDraft(draft); setRecoveryError(recoveryFailure); setRecoveryChecked(true);
       setDevices(data.devices);
+      savedProfilesRef.current = data.profiles;
+      const clean = initialClock();
+      clockRef.current = clean;
+      setClock(clean);
       setProfiles(data.profiles);
-      setSavedSnapshot(profileSnapshot(data.profiles));
       setBootstrapReady(true);
       setStartupProfileId(data.startupProfileId ?? null);
       if (data.startupProfileId && data.profiles.some(p => p.id === data.startupProfileId)) {
@@ -351,14 +401,17 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     if (!bootstrapReady || !recoveryChecked || recoveryDraft || recoveryError || quitting) return;
-    draftWriter.schedule(savedLocally ? null : { profiles, baseProfiles: JSON.parse(savedSnapshot) });
-  }, [profiles, savedSnapshot, savedLocally, bootstrapReady, recoveryChecked, recoveryDraft, recoveryError, quitting, draftWriter]);
+    draftWriter.schedule(savedLocally ? null : { profiles, baseProfiles: savedProfilesRef.current });
+  }, [profiles, savedLocally, bootstrapReady, recoveryChecked, recoveryDraft, recoveryError, quitting, draftWriter]);
 
   const resolveRecovery = async (restore: boolean) => {
     setRecoveryBusy(true);
     try {
       if (restore && recoveryDraft) {
-        setUndoStack([structuredClone(latestProfiles.current)]); setRedoStack([]);
+        const step = beginEdit(clockRef.current);
+        clockRef.current = step.clock;
+        setClock(step.clock);
+        setUndoStack([{ revision: step.undoRevision, state: captureLibrary(latestProfiles.current) }]); setRedoStack([]);
         setProfiles(recoveryDraft.draft.profiles);
         setSelectedProfileId(recoveryDraft.draft.profiles[0].id);
         setSelectedPageIdx(0); setSelectedKeyIdx(0);
@@ -376,7 +429,7 @@ export const App: React.FC = () => {
       if (save && (!recoveryChecked || recoveryDraft || recoveryError)) throw new Error("Resolve draft recovery before saving and quitting.");
       if (save) {
         if (!bootstrapReady) throw new Error("Wait for your profiles to load before saving.");
-        await profilePersistence.save(latestProfiles.current);
+        await saveEditorProfiles(latestProfiles.current);
         for (const queue of Object.values(saveQueues)) queue.retry();
         const results = await Promise.all(Object.values(saveQueues).map(queue => queue.flush()));
         if (results.some(ok => !ok) || Object.values(saveQueues).some(q => q.isPending())) {
@@ -414,7 +467,12 @@ export const App: React.FC = () => {
     const imported = await deckforgeApi.importLegacySdProfiles();
     const current = latestProfiles.current;
     const updatedProfiles = [...current, ...imported.filter(p => !current.some(existing => existing.id === p.id))];
-    setProfiles(updatedProfiles);
+    if (updatedProfiles.length !== current.length) {
+      const step = beginEdit(clockRef.current);
+      clockRef.current = step.clock;
+      setClock(step.clock);
+      setProfiles(updatedProfiles);
+    }
     const firstImported = updatedProfiles.find((p) => p.id.startsWith("imported-"));
     if (firstImported) {
       setSelectedProfileId(firstImported.id);
@@ -441,13 +499,15 @@ export const App: React.FC = () => {
     [customActions, pluginActions]
   );
 
-  // Keyboard shortcuts (Ctrl+S, Ctrl+Z, Ctrl+Y) + Live Hotkey Recorder
+  // One listener for the life of the editor. Live face ticks must not remove and
+  // re-add it; the handler reads the latest editor through editorRef.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      const editor = editorRef.current;
+      if (!editor) return;
       if (document.querySelector("dialog[open]")) return;
-      if (!recoveryChecked || recoveryDraft || recoveryError || quitOpen) return;
-      if (quitOpen || showOnboarding) return;
-      if (hotkeyTarget) {
+      if (!editor.recoveryChecked || editor.recoveryDraft || editor.recoveryError || editor.quitOpen || editor.showOnboarding) return;
+      if (editor.hotkeyTarget) {
         e.preventDefault();
         e.stopPropagation();
         if (["Control", "Shift", "Alt", "Meta"].includes(e.key)) {
@@ -466,12 +526,12 @@ export const App: React.FC = () => {
           ArrowRight: "Right",
           Escape: "Esc",
         };
-        const keyLabel =
-          keyMap[e.key] || (e.key.length === 1 ? e.key.toUpperCase() : e.key);
+        const keyLabel = keyMap[e.key] || (e.key.length === 1 ? e.key.toUpperCase() : e.key);
         parts.push(keyLabel);
         const combo = parts.join("+");
+        const { hotkeyTarget, activeKey, activeZone, activeEncoder } = editor;
         if (hotkeyTarget === "key") {
-          updateSelectedKey({
+          editor.updateSelectedKey({
             subtitle: combo,
             actionParam: combo,
             actionId: activeKey?.actionId === "none" || activeKey?.actionId === "custom.hotkey" ? "custom.hotkey" : activeKey?.actionId,
@@ -481,7 +541,7 @@ export const App: React.FC = () => {
                 : activeKey?.actionLabel,
           });
         } else if (hotkeyTarget === "zone" && activeZone) {
-          updateSelectedZone(activeZone.index, { tapActionId: "custom.hotkey", tapActionParam: combo });
+          editor.updateSelectedZone(activeZone.index, { tapActionId: "custom.hotkey", tapActionParam: combo });
         } else if (activeEncoder && (hotkeyTarget === "cw" || hotkeyTarget === "ccw" || hotkeyTarget === "push")) {
           const patch =
             hotkeyTarget === "cw"
@@ -489,35 +549,35 @@ export const App: React.FC = () => {
               : hotkeyTarget === "ccw"
               ? { ccwAction: "custom.hotkey", ccwParam: combo }
               : { pushAction: "custom.hotkey", pushParam: combo };
-          updateSelectedEncoder(activeEncoder.index, patch);
+          editor.updateSelectedEncoder(activeEncoder.index, patch);
         }
-        setHotkeyTarget(null);
-        triggerToast(`Recorded shortcut: ${combo}`, "success");
+        editor.setHotkeyTarget(null);
+        editor.triggerToast(`Recorded shortcut: ${combo}`, "success");
         return;
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
         e.preventDefault();
-        handleSaveLocally();
+        editor.handleSaveLocally();
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
         e.preventDefault();
-        handleUndo();
+        editor.handleUndo();
       } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
         e.preventDefault();
-        handleRedo();
+        editor.handleRedo();
       } else if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
         e.preventDefault();
-        void handleApplyToDevice();
-      } else if ((e.key === "PageUp" || e.key === "PageDown") && activeScreen === "workspace" && activeProfile) {
+        void editor.handleApplyToDevice();
+      } else if ((e.key === "PageUp" || e.key === "PageDown") && editor.activeScreen === "workspace" && editor.activeProfile) {
         const el = e.target as HTMLElement | null;
         if (el && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName))) return;
         e.preventDefault();
-        const last = activeProfile.pages.length - 1;
-        setSelectedPageIdx((p) => (e.key === "PageUp" ? Math.max(0, p - 1) : Math.min(last, p + 1)));
+        const last = editor.activeProfile.pages.length - 1;
+        editor.setSelectedPageIdx((p) => (e.key === "PageUp" ? Math.max(0, p - 1) : Math.min(last, p + 1)));
       }
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  });
+  }, []);
 
   const connectedDevices = useMemo(() => devices.filter((d) => d.connected), [devices]);
 
@@ -626,7 +686,7 @@ export const App: React.FC = () => {
     saveQueues.Macros.save(macros);
     if (!await saveQueues.Macros.flush()) return;
     try {
-      await profilePersistence.save(nextProfiles);
+      await saveEditorProfiles(nextProfiles);
       triggerToast(`${macro.name} is on key ${activeKey.index + 1}`, "success");
     } catch (error) {
       triggerToast(`Key assignment was not saved: ${errorText(error)}. Try Save again.`, "warning");
@@ -643,7 +703,9 @@ export const App: React.FC = () => {
     null;
 
   const pushUndoSnapshot = () => {
-    setUndoStack((prev) => [...prev.slice(-19), JSON.parse(JSON.stringify(profiles))]);
+    const step = beginEdit(clockRef.current);
+    commitClock(step.clock);
+    setUndoStack((prev) => pushEntry(prev, { revision: step.undoRevision, state: captureLibrary(profiles) }));
     setRedoStack([]);
   };
 
@@ -663,26 +725,30 @@ export const App: React.FC = () => {
   };
 
   const handleUndo = () => {
-    if (undoStack.length === 0) return;
-    const previous = undoStack[undoStack.length - 1];
+    const entry = undoStack[undoStack.length - 1];
+    if (!entry) return;
+    const redo = { revision: clockRef.current.current, state: captureLibrary(profiles) };
+    commitClock(noteRestored(clockRef.current, entry.revision));
     lastKnobUndoRef.current = null;
-    setRedoStack((r) => [...r, JSON.parse(JSON.stringify(profiles))]);
-    setProfiles(previous);
+    setRedoStack((r) => [...r, redo]);
+    setProfiles(entry.state);
     setUndoStack((u) => u.slice(0, -1));
-    syncHardwareKnobLedsAfterHistory(previous);
+    syncHardwareKnobLedsAfterHistory(entry.state);
     triggerToast("Undid last key edit", "info");
   };
 
   undoRef.current = handleUndo;
 
   const handleRedo = () => {
-    if (redoStack.length === 0) return;
-    const next = redoStack[redoStack.length - 1];
+    const entry = redoStack[redoStack.length - 1];
+    if (!entry) return;
+    const undo = { revision: clockRef.current.current, state: captureLibrary(profiles) };
+    commitClock(noteRestored(clockRef.current, entry.revision));
     lastKnobUndoRef.current = null;
-    setUndoStack((u) => [...u, JSON.parse(JSON.stringify(profiles))]);
-    setProfiles(next);
+    setUndoStack((u) => pushEntry(u, undo));
+    setProfiles(entry.state);
     setRedoStack((r) => r.slice(0, -1));
-    syncHardwareKnobLedsAfterHistory(next);
+    syncHardwareKnobLedsAfterHistory(entry.state);
     triggerToast("Redid key edit", "info");
   };
 
@@ -1001,7 +1067,7 @@ export const App: React.FC = () => {
 
   const handleSaveLocally = async () => {
     try {
-      await profilePersistence.save(profiles);
+      await saveEditorProfiles(profiles);
       triggerToast("Profile saved locally ✓", "success");
     } catch (error) {
       triggerToast(`Profile was not saved: ${errorText(error)}. Your edits are still here; try Save again.`, "warning");
@@ -1012,7 +1078,7 @@ export const App: React.FC = () => {
     if (!activeDevice || !activeProfile || !activePage) return;
     let res;
     try {
-      await profilePersistence.save(profiles);
+      await saveEditorProfiles(profiles);
       res = await deckforgeApi.applyProfileToDevice(
         activeDevice.id,
         activeProfile.id,
@@ -1294,7 +1360,10 @@ export const App: React.FC = () => {
     const restored = await deckforgeApi.restoreProfilesBackup(contents);
     const current = latestProfiles.current;
     const placed = placeBackup(restored.profiles, restored.macros, current, latestMacros.current);
-    setUndoStack(prev => [...prev.slice(-19), structuredClone(current)]);
+    const step = beginEdit(clockRef.current);
+    clockRef.current = step.clock;
+    setClock(step.clock);
+    setUndoStack(prev => pushEntry(prev, { revision: step.undoRevision, state: captureLibrary(current) }));
     setRedoStack([]);
     setMediaLibrary(prev => ({ ...prev, ...Object.fromEntries(restored.mediaLibrary.map(media => [media.id, media])) }));
     setProfiles([...current, ...placed.profiles]);
@@ -1346,7 +1415,7 @@ export const App: React.FC = () => {
           throw new Error("Imported macros were not saved. Retry the macro save, then save the profile; your edits are still here.");
         }
       }
-      await profilePersistence.save(next);
+      await saveEditorProfiles(next);
       if (parsed.appRules.length > 0) {
         const stamp = Date.now();
         saveRules([
@@ -1459,19 +1528,42 @@ export const App: React.FC = () => {
     triggerToast("Applied current key's appearance style to all keys on this page ✓", "success");
   };
 
-  // Stable wrappers that always call the latest version, so the memoized action list can skip
-  // the redraws the deck's live updates cause.
-  const latest = useRef({ triggerToast, updateSelectedKey, updateSelectedZone, updateSelectedEncoder });
-  latest.current = { triggerToast, updateSelectedKey, updateSelectedZone, updateSelectedEncoder };
+  // Stable wrappers. Live face ticks re-render this component, and these callbacks
+  // keep the memoized deck, sidebar, and action list from rebuilding with them.
+  editorRef.current = {
+    recoveryChecked, recoveryDraft, recoveryError, quitOpen, showOnboarding, hotkeyTarget,
+    activeKey, activeZone, activeEncoder, activeScreen, activeProfile,
+    updateSelectedKey, updateSelectedZone, updateSelectedEncoder,
+    handleSaveLocally, handleUndo, handleRedo, handleApplyToDevice, triggerToast,
+    setHotkeyTarget, setSelectedPageIdx, clipFor, handleAddPage, ingestFile,
+    handleDropAction, handleMoveKey, handleMoveKeyToPage, saveRules,
+    handleAddProfile, handleExportProfile, handleImportProfile,
+  };
   const drawerCallbacks = useMemo(
     () => ({
-      triggerToast: (...args: Parameters<typeof triggerToast>) => latest.current.triggerToast(...args),
-      updateSelectedKey: (patch: Partial<KeyConfig>) => latest.current.updateSelectedKey(patch),
-      updateSelectedZone: (index: number, patch: Partial<TouchZoneConfig>) => latest.current.updateSelectedZone(index, patch),
-      updateSelectedEncoder: (index: number, patch: Partial<EncoderConfig>) => latest.current.updateSelectedEncoder(index, patch),
+      triggerToast: (...args: Parameters<typeof triggerToast>) => editorRef.current?.triggerToast(...args),
+      updateSelectedKey: (patch: Partial<KeyConfig>) => editorRef.current?.updateSelectedKey(patch),
+      updateSelectedZone: (index: number, patch: Partial<TouchZoneConfig>) => editorRef.current?.updateSelectedZone(index, patch),
+      updateSelectedEncoder: (index: number, patch: Partial<EncoderConfig>) => editorRef.current?.updateSelectedEncoder(index, patch),
     }),
     []
   );
+  const stageCallbacks = useMemo(() => ({
+    clipFor: (cfg?: ScreenMediaConfig | null) => editorRef.current?.clipFor(cfg) ?? null,
+    handleAddPage: () => editorRef.current?.handleAddPage(),
+    ingestFile: (file: File, target: ScreenTarget, index: number) => editorRef.current?.ingestFile(file, target, index) ?? Promise.resolve(),
+    onDropAction: (target: "key" | "zone" | "encoder", index: number, actionId: string, part?: KnobPart) => editorRef.current?.handleDropAction(target, index, actionId, part),
+    onMoveKey: (from: number, to: number) => editorRef.current?.handleMoveKey(from, to),
+    onMoveKeyToPage: (keyIndex: number, pageIndex: number) => editorRef.current?.handleMoveKeyToPage(keyIndex, pageIndex),
+    saveRules: (rules: AutoSwitchRule[]) => editorRef.current?.saveRules(rules),
+  }), []);
+  const sidebarCallbacks = useMemo(() => ({
+    handleAddProfile: (starter: StarterProfile) => editorRef.current?.handleAddProfile(starter),
+    onExportProfile: () => { void editorRef.current?.handleExportProfile(); },
+    onImportProfile: () => { void editorRef.current?.handleImportProfile(); },
+    saveRules: (rules: AutoSwitchRule[]) => editorRef.current?.saveRules(rules),
+    triggerToast: (text: string, kind?: "success" | "info" | "warning") => editorRef.current?.triggerToast(text, kind),
+  }), []);
 
   const quitDialog = <QuitDialog open={quitOpen} busy={quitting} error={quitError}
     dirty={!savedLocally || !!recoveryDraft || !!recoveryError || Object.values(saveStatuses).some(s => s.pending)}
@@ -1749,7 +1841,7 @@ export const App: React.FC = () => {
       {activeScreen === "workspace" && (
         <div className="flex-1 grid grid-cols-[232px_minmax(0,1fr)_292px] 2xl:grid-cols-[256px_minmax(0,1fr)_324px] overflow-hidden">
           {/* LEFT CONTEXTUAL SIDEBAR: Devices + Profiles */}
-          <WorkspaceSidebar activeProfile={activeProfile} autoSwitchRules={autoSwitchRules} connectedDevices={connectedDevices} handleAddProfile={handleAddProfile} onExportProfile={handleExportProfile} onImportProfile={handleImportProfile} profiles={profiles} selectedPageIdx={selectedPageIdx} saveRules={saveRules} setDevices={setDevices} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSelectedProfileId={setSelectedProfileId} triggerToast={triggerToast} />
+          <WorkspaceSidebar activeProfile={activeProfile} autoSwitchRules={autoSwitchRules} connectedDevices={connectedDevices} handleAddProfile={sidebarCallbacks.handleAddProfile} onExportProfile={sidebarCallbacks.onExportProfile} onImportProfile={sidebarCallbacks.onImportProfile} profiles={profiles} selectedPageIdx={selectedPageIdx} saveRules={sidebarCallbacks.saveRules} setDevices={setDevices} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSelectedProfileId={setSelectedProfileId} triggerToast={sidebarCallbacks.triggerToast} />
 
           {/* CENTER WORKSPACE COLUMN: Toolbar + Hardware Bezel + Bottom Action Library Drawer */}
           <main className="flex flex-col justify-between bg-[var(--bg-app)] overflow-hidden">
@@ -1757,7 +1849,7 @@ export const App: React.FC = () => {
             <WorkspaceToolbar activeDevice={activeDevice} activeProfile={activeProfile} canvasZoom={canvasZoom} connectedDevices={connectedDevices} handleApplyToDevice={handleApplyToDevice} handleSaveLocally={handleSaveLocally} setCanvasZoom={setCanvasZoom} setSelectedDeviceId={setSelectedDeviceId} setSelectedKeyIdx={setSelectedKeyIdx} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} />
 
             {/* Central Hardware Bezel Stage */}
-            <DeckStage activeDevice={activeDevice} activeKey={activeKey} activePage={activePage} activeProfile={activeProfile} canvasZoom={canvasZoom} clipFor={clipFor} face={face} handleAddPage={handleAddPage} ingestFile={ingestFile} livePressedKeyIdx={livePressedKeyIdx} liveEncoderEvent={liveEncoderEvent} liveTouchZoneIdx={liveTouchZoneIdx} selectedPageIdx={selectedPageIdx} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} setTemplatesOpen={setTemplatesOpen} surface={surface} surfaceIndex={surfaceIndex} onDropAction={handleDropAction} onMoveKey={handleMoveKey} onMoveKeyToPage={handleMoveKeyToPage} autoSwitchRules={autoSwitchRules} saveRules={saveRules} />
+            <DeckStage activeDevice={activeDevice} activeKey={activeKey} activePage={activePage} activeProfile={activeProfile} canvasZoom={canvasZoom} clipFor={stageCallbacks.clipFor} face={face} handleAddPage={stageCallbacks.handleAddPage} ingestFile={stageCallbacks.ingestFile} livePressedKeyIdx={livePressedKeyIdx} liveEncoderEvent={liveEncoderEvent} liveTouchZoneIdx={liveTouchZoneIdx} selectedPageIdx={selectedPageIdx} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} setTemplatesOpen={setTemplatesOpen} surface={surface} surfaceIndex={surfaceIndex} onDropAction={stageCallbacks.onDropAction} onMoveKey={stageCallbacks.onMoveKey} onMoveKeyToPage={stageCallbacks.onMoveKeyToPage} autoSwitchRules={autoSwitchRules} saveRules={stageCallbacks.saveRules} />
 
             {/* BOTTOM ACTION LIBRARY DRAWER (Matches Reference Screenshot Bottom Panel) */}
             <ActionDrawer actionCategoryFilter={actionCategoryFilter} activeEncoder={activeEncoder} activeKey={activeKey} activeZone={activeZone} actions={allActionTemplates} setActionCategoryFilter={setActionCategoryFilter} surface={surface} {...drawerCallbacks} />
