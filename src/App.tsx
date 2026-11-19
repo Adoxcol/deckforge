@@ -620,12 +620,29 @@ export const App: React.FC = () => {
     setRedoStack([]);
   };
 
+  const syncHardwareKnobLedsAfterHistory = (nextProfiles: Profile[]) => {
+    if (!activeDevice || !activeProfile || !activePage) return;
+    const nextPage = nextProfiles.find((p) => p.id === activeProfile.id)?.pages[selectedPageIdx];
+    if (!nextPage) return;
+    const rawBefore = [0, 1, 2, 3].map((i) => activePage.encoders.find((e) => e.index === i)?.ledColor?.trim() ?? "");
+    const rawAfter = [0, 1, 2, 3].map((i) => nextPage.encoders.find((e) => e.index === i)?.ledColor?.trim() ?? "");
+    if (rawBefore.join("|") === rawAfter.join("|")) return;
+    if (rawAfter.some((c) => c !== "")) {
+      const resolved = rawAfter.map((c, i) => (c || DEFAULT_KNOB_LED_COLORS[i] || "#35C98B").toUpperCase());
+      void flushKnobLedSend(activeDevice.id, resolved);
+    } else {
+      void deckforgeApi.resetKnobLeds(activeDevice.id).catch(() => {});
+    }
+  };
+
   const handleUndo = () => {
     if (undoStack.length === 0) return;
     const previous = undoStack[undoStack.length - 1];
+    lastKnobUndoRef.current = null;
     setRedoStack((r) => [...r, JSON.parse(JSON.stringify(profiles))]);
     setProfiles(previous);
     setUndoStack((u) => u.slice(0, -1));
+    syncHardwareKnobLedsAfterHistory(previous);
     triggerToast("Undid last key edit", "info");
   };
 
@@ -634,9 +651,11 @@ export const App: React.FC = () => {
   const handleRedo = () => {
     if (redoStack.length === 0) return;
     const next = redoStack[redoStack.length - 1];
+    lastKnobUndoRef.current = null;
     setUndoStack((u) => [...u, JSON.parse(JSON.stringify(profiles))]);
     setProfiles(next);
     setRedoStack((r) => r.slice(0, -1));
+    syncHardwareKnobLedsAfterHistory(next);
     triggerToast("Redid key edit", "info");
   };
 
@@ -1031,6 +1050,7 @@ export const App: React.FC = () => {
 
   const knobLedWriteInFlight = useRef(false);
   const queuedKnobLedSend = useRef<{ deviceId: string; colors: string[] } | null>(null);
+  const lastKnobUndoRef = useRef<{ target: number | "all"; atMs: number } | null>(null);
 
   const flushKnobLedSend = async (deviceId: string, colors: string[]) => {
     queuedKnobLedSend.current = { deviceId, colors };
@@ -1055,7 +1075,12 @@ export const App: React.FC = () => {
     const updatedEncoders = activePage.encoders.map((enc) =>
       knobIndex === "all" || enc.index === knobIndex ? { ...enc, ledColor: normalized } : enc
     );
-    pushUndoSnapshot();
+    const now = Date.now();
+    const last = lastKnobUndoRef.current;
+    if (!last || last.target !== knobIndex || now - last.atMs > 600) {
+      pushUndoSnapshot();
+    }
+    lastKnobUndoRef.current = { target: knobIndex, atMs: now };
     setProfiles((prev) =>
       prev.map((prof) =>
         prof.id !== activeProfile.id
