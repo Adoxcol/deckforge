@@ -25,6 +25,10 @@ interface DevicesScreenProps {
   encoders?: EncoderConfig[];
   onKnobLedChange?: (knobIndex: number | "all", colorHex: string) => void;
   onResetKnobLeds?: () => void;
+  ledBrightness?: number;
+  onLedBrightness?: (percent: number) => void;
+  ledFollowSleep?: boolean;
+  onLedSleepMode?: (followSystemSleep: boolean) => void;
 }
 
 type DetailTab = "Overview" | "Controls" | "Display" | "Diagnostics" | "Advanced";
@@ -43,26 +47,30 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
   encoders,
   onKnobLedChange,
   onResetKnobLeds,
+  ledBrightness = 100,
+  onLedBrightness,
+  ledFollowSleep = true,
+  onLedSleepMode,
 }) => {
   const [deviceDetailTab, setDeviceDetailTab] = useState<DetailTab>("Overview");
   const [restarting, setRestarting] = useState(false);
 
-  return (    <div className="flex-1 grid grid-cols-[310px_1fr] overflow-hidden">
+  return (    <div className="flex-1 grid grid-cols-[264px_1fr] lg:grid-cols-[300px_1fr] overflow-hidden">
       <aside className="bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold">Connected</h2>
+          <h2 className="text-[13px] font-bold text-[var(--text-primary)]">Connected</h2>
           <button
             type="button"
             onClick={onRescan}
             title="Rescan USB devices"
             aria-label="Rescan USB devices"
-            className="p-1.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+            className="w-7 h-7 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer transition-colors"
           >
             <RefreshCw size={13} />
           </button>
         </div>
         {connectedDevices.length === 0 ? (
-          <div className="px-3 py-4 rounded-lg border border-dashed border-[var(--border-subtle)] text-[11px] leading-relaxed text-[var(--text-muted)]">
+          <div className="px-3 py-4 rounded-lg border border-dashed border-[var(--border-subtle)] bg-[var(--bg-panel)]/40 text-[11px] leading-relaxed text-[var(--text-muted)]">
             No device connected. Plug in a deck, then rescan.
           </div>
         ) : (
@@ -79,9 +87,9 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                   onSelectDevice(dev.id);
                 }
               }}
-              className={`p-3 rounded-lg border cursor-pointer transition-all ${
+              className={`p-3 rounded-xl border cursor-pointer transition-all ${
                 dev.id === activeDevice.id
-                  ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]"
+                  ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                   : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]"
               }`}
             >
@@ -124,7 +132,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
             <button
               type="button"
               onClick={() => onBrightness(activeDevice.brightness)}
-              className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--accent-primary)] text-xs font-medium cursor-pointer"
+              className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs font-medium cursor-pointer transition-colors"
             >
               Identify deck
             </button>
@@ -140,7 +148,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
               }}
               disabled={restarting}
               title="Screen stuck black or not responding? This resets the USB port the deck is on, so it disconnects and reconnects. Windows asks for permission first. If the screen is still black afterwards, unplug the deck and plug it back in."
-              className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--accent-primary)] text-xs font-medium cursor-pointer disabled:opacity-60 disabled:cursor-wait flex items-center gap-1.5"
+              className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs font-medium cursor-pointer disabled:opacity-60 disabled:cursor-wait flex items-center gap-1.5 transition-colors"
             >
               <RotateCcw size={13} className={restarting ? "animate-spin" : ""} />
               {restarting ? "Restarting…" : "Restart deck"}
@@ -148,7 +156,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
             <button
               type="button"
               onClick={() => onOpenWorkspace()}
-              className="h-9 px-4 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer"
+              className="h-9 px-4 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer shadow-xs active:scale-[0.98] transition-all"
             >
               Open Workspace
             </button>
@@ -165,10 +173,10 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                 role="tab"
                 aria-selected={deviceDetailTab === tab}
                 onClick={() => setDeviceDetailTab(tab)}
-                className={`px-3.5 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-colors ${
+                className={`px-3.5 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-all border ${
                   deviceDetailTab === tab
-                    ? "bg-[var(--accent-soft)] text-white font-semibold shadow-xs"
-                    : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                    ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-white font-semibold shadow-xs"
+                    : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
                 }`}
               >
                 {tab}
@@ -178,8 +186,8 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
         </div>
 
         {deviceDetailTab === "Overview" && (
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-4 rounded-[var(--radius-md)] bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
               <div className="text-[12px] text-[var(--text-secondary)]">Driver</div>
               <div className={`text-[15px] font-semibold mt-1 ${activeDevice.verifiedDriver ? "text-[var(--status-success)]" : "text-[var(--text-primary)]"}`}>
                 {activeDevice.verifiedDriver ? "Tested with this deck" : "Preview only"}
@@ -190,7 +198,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                   : "No hardware is attached; changes show in the editor only."}
               </p>
             </div>
-            <div className="p-4 rounded-[var(--radius-md)] bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
+            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
               <div className="text-[12px] text-[var(--text-secondary)]">Screen updates</div>
               <div className="text-[15px] font-semibold mt-1 text-[var(--text-primary)]">
                 {frameStats.lastTransferLatencyMs} ms last update
@@ -200,10 +208,11 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                 {(frameStats.bytesSaved / 1024).toFixed(1)} KB of USB traffic.
               </p>
             </div>
-            <div className="p-4 rounded-[var(--radius-md)] bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
+            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
               <div className="text-[12px] text-[var(--text-secondary)]">Brightness</div>
               <div className="flex items-center gap-3 mt-2">
                 <input
+                  aria-label="Device brightness"
                   type="range"
                   min={0}
                   max={100}
@@ -211,7 +220,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                   onChange={(e) => onBrightness(Number(e.target.value))}
                   className="flex-1 accent-[var(--accent-primary)] cursor-pointer"
                 />
-                <span className="font-mono text-xs font-bold w-10">
+                <span className="font-mono text-xs font-bold w-10 text-right tabular-nums">
                   {activeDevice.brightness}%
                 </span>
               </div>
@@ -310,6 +319,61 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                 );
               })}
             </div>
+            {(onLedBrightness || onLedSleepMode) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-[var(--border-subtle)]">
+                {onLedBrightness && (
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-[var(--text-secondary)]">LED Brightness</span>
+                      <span className="font-mono font-bold tabular-nums">{ledBrightness}%</span>
+                    </div>
+                    <input
+                      aria-label="Knob LED brightness"
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={ledBrightness}
+                      onChange={(e) => onLedBrightness(Number(e.target.value))}
+                      className="w-full accent-[var(--accent-primary)] cursor-pointer"
+                    />
+                  </div>
+                )}
+                {onLedSleepMode && (
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-medium text-[var(--text-primary)]">LED Sleep Behavior</div>
+                      <div className="text-[11px] text-[var(--text-muted)]">
+                        {ledFollowSleep ? "Turns LEDs off with PC sleep" : "Keeps LEDs on continuously"}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => onLedSleepMode(true)}
+                        className={`h-7 px-2.5 rounded text-[11px] font-medium cursor-pointer ${
+                          ledFollowSleep
+                            ? "bg-[var(--accent-soft)] text-white font-semibold"
+                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        }`}
+                      >
+                        Follow Sleep
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onLedSleepMode(false)}
+                        className={`h-7 px-2.5 rounded text-[11px] font-medium cursor-pointer ${
+                          !ledFollowSleep
+                            ? "bg-[var(--accent-soft)] text-white font-semibold"
+                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        }`}
+                      >
+                        Always On
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 

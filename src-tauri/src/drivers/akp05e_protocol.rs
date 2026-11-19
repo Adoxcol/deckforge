@@ -148,6 +148,22 @@ pub fn build_reset_leds_packet() -> [u8; HID_REPORT_LEN] {
     crt_base_report(b"DELED")
 }
 
+/// `Stream Dock AJAZZ.exe` @ `0x140012720` (`LightSpripBrightness::sendDeviceLightChange`):
+/// `"CRT\0\0LBLIG"` + brightness (`0..=100`) at payload byte 10 (report byte 11).
+pub fn build_led_brightness_packet(percent: u8) -> [u8; HID_REPORT_LEN] {
+    let mut buf = crt_base_report(b"LBLIG");
+    buf[11] = percent.min(100);
+    buf
+}
+
+/// `Stream Dock AJAZZ.exe` @ `0x140014a70` (`LightSpripColor::sendDeviceColorMode`):
+/// `"CRT\0\0QUCMD"` + mode byte at payload byte 10 (`0x1F` = follow system sleep, `0x11` = always on).
+pub fn build_led_sleep_mode_packet(follow_system_sleep: bool) -> [u8; HID_REPORT_LEN] {
+    let mut buf = crt_base_report(b"QUCMD");
+    buf[11] = if follow_system_sleep { 0x1F } else { 0x11 };
+    buf
+}
+
 /// AKP05E visual key (row-major, 0 = top left) → 1-based BAT image slot.
 ///
 /// The face is one 800×480 panel, not ten independent screens plus a strip at y=0.
@@ -1293,5 +1309,14 @@ mod tests {
         assert_eq!(reset.len(), HID_REPORT_LEN);
         assert_eq!(&reset[0..11], &[0x00, b'C', b'R', b'T', 0x00, 0x00, b'D', b'E', b'L', b'E', b'D']);
         assert!(reset[11..].iter().all(|&b| b == 0));
+
+        let lblig = build_led_brightness_packet(120);
+        assert_eq!(&lblig[0..11], &[0x00, b'C', b'R', b'T', 0x00, 0x00, b'L', b'B', b'L', b'I', b'G']);
+        assert_eq!(lblig[11], 100);
+
+        let follow = build_led_sleep_mode_packet(true);
+        assert_eq!(&follow[0..11], &[0x00, b'C', b'R', b'T', 0x00, 0x00, b'Q', b'U', b'C', b'M', b'D']);
+        assert_eq!(follow[11], 0x1F);
+        assert_eq!(build_led_sleep_mode_packet(false)[11], 0x11);
     }
 }

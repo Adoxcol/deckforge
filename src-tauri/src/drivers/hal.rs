@@ -1,8 +1,9 @@
 use crate::drivers::akp05e_protocol::{
     akp05e_key_image_slot, akp05e_touch_zone_slot, build_brightness_packet, build_clear_key_packet,
     build_button_mode_packet, build_heartbeat_packet, build_key_image_packets, build_knob_led_packet,
-    build_reset_leds_packet, build_screen_on_packet, build_touch_strip_packets,
-    encode_procedural_key_jpeg, encode_touch_strip_jpeg, parse_hex_color,
+    build_led_brightness_packet, build_led_sleep_mode_packet, build_reset_leds_packet,
+    build_screen_on_packet, build_touch_strip_packets, encode_procedural_key_jpeg,
+    encode_touch_strip_jpeg, parse_hex_color,
 };
 use crate::drivers::frame_cache::{AntiFreezeFrameCache, FrameCacheStats};
 use super::scheduler::{self, IoStep, Transport};
@@ -467,6 +468,92 @@ pub fn reset_hardware_knob_leds(
     });
 
     Ok(format!("Reset knob LEDs to factory default on {}", dev.model_name))
+}
+
+/// Sends a `CRT\0\0LBLIG` packet adjusting LED ring/strip brightness (`0..=100`).
+pub fn send_hardware_led_brightness(
+    dev: &DeviceDescriptor,
+    percent: u8,
+    diagnostics: &mut Vec<DiagnosticEntry>,
+) -> Result<String, String> {
+    let ts = now_ms();
+    let clamped = percent.min(100);
+    let pkt = build_led_brightness_packet(clamped);
+    let hex_preview = pkt[1..12]
+        .iter()
+        .map(|b| format!("{:02X}", b))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    if !dev.connected {
+        diagnostics.push(DiagnosticEntry {
+            id: format!("diag-lblig-{}", ts),
+            timestamp_ms: ts,
+            level: "info".to_string(),
+            device_id: dev.id.clone(),
+            stage: "SIM_LED_BRIGHTNESS".to_string(),
+            message: format!("Simulated LED brightness {}% ({})", clamped, dev.model_name),
+            packet_hex: Some(hex_preview),
+        });
+        return Ok(format!("Simulator LED brightness set to {}%", clamped));
+    }
+
+    deck_write(vec![(pkt.to_vec(), 0)])?;
+
+    diagnostics.push(DiagnosticEntry {
+        id: format!("diag-lblig-{}", ts),
+        timestamp_ms: ts,
+        level: "success".to_string(),
+        device_id: dev.id.clone(),
+        stage: "CRT_LBLIG".to_string(),
+        message: format!("Set LED brightness to {}% on {}", clamped, dev.model_name),
+        packet_hex: Some(hex_preview),
+    });
+
+    Ok(format!("LED brightness set to {}% on {}", clamped, dev.model_name))
+}
+
+/// Sends a `CRT\0\0QUCMD` packet configuring LED sleep behavior (`0x1F` follow system, `0x11` always on).
+pub fn send_hardware_led_sleep_mode(
+    dev: &DeviceDescriptor,
+    follow_system_sleep: bool,
+    diagnostics: &mut Vec<DiagnosticEntry>,
+) -> Result<String, String> {
+    let ts = now_ms();
+    let pkt = build_led_sleep_mode_packet(follow_system_sleep);
+    let mode_label = if follow_system_sleep { "Follow PC sleep" } else { "Always on" };
+    let hex_preview = pkt[1..12]
+        .iter()
+        .map(|b| format!("{:02X}", b))
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    if !dev.connected {
+        diagnostics.push(DiagnosticEntry {
+            id: format!("diag-qucmd-{}", ts),
+            timestamp_ms: ts,
+            level: "info".to_string(),
+            device_id: dev.id.clone(),
+            stage: "SIM_LED_SLEEP".to_string(),
+            message: format!("Simulated LED sleep mode: {} ({})", mode_label, dev.model_name),
+            packet_hex: Some(hex_preview),
+        });
+        return Ok(format!("Simulator LED mode set to {}", mode_label));
+    }
+
+    deck_write(vec![(pkt.to_vec(), 0)])?;
+
+    diagnostics.push(DiagnosticEntry {
+        id: format!("diag-qucmd-{}", ts),
+        timestamp_ms: ts,
+        level: "success".to_string(),
+        device_id: dev.id.clone(),
+        stage: "CRT_QUCMD_LED".to_string(),
+        message: format!("Set LED sleep mode to {} on {}", mode_label, dev.model_name),
+        packet_hex: Some(hex_preview),
+    });
+
+    Ok(format!("LED mode set to {} on {}", mode_label, dev.model_name))
 }
 
 /// Turns the panel on and restores the backlight. Runs on the deck's single

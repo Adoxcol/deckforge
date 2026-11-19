@@ -754,6 +754,20 @@ export const deckforgeApi = {
     return "Knob LEDs reset to factory default (CRT\\0\\0DELED)";
   },
 
+  async setLedBrightness(deviceId: string, percent: number): Promise<string> {
+    if (isTauriRuntime()) {
+      return await invoke<string>("set_led_brightness", { deviceId, percent });
+    }
+    return `LED brightness set to ${percent}% (CRT\\0\\0LBLIG)`;
+  },
+
+  async setLedSleepMode(deviceId: string, followSystemSleep: boolean): Promise<string> {
+    if (isTauriRuntime()) {
+      return await invoke<string>("set_led_sleep_mode", { deviceId, followSystemSleep });
+    }
+    return `LED sleep mode set to ${followSystemSleep ? "Follow PC sleep" : "Always on"} (CRT\\0\\0QUCMD)`;
+  },
+
   async applyProfileToDevice(deviceId: string, profileId: string, pageId: string): Promise<SyncKeyResult> {
     if (isTauriRuntime()) {
       return await invoke<SyncKeyResult>("apply_profile_to_device", { deviceId, profileId, pageId });

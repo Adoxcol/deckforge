@@ -135,6 +135,58 @@ pub fn reset_knob_leds(
 }
 
 #[tauri::command]
+pub fn set_led_brightness(
+    device_id: String,
+    percent: u8,
+    state: State<'_, SharedState>,
+) -> Result<String, String> {
+    let dev = {
+        let guard = state.lock_safe();
+        guard
+            .devices
+            .iter()
+            .find(|d| d.id == device_id)
+            .cloned()
+            .ok_or_else(|| format!("Device {} not found", device_id))?
+    };
+    let mut diags = Vec::new();
+    let res = send_hardware_led_brightness(&dev, percent, &mut diags)?;
+    {
+        let mut guard = state.lock_safe();
+        guard.diagnostics.extend(diags);
+        let excess = guard.diagnostics.len().saturating_sub(80);
+        guard.diagnostics.drain(..excess);
+    }
+    Ok(res)
+}
+
+#[tauri::command]
+pub fn set_led_sleep_mode(
+    device_id: String,
+    follow_system_sleep: bool,
+    state: State<'_, SharedState>,
+) -> Result<String, String> {
+    let dev = {
+        let guard = state.lock_safe();
+        guard
+            .devices
+            .iter()
+            .find(|d| d.id == device_id)
+            .cloned()
+            .ok_or_else(|| format!("Device {} not found", device_id))?
+    };
+    let mut diags = Vec::new();
+    let res = send_hardware_led_sleep_mode(&dev, follow_system_sleep, &mut diags)?;
+    {
+        let mut guard = state.lock_safe();
+        guard.diagnostics.extend(diags);
+        let excess = guard.diagnostics.len().saturating_sub(80);
+        guard.diagnostics.drain(..excess);
+    }
+    Ok(res)
+}
+
+#[tauri::command]
 pub async fn apply_profile_to_device(
     device_id: String,
     profile_id: String,

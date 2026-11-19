@@ -1105,6 +1105,30 @@ export const App: React.FC = () => {
     }
   };
 
+  const [ledBrightness, setLedBrightness] = useState(100);
+  const [ledFollowSleep, setLedFollowSleep] = useState(true);
+
+  const handleLedBrightnessChange = async (percent: number) => {
+    if (!activeDevice) return;
+    setLedBrightness(percent);
+    try {
+      await deckforgeApi.setLedBrightness(activeDevice.id, percent);
+    } catch (err) {
+      triggerToast(`Could not set LED brightness: ${errorText(err)}`, "warning");
+    }
+  };
+
+  const handleLedSleepModeChange = async (followSystemSleep: boolean) => {
+    if (!activeDevice) return;
+    setLedFollowSleep(followSystemSleep);
+    try {
+      const msg = await deckforgeApi.setLedSleepMode(activeDevice.id, followSystemSleep);
+      triggerToast(msg, "info");
+    } catch (err) {
+      triggerToast(`Could not set LED sleep mode: ${errorText(err)}`, "warning");
+    }
+  };
+
   const handleRestartDeck = async () => {
     triggerToast("Restarting the deck. Approve the Windows permission prompt if it appears.", "info");
     try {
@@ -1368,11 +1392,19 @@ export const App: React.FC = () => {
 
   if (!recoveryChecked || !activeDevice || !activeProfile || !activePage || !activeKey) {
     return (
-      <div className="h-screen w-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex items-center justify-center">
-        <div className="flex items-center gap-3 text-xs text-[var(--text-secondary)]">
-          <RefreshCw className="animate-spin text-[var(--accent-primary)]" size={18} />
-          {quitDialog}
-          <span>Initializing DeckForge Rust Hardware & Action Service…</span>
+      <div className="h-screen w-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex items-center justify-center p-6">
+        {quitDialog}
+        <div className="flex flex-col items-center gap-4 text-center animate-fade-in">
+          <div aria-hidden className="w-10 h-10 rounded-xl bg-[var(--accent-primary)] p-2 grid grid-cols-2 gap-1 shadow-[0_4px_20px_rgba(124,131,247,0.35)]">
+            <span className="bg-[var(--bg-app)] rounded-[2px]" />
+            <span className="bg-[var(--bg-app)] rounded-[2px]" />
+            <span className="bg-[var(--bg-app)] rounded-[2px]" />
+            <span className="bg-[var(--bg-app)] rounded-[2px] opacity-50" />
+          </div>
+          <div className="flex items-center gap-2.5 text-xs text-[var(--text-secondary)]">
+            <RefreshCw className="animate-spin text-[var(--accent-primary)]" size={15} />
+            <span>Initializing DeckForge Hardware &amp; Action Service…</span>
+          </div>
         </div>
       </div>
     );
@@ -1382,19 +1414,19 @@ export const App: React.FC = () => {
     <div className="h-screen w-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col overflow-hidden select-none">
       {quitDialog}
       {(!savedLocally || draftStatus.error) && (
-        <div role={draftStatus.error ? "alert" : "status"} className="px-4 py-1.5 text-xs bg-[var(--bg-panel)] border-b border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center gap-3">
+        <div role={draftStatus.error ? "alert" : "status"} className="px-4 py-1.5 text-[11.5px] bg-[var(--bg-panel)] border-b border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center gap-2.5">
           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${draftStatus.error ? "bg-[var(--status-warning)]" : draftStatus.pending ? "bg-[var(--accent-primary)] animate-pulse" : "bg-[var(--status-success)]"}`} />
           <span>{draftStatus.error ? `Recovery copy could not update: ${draftStatus.error}. Retry recovery or save your profiles.` : draftStatus.pending ? "Updating recovery copy…" : "Recovery copy saved · Profile edits are still unsaved"}</span>
-          {draftStatus.error && <button type="button" className="underline text-[var(--status-warning)] hover:text-[var(--text-primary)] cursor-pointer font-medium" onClick={draftWriter.retry}>Retry recovery copy</button>}
+          {draftStatus.error && <button type="button" className="underline text-[var(--status-warning)] hover:text-[var(--text-primary)] cursor-pointer font-medium transition-colors" onClick={draftWriter.retry}>Retry recovery copy</button>}
         </div>
       )}
       {Object.entries(saveQueues).map(([name, queue]) => {
         const status = saveStatuses[name] ?? savedStatus;
         if (!status.pending) return null;
         return (
-          <div key={name} role={status.error ? "alert" : "status"} className="px-4 py-1.5 text-xs bg-[var(--accent-soft)] border-b border-[var(--accent-primary)]/30 text-[var(--status-warning)] flex items-center gap-3">
+          <div key={name} role={status.error ? "alert" : "status"} className="px-4 py-1.5 text-[11.5px] bg-[var(--accent-soft)] border-b border-[var(--accent-primary)]/30 text-[var(--status-warning)] flex items-center gap-2.5">
             <span>{status.error ? `${name} not saved: ${status.error}. Your edits remain in this session.` : `Saving ${name.toLowerCase()}…`}</span>
-            {status.error && <button type="button" className="underline font-semibold cursor-pointer hover:text-white" onClick={queue.retry}>Retry save</button>}
+            {status.error && <button type="button" className="underline font-semibold cursor-pointer hover:text-white transition-colors" onClick={queue.retry}>Retry save</button>}
           </div>
         );
       })}
@@ -1483,36 +1515,46 @@ export const App: React.FC = () => {
           const Icon = tab.icon;
           const isActive = activeScreen === tab.id;
           return (
-            <button
-              key={tab.id}
-              type="button"
-              title={tab.label}
-              aria-label={tab.label}
-              aria-current={isActive ? "page" : undefined}
-              onClick={() => {
-                setActiveScreen(tab.id);
-                if (tab.id === "icons") {
-                  setSurface("key");
-                  setSurfaceIndex(activeKey.index);
-                }
-              }}
-              className={`relative w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center transition-all cursor-pointer ${tab.id === "settings" ? "mt-auto" : ""} ${
-                isActive
-                  ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-xs"
-                  : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
-              }`}
-            >
-              {isActive && <span aria-hidden className="absolute -left-2 top-2.5 bottom-2.5 w-[3px] rounded-r bg-[var(--accent-primary)] shadow-[0_0_8px_rgba(124,131,247,0.6)]" />}
-              <Icon size={19} strokeWidth={1.75} />
-            </button>
+            <React.Fragment key={tab.id}>
+              {tab.id === "settings" && <div aria-hidden className="mt-auto mb-1 w-6 h-px bg-[var(--border-subtle)]" />}
+              <button
+                type="button"
+                title={tab.label}
+                aria-label={tab.label}
+                aria-current={isActive ? "page" : undefined}
+                onClick={() => {
+                  setActiveScreen(tab.id);
+                  if (tab.id === "icons") {
+                    setSurface("key");
+                    setSurfaceIndex(activeKey.index);
+                  }
+                }}
+                className={`group relative w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center transition-all duration-150 cursor-pointer ${
+                  isActive
+                    ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-strong)]/60 shadow-xs"
+                    : "border border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
+                }`}
+              >
+                {isActive && <span aria-hidden className="absolute -left-2 top-2.5 bottom-2.5 w-[3px] rounded-r bg-[var(--accent-primary)] shadow-[0_0_8px_rgba(124,131,247,0.65)]" />}
+                <Icon size={19} strokeWidth={isActive ? 2 : 1.75} />
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute left-full ml-2.5 z-50 px-2.5 py-1 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-strong)] shadow-xl text-[11.5px] font-medium text-[var(--text-primary)] whitespace-nowrap opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0 transition-all duration-150"
+                >
+                  {tab.label}
+                </span>
+              </button>
+            </React.Fragment>
           );
         })}
       </nav>
       <div className="flex-1 min-w-0 flex flex-col">
       <header className="h-12 bg-[var(--bg-app)] border-b border-[var(--border-subtle)] px-4 flex items-center justify-between gap-3 shrink-0">
-        <h1 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary)] truncate">
-          {[...NAV_ITEMS, { id: "settings", label: "Settings" }].find((n) => n.id === activeScreen)?.label ?? "DeckForge"}
-        </h1>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <h1 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary)] truncate">
+            {[...NAV_ITEMS, { id: "settings", label: "Settings" }].find((n) => n.id === activeScreen)?.label ?? "DeckForge"}
+          </h1>
+        </div>
         {/* Right Controls */}
         <div className="flex items-center gap-1.5">
           {telemetry?.officialStreamdockRunning && (
@@ -1528,7 +1570,7 @@ export const App: React.FC = () => {
             type="button"
             onClick={handleImportLegacyProfiles}
             title="Parse & Import Legacy .sdProfile Configurations from %APPDATA%\HotSpot\StreamDock\profiles"
-            className="h-8 px-2.5 rounded-[var(--radius-sm)] border border-transparent hover:border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] text-[12px] font-medium flex items-center gap-1.5 cursor-pointer"
+            className="h-8 px-2.5 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-panel)]/60 hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] text-[12px] font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
           >
             <Download size={13} />
             <span>Import from Stream Dock</span>
@@ -1540,7 +1582,7 @@ export const App: React.FC = () => {
             disabled={undoStack.length === 0}
             title="Undo (Ctrl+Z)"
             aria-label="Undo"
-            className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] disabled:opacity-35 disabled:cursor-default cursor-pointer"
+            className="w-8 h-8 rounded-[var(--radius-sm)] border border-transparent hover:border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] disabled:opacity-35 disabled:hover:border-transparent disabled:hover:bg-transparent disabled:cursor-default cursor-pointer transition-colors"
           >
             <RotateCcw size={14} />
           </button>
@@ -1550,7 +1592,7 @@ export const App: React.FC = () => {
             disabled={redoStack.length === 0}
             title="Redo (Ctrl+Y)"
             aria-label="Redo"
-            className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] disabled:opacity-35 disabled:cursor-default cursor-pointer"
+            className="w-8 h-8 rounded-[var(--radius-sm)] border border-transparent hover:border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] disabled:opacity-35 disabled:hover:border-transparent disabled:hover:bg-transparent disabled:cursor-default cursor-pointer transition-colors"
           >
             <RotateCw size={14} />
           </button>
@@ -1559,7 +1601,7 @@ export const App: React.FC = () => {
             onClick={() => setShowOnboarding(true)}
             title="Quick-start guide"
             aria-label="Quick-start guide"
-            className="w-8 h-8 rounded-[var(--radius-sm)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] cursor-pointer"
+            className="w-8 h-8 rounded-[var(--radius-sm)] border border-transparent hover:border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] cursor-pointer transition-colors"
           >
             <HelpCircle size={15} />
           </button>
@@ -1568,7 +1610,7 @@ export const App: React.FC = () => {
 
       {/* 2. SCREEN 01: WORKSPACE / KEY EDITOR (Matches Reference Screenshot + Spec Section 4) */}
       {activeScreen === "workspace" && (
-        <div className="flex-1 grid grid-cols-[210px_minmax(0,1fr)_280px] 2xl:grid-cols-[240px_minmax(0,1fr)_320px] overflow-hidden">
+        <div className="flex-1 grid grid-cols-[232px_minmax(0,1fr)_292px] 2xl:grid-cols-[256px_minmax(0,1fr)_324px] overflow-hidden">
           {/* LEFT CONTEXTUAL SIDEBAR: Devices + Profiles */}
           <WorkspaceSidebar activeProfile={activeProfile} autoSwitchRules={autoSwitchRules} connectedDevices={connectedDevices} handleAddProfile={handleAddProfile} onExportProfile={handleExportProfile} onImportProfile={handleImportProfile} profiles={profiles} selectedPageIdx={selectedPageIdx} saveRules={saveRules} setDevices={setDevices} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSelectedProfileId={setSelectedProfileId} triggerToast={triggerToast} />
 
@@ -1591,7 +1633,7 @@ export const App: React.FC = () => {
 
       {/* 3. SCREEN 02: DEVICE MANAGER & DIAGNOSTICS (Spec Section 5) */}
       {activeScreen === "devices" && (
-        <DevicesScreen connectedDevices={connectedDevices} activeDevice={activeDevice} frameStats={frameStats} diagnostics={diagnostics} onRescan={handleRescanDevices} onSelectDevice={handleSelectDevice} onBrightness={handleBrightnessChange} onOpenWorkspace={() => setActiveScreen("workspace")} onRestartDeck={handleRestartDeck} encoders={activePage.encoders} onKnobLedChange={handleKnobLedChange} onResetKnobLeds={() => void handleResetKnobLeds()} />
+        <DevicesScreen connectedDevices={connectedDevices} activeDevice={activeDevice} frameStats={frameStats} diagnostics={diagnostics} onRescan={handleRescanDevices} onSelectDevice={handleSelectDevice} onBrightness={handleBrightnessChange} onOpenWorkspace={() => setActiveScreen("workspace")} onRestartDeck={handleRestartDeck} encoders={activePage.encoders} onKnobLedChange={handleKnobLedChange} onResetKnobLeds={() => void handleResetKnobLeds()} ledBrightness={ledBrightness} onLedBrightness={(pct) => void handleLedBrightnessChange(pct)} ledFollowSleep={ledFollowSleep} onLedSleepMode={(follow) => void handleLedSleepModeChange(follow)} />
       )}
 
       {/* 4. SCREEN 04: PLUGINS & LEGACY .sdPlugin BRIDGE (Spec Section 7) */}
