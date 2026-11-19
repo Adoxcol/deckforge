@@ -20,7 +20,7 @@ use db::{
     KeyConfig, LegacyStreamDockSummary, MacroSequence, Profile, ProfilePage, TouchZoneConfig,
 };
 use drivers::akp05e_protocol::{
-    build_key_image_packets, build_touch_strip_packets, parse_input_report, resolve_strip_point,
+    build_touch_strip_packets, parse_input_report, resolve_strip_point,
     HardwareInputEvent, InputControlKind, StripGesture,
     encode_procedural_key_jpeg, encode_touch_strip_jpeg,
 };

@@ -1,11 +1,12 @@
 use crate::drivers::akp05e_protocol::{
     akp05e_key_image_slot, akp05e_touch_zone_slot, build_brightness_packet, build_clear_key_packet,
-    build_button_mode_packet, build_heartbeat_packet, build_key_image_packets, build_knob_led_packet,
+    build_button_mode_packet, build_heartbeat_packet, build_knob_led_packet,
     build_led_brightness_packet, build_led_sleep_mode_packet, build_reset_leds_packet,
     build_screen_on_packet, build_touch_strip_packets, encode_procedural_key_jpeg,
     encode_touch_strip_jpeg, parse_hex_color,
 };
 use crate::drivers::frame_cache::{AntiFreezeFrameCache, FrameCacheStats};
+use crate::drivers::driver::driver_for_device;
 use super::scheduler::{self, IoStep, Transport};
 use crate::media::{pace_delay, MediaStore, RenderedFrames, ZonePaint};
 use hidapi::HidApi;
@@ -736,6 +737,12 @@ fn packets_of(reports: Vec<[u8; 1025]>) -> HidBurst {
     }
 }
 
+/// Build key image reports with the selected device protocol. The live I/O worker
+/// currently opens only the verified AKP05E, but rendering no longer hardcodes its framing.
+pub fn key_image_burst(dev: &DeviceDescriptor, slot: u8, jpeg: &[u8]) -> HidBurst {
+    HidBurst { reports: driver_for_device(dev).build_key_image_packets(slot, jpeg) }
+}
+
 fn queue_playback(
     playback: &mut Vec<PlaybackSlot>,
     slot_id: String,
@@ -849,11 +856,8 @@ pub fn publish_screens(
             .should_transmit(&dev.id, &slot_id, &hash_input)
             .is_some()
         {
-            let burst = packets_of(build_key_image_packets(
-                key_image_slot(dev, job.index),
-                &frame0,
-            ));
-            bytes_sent += burst.reports.len() * 1025;
+            let burst = key_image_burst(dev, key_image_slot(dev, job.index), &frame0);
+            bytes_sent += burst.reports.iter().map(Vec::len).sum::<usize>();
             bursts.push(burst);
             keys_transmitted += 1;
         } else {
@@ -894,11 +898,8 @@ pub fn publish_screens(
                     .should_transmit(&dev.id, &slot_id, &frame0)
                     .is_some()
                 {
-                    let burst = packets_of(build_key_image_packets(
-                        touch_zone_image_slot(dev, i as u8),
-                        &frame0,
-                    ));
-                    bytes_sent += burst.reports.len() * 1025;
+                    let burst = key_image_burst(dev, touch_zone_image_slot(dev, i as u8), &frame0);
+                    bytes_sent += burst.reports.iter().map(Vec::len).sum::<usize>();
                     bursts.push(burst);
                     sent += 1;
                 }
@@ -1896,6 +1897,17 @@ mod tests {
     }
     use crate::drivers::frame_cache::AntiFreezeFrameCache;
     use crate::media::MediaStore;
+
+    #[test]
+    fn verified_akp_key_burst_preserves_existing_packets() {
+        let dev = builtin_device_catalog().remove(0);
+        let jpeg = [0xFF, 0xD8, 0x01, 0x02, 0xFF, 0xD9];
+        let actual = key_image_burst(&dev, key_image_slot(&dev, 0), &jpeg);
+        let expected = crate::drivers::akp05e_protocol::build_key_image_packets(
+            key_image_slot(&dev, 0), &jpeg,
+        );
+        assert_eq!(actual.reports, expected.into_iter().map(|packet| packet.to_vec()).collect::<Vec<_>>());
+    }
 
     #[test]
     fn short_writes_and_disconnected_decks_cannot_report_success() {

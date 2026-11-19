@@ -399,20 +399,15 @@ pub(crate) fn build_animation_bursts(dev: &DeviceDescriptor, frames: Vec<(Playba
     let _timing = performance::timer(performance::Stage::Animation);
     let mut bursts = Vec::new();
     for (target, jpeg) in frames {
-        let reports = match target {
-            PlaybackTarget::Key(index) => {
-                build_key_image_packets(key_image_slot(&dev, index), &jpeg)
-            }
-            PlaybackTarget::TouchZone(index) => {
-                build_key_image_packets(touch_zone_image_slot(&dev, index), &jpeg)
-            }
-            PlaybackTarget::Strip { width, height } => {
-                build_touch_strip_packets(&jpeg, 0, 0, width, height)
-            }
+        let burst = match target {
+            PlaybackTarget::Key(index) => drivers::hal::key_image_burst(dev, key_image_slot(dev, index), &jpeg),
+            PlaybackTarget::TouchZone(index) => drivers::hal::key_image_burst(dev, touch_zone_image_slot(dev, index), &jpeg),
+            PlaybackTarget::Strip { width, height } => HidBurst {
+                reports: build_touch_strip_packets(&jpeg, 0, 0, width, height)
+                    .into_iter().map(|r| r.to_vec()).collect(),
+            },
         };
-        bursts.push(HidBurst {
-            reports: reports.into_iter().map(|r| r.to_vec()).collect(),
-        });
+        bursts.push(burst);
     }
     bursts
 }

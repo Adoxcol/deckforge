@@ -1139,10 +1139,7 @@ fn face_delta_bursts_with(
             guard.frame_cache.should_transmit(&dev.id, &frame.slot, &frame.hash_payload).is_some()
         }).collect::<Vec<_>>()
     };
-    let bursts = pending.into_iter().map(|frame| HidBurst {
-        reports: build_key_image_packets(frame.image_slot, &frame.jpeg)
-            .into_iter().map(|report| report.to_vec()).collect(),
-    }).collect();
+    let bursts = pending.into_iter().map(|frame| drivers::hal::key_image_burst(&dev, frame.image_slot, &frame.jpeg)).collect();
     Some((dev, bursts))
 }
 
