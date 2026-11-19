@@ -579,12 +579,20 @@ pub(crate) fn sync_page_knob_leds(shared: &SharedState, dev: &DeviceDescriptor, 
     let action = plan_page_knob_leds_with_face(page, &face, custom_active);
     let mut diags = Vec::new();
     match action {
-        KnobLedSyncAction::None => return,
+        KnobLedSyncAction::None => {
+            let mut guard = shared.lock_safe();
+            guard.live_knob_led_effect = page.knob_led_effect.clone();
+            guard.live_knob_led_base = drivers::hal::parse_knob_rgb_list(&effective_page_knob_colors(page, &face));
+            return;
+        }
         KnobLedSyncAction::Set(colors) => {
+            let rgb = drivers::hal::parse_knob_rgb_list(&colors);
             if send_hardware_knob_leds(dev, &colors, &mut diags).is_ok() {
                 let mut guard = shared.lock_safe();
                 guard.custom_knob_leds_active = true;
                 guard.last_reactive_knob_leds = Some(colors);
+                guard.live_knob_led_effect = page.knob_led_effect.clone();
+                guard.live_knob_led_base = rgb;
             }
         }
         KnobLedSyncAction::Reset => {
@@ -592,6 +600,13 @@ pub(crate) fn sync_page_knob_leds(shared: &SharedState, dev: &DeviceDescriptor, 
                 let mut guard = shared.lock_safe();
                 guard.custom_knob_leds_active = false;
                 guard.last_reactive_knob_leds = None;
+                guard.live_knob_led_effect = page.knob_led_effect.clone();
+                guard.live_knob_led_base = [
+                    drivers::hal::default_knob_rgb(0),
+                    drivers::hal::default_knob_rgb(1),
+                    drivers::hal::default_knob_rgb(2),
+                    drivers::hal::default_knob_rgb(3),
+                ];
             }
         }
     }
@@ -1307,6 +1322,13 @@ mod live_tests {
             auto_switch_hold_until_ms: 0,
             custom_knob_leds_active: false,
             last_reactive_knob_leds: None,
+            live_knob_led_effect: String::new(),
+            live_knob_led_base: [
+                drivers::hal::default_knob_rgb(0),
+                drivers::hal::default_knob_rgb(1),
+                drivers::hal::default_knob_rgb(2),
+                drivers::hal::default_knob_rgb(3),
+            ],
         }))
     }
 
@@ -2026,7 +2048,7 @@ mod auto_switch_tests {
     use crate::db::{AutoSwitchRule, Profile, ProfilePage};
 
     fn page(id: &str) -> ProfilePage {
-        ProfilePage { id: id.into(), name: id.into(), keys: vec![], touch_zones: vec![], encoders: vec![], strip_media: None }
+        ProfilePage { id: id.into(), name: id.into(), keys: vec![], touch_zones: vec![], encoders: vec![], strip_media: None, knob_led_effect: String::new() }
     }
 
     fn profile(id: &str, pages: &[&str]) -> Profile {
@@ -2158,7 +2180,7 @@ mod any_game_tests {
         Profile {
             id: id.into(), name: id.into(), icon: String::new(), color_strip: String::new(),
             target_device_id: String::new(), last_modified_ms: 0,
-            pages: vec![ProfilePage { id: format!("{id}-p"), name: id.into(), keys: vec![], touch_zones: vec![], encoders: vec![], strip_media: None }],
+            pages: vec![ProfilePage { id: format!("{id}-p"), name: id.into(), keys: vec![], touch_zones: vec![], encoders: vec![], strip_media: None, knob_led_effect: String::new() }],
         }
     }
 

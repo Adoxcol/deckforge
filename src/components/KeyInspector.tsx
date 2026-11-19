@@ -14,6 +14,7 @@ import {
   type DeviceDescriptor,
   type EncoderConfig,
   type KeyConfig,
+  type KnobLedEffect,
   type MacroSequence,
   type MediaPreview,
   type ObsSettings,
@@ -78,6 +79,8 @@ interface KeyInspectorProps {
   profileColorStrip?: string;
   onApplyKnobLedPalette: (colors: readonly string[], label: string) => void;
   onApplyKnobLedsToAllPages: () => void;
+  knobLedEffect?: KnobLedEffect;
+  onKnobLedEffectChange: (effect: KnobLedEffect) => void;
   updateSelectedKey: (patch: Partial<KeyConfig>) => void;
   updateSelectedZone: (index: number, patch: Partial<TouchZoneConfig>) => void;
   useSampleAnimation: (target: ScreenTarget, index: number) => Promise<void>;
@@ -121,6 +124,8 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
   profileColorStrip,
   onApplyKnobLedPalette,
   onApplyKnobLedsToAllPages,
+  knobLedEffect = "static",
+  onKnobLedEffectChange,
   updateSelectedKey,
   updateSelectedZone,
   useSampleAnimation,
@@ -454,6 +459,25 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                     }`}
                   />
                 </button>
+              </div>
+              <div className="pt-1 border-t border-[var(--border-subtle)] flex flex-col gap-1.5">
+                <span className="text-[10.5px] text-[var(--text-muted)]">LED Animation</span>
+                <div className="grid grid-cols-3 gap-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
+                  {(["static", "breathe", "rainbow"] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => onKnobLedEffectChange(mode)}
+                      className={`h-6 rounded text-[10.5px] font-medium capitalize cursor-pointer ${
+                        knobLedEffect === mode
+                          ? "bg-[var(--accent-soft)] text-white font-semibold"
+                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
             {(["cw", "ccw", "push"] as const).map((field) => {

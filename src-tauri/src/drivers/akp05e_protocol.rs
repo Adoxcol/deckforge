@@ -164,6 +164,59 @@ pub fn build_led_sleep_mode_packet(follow_system_sleep: bool) -> [u8; HID_REPORT
     buf
 }
 
+pub fn hsv_to_rgb(hue_deg: f32, sat: f32, val: f32) -> [u8; 3] {
+    let h = ((hue_deg % 360.0) + 360.0) % 360.0;
+    let c = val * sat;
+    let x = c * (1.0 - (((h / 60.0) % 2.0) - 1.0).abs());
+    let m = val - c;
+    let (r, g, b) = if h < 60.0 {
+        (c, x, 0.0)
+    } else if h < 120.0 {
+        (x, c, 0.0)
+    } else if h < 180.0 {
+        (0.0, c, x)
+    } else if h < 240.0 {
+        (0.0, x, c)
+    } else if h < 300.0 {
+        (x, 0.0, c)
+    } else {
+        (c, 0.0, x)
+    };
+    [
+        ((r + m) * 255.0).round().clamp(0.0, 255.0) as u8,
+        ((g + m) * 255.0).round().clamp(0.0, 255.0) as u8,
+        ((b + m) * 255.0).round().clamp(0.0, 255.0) as u8,
+    ]
+}
+
+/// Computes the 4-knob RGB frame for software-driven LED animations (`"breathe"`, `"rainbow"`, or `"static"`).
+pub fn compute_led_effect_frame(base: [[u8; 3]; 4], effect: &str, step: u64) -> [[u8; 3]; 4] {
+    match effect {
+        "breathe" => {
+            let phase = (step as f32) * 0.16;
+            let scale = 0.18 + 0.82 * (0.5 + 0.5 * phase.sin());
+            let mut out = [[0u8; 3]; 4];
+            for (i, [r, g, b]) in base.iter().enumerate() {
+                out[i] = [
+                    ((*r as f32) * scale).round().clamp(0.0, 255.0) as u8,
+                    ((*g as f32) * scale).round().clamp(0.0, 255.0) as u8,
+                    ((*b as f32) * scale).round().clamp(0.0, 255.0) as u8,
+                ];
+            }
+            out
+        }
+        "rainbow" => {
+            let mut out = [[0u8; 3]; 4];
+            for (i, slot) in out.iter_mut().enumerate() {
+                let hue = (step as f32) * 8.0 + (i as f32) * 45.0;
+                *slot = hsv_to_rgb(hue, 1.0, 1.0);
+            }
+            out
+        }
+        _ => base,
+    }
+}
+
 /// AKP05E visual key (row-major, 0 = top left) → 1-based BAT image slot.
 ///
 /// The face is one 800×480 panel, not ten independent screens plus a strip at y=0.
@@ -1318,5 +1371,13 @@ mod tests {
         assert_eq!(&follow[0..11], &[0x00, b'C', b'R', b'T', 0x00, 0x00, b'Q', b'U', b'C', b'M', b'D']);
         assert_eq!(follow[11], 0x1F);
         assert_eq!(build_led_sleep_mode_packet(false)[11], 0x11);
+
+        let base = [[100, 200, 50]; 4];
+        assert_eq!(compute_led_effect_frame(base, "static", 5), base);
+        let b0 = compute_led_effect_frame(base, "breathe", 0);
+        let b10 = compute_led_effect_frame(base, "breathe", 10);
+        assert_ne!(b0, b10);
+        let r0 = compute_led_effect_frame(base, "rainbow", 0);
+        assert_ne!(r0[0], r0[1]);
     }
 }

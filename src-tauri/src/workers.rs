@@ -273,10 +273,38 @@ pub(crate) fn spawn_hardware_input_worker(app_handle: tauri::AppHandle, shared: 
 /// Cycles GIF frames onto key LCDs and the touch strip. At most three screens are
 /// written per tick so the USB bus stays responsive.
 pub(crate) fn spawn_animation_worker(shared: SharedState) {
-    std::thread::spawn(move || loop {
-        std::thread::sleep(Duration::from_millis(40));
-        let _ = animation_tick(&shared, write_animation_frames);
+    std::thread::spawn(move || {
+        let mut tick: u64 = 0;
+        loop {
+            std::thread::sleep(Duration::from_millis(40));
+            let _ = animation_tick(&shared, write_animation_frames);
+            tick = tick.wrapping_add(1);
+            if tick % 3 == 0 {
+                knob_led_effect_tick(&shared, tick / 3);
+            }
+        }
     });
+}
+
+fn knob_led_effect_tick(shared: &SharedState, step: u64) {
+    let Ok(_display) = DISPLAY_WRITE.try_lock() else { return; };
+    let target = {
+        let guard = shared.lock_safe();
+        let effect = guard.live_knob_led_effect.as_str();
+        if !matches!(effect, "breathe" | "rainbow") {
+            return;
+        }
+        let dev = guard
+            .devices
+            .iter()
+            .find(|d| d.connected && d.protocol_family.starts_with("CRT") && d.encoders.is_some())
+            .cloned();
+        dev.map(|d| (d, effect.to_string(), guard.live_knob_led_base))
+    };
+    if let Some((dev, effect, base)) = target {
+        let frame = drivers::akp05e_protocol::compute_led_effect_frame(base, &effect, step);
+        let _ = drivers::hal::write_knob_led_rgb(&dev, &frame);
+    }
 }
 
 pub(crate) fn animation_tick(

@@ -156,6 +156,8 @@ pub struct ManagedAppState {
     pub auto_switch_hold_until_ms: u64,
     pub custom_knob_leds_active: bool,
     pub last_reactive_knob_leds: Option<Vec<String>>,
+    pub live_knob_led_effect: String,
+    pub live_knob_led_base: [[u8; 3]; 4],
 }
 
 impl Default for ManagedAppState {
@@ -240,6 +242,13 @@ impl Default for ManagedAppState {
             auto_switch_hold_until_ms: 0,
             custom_knob_leds_active: false,
             last_reactive_knob_leds: None,
+            live_knob_led_effect: String::new(),
+            live_knob_led_base: [
+                drivers::hal::default_knob_rgb(0),
+                drivers::hal::default_knob_rgb(1),
+                drivers::hal::default_knob_rgb(2),
+                drivers::hal::default_knob_rgb(3),
+            ],
         }
     }
 }

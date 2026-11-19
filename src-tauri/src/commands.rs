@@ -101,11 +101,48 @@ pub fn set_knob_leds(
     {
         let mut guard = state.lock_safe();
         guard.custom_knob_leds_active = true;
+        guard.live_knob_led_base = drivers::hal::parse_knob_rgb_list(&colors);
         guard.diagnostics.extend(diags);
         let excess = guard.diagnostics.len().saturating_sub(80);
         guard.diagnostics.drain(..excess);
     }
     Ok(res)
+}
+
+#[tauri::command]
+pub fn set_knob_led_effect(
+    device_id: String,
+    effect: String,
+    colors: Vec<String>,
+    state: State<'_, SharedState>,
+) -> Result<String, String> {
+    let normalized = match effect.trim().to_lowercase().as_str() {
+        "breathe" => "breathe".to_string(),
+        "rainbow" => "rainbow".to_string(),
+        _ => String::new(),
+    };
+    let dev = {
+        let mut guard = state.lock_safe();
+        let dev = guard
+            .devices
+            .iter()
+            .find(|d| d.id == device_id)
+            .cloned()
+            .ok_or_else(|| format!("Device {} not found", device_id))?;
+        guard.live_knob_led_effect = normalized.clone();
+        guard.live_knob_led_base = drivers::hal::parse_knob_rgb_list(&colors);
+        if !normalized.is_empty() {
+            guard.custom_knob_leds_active = true;
+        }
+        dev
+    };
+    if normalized.is_empty() {
+        let mut diags = Vec::new();
+        let _ = send_hardware_knob_leds(&dev, &colors, &mut diags);
+        Ok(format!("Knob LED effect set to Static on {}", dev.model_name))
+    } else {
+        Ok(format!("Knob LED effect set to {} on {}", normalized, dev.model_name))
+    }
 }
 
 #[tauri::command]
@@ -127,6 +164,7 @@ pub fn reset_knob_leds(
     {
         let mut guard = state.lock_safe();
         guard.custom_knob_leds_active = false;
+        guard.live_knob_led_effect.clear();
         guard.diagnostics.extend(diags);
         let excess = guard.diagnostics.len().saturating_sub(80);
         guard.diagnostics.drain(..excess);

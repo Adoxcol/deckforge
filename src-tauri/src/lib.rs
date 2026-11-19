@@ -126,6 +126,7 @@ pub fn run() {
             refresh_usb_devices,
             set_device_brightness,
             set_knob_leds,
+            set_knob_led_effect,
             reset_knob_leds,
             set_led_brightness,
             set_led_sleep_mode,

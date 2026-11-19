@@ -82,6 +82,8 @@ pub struct ProfilePage {
     pub encoders: Vec<EncoderConfig>,
     #[serde(default)]
     pub strip_media: Option<ScreenMediaConfig>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub knob_led_effect: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -367,6 +369,7 @@ fn make_page(id: &str, name: &str, keys: Vec<KeyConfig>, zones: Vec<TouchZoneCon
         touch_zones: zones,
         encoders: default_encoders(),
         strip_media: None,
+        knob_led_effect: String::new(),
     }
 }
 
@@ -531,6 +534,7 @@ pub fn default_profiles() -> Vec<Profile> {
         touch_zones: default_touch_zones(),
         encoders: default_encoders(),
         strip_media: None,
+        knob_led_effect: String::new(),
     };
     let game = game_page();
     let edit = edit_page();
@@ -949,6 +953,7 @@ pub fn parse_all_legacy_sdprofiles() -> Vec<Profile> {
                 touch_zones: default_touch_zones(),
                 encoders: default_encoders(),
                 strip_media: None,
+                knob_led_effect: String::new(),
             }],
             last_modified_ms: now_ms(),
         });

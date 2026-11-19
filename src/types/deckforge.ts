@@ -109,6 +109,8 @@ export interface EncoderConfig {
   ledReactive?: boolean;
 }
 
+export type KnobLedEffect = "static" | "breathe" | "rainbow";
+
 export interface ProfilePage {
   id: string;
   name: string;
@@ -116,6 +118,7 @@ export interface ProfilePage {
   touchZones: TouchZoneConfig[];
   encoders: EncoderConfig[];
   stripMedia?: ScreenMediaConfig | null;
+  knobLedEffect?: KnobLedEffect;
 }
 
 export interface Profile {

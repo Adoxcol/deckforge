@@ -242,6 +242,8 @@ function readEncoder(raw: Rec, fallbackIndex: number): EncoderConfig {
 }
 
 function readPage(raw: Rec, position: number): ProfilePage {
+  const effectRaw = str(raw.knobLedEffect);
+  const knobLedEffect = effectRaw === "breathe" || effectRaw === "rainbow" ? effectRaw : undefined;
   return {
     id: str(raw.id) || `page-${position + 1}`,
     name: str(raw.name, `Page ${position + 1}`).slice(0, 40) || `Page ${position + 1}`,
@@ -249,6 +251,7 @@ function readPage(raw: Rec, position: number): ProfilePage {
     touchZones: records(raw.touchZones).map(readZone),
     encoders: records(raw.encoders).map(readEncoder),
     stripMedia: null,
+    ...(knobLedEffect ? { knobLedEffect } : {}),
   };
 }
 

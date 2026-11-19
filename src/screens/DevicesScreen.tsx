@@ -7,6 +7,7 @@ import {
   type DiagnosticEntry,
   type EncoderConfig,
   type FrameCacheStats,
+  type KnobLedEffect,
 } from "../types/deckforge";
 
 const DEVICE_KNOB_SWATCHES = ["#35C98B", "#56B9F2", "#8B5CF6", "#F4B860", "#F16B79", "#FFFFFF"] as const;
@@ -29,6 +30,8 @@ interface DevicesScreenProps {
   onLedBrightness?: (percent: number) => void;
   ledFollowSleep?: boolean;
   onLedSleepMode?: (followSystemSleep: boolean) => void;
+  knobLedEffect?: KnobLedEffect;
+  onKnobLedEffectChange?: (effect: KnobLedEffect) => void;
 }
 
 type DetailTab = "Overview" | "Controls" | "Display" | "Diagnostics" | "Advanced";
@@ -51,6 +54,8 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
   onLedBrightness,
   ledFollowSleep = true,
   onLedSleepMode,
+  knobLedEffect = "static",
+  onKnobLedEffectChange,
 }) => {
   const [deviceDetailTab, setDeviceDetailTab] = useState<DetailTab>("Overview");
   const [restarting, setRestarting] = useState(false);
@@ -239,6 +244,24 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                 </p>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                {onKnobLedEffectChange && (
+                  <div className="flex items-center gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
+                    {(["static", "breathe", "rainbow"] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => onKnobLedEffectChange(mode)}
+                        className={`h-7 px-2 rounded text-[11px] font-medium capitalize cursor-pointer ${
+                          knobLedEffect === mode
+                            ? "bg-[var(--accent-soft)] text-white font-semibold"
+                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                        }`}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => onKnobLedChange("all", "#000000")}

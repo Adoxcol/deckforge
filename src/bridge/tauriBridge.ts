@@ -747,6 +747,13 @@ export const deckforgeApi = {
     return `Knob LEDs updated (CRT\\0\\0SETLB ${colors.join(" ")})`;
   },
 
+  async setKnobLedEffect(deviceId: string, effect: string, colors: string[]): Promise<string> {
+    if (isTauriRuntime()) {
+      return await invoke<string>("set_knob_led_effect", { deviceId, effect, colors });
+    }
+    return `Knob LED effect set to ${effect || "static"}`;
+  },
+
   async resetKnobLeds(deviceId: string): Promise<string> {
     if (isTauriRuntime()) {
       return await invoke<string>("reset_knob_leds", { deviceId });

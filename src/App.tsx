@@ -76,6 +76,7 @@ import {
   FrameCacheStats,
   EncoderConfig,
   KeyConfig,
+  type KnobLedEffect,
   LegacyStreamDockSummary,
   PluginView,
   MacroRunReport,
@@ -1160,6 +1161,36 @@ export const App: React.FC = () => {
     triggerToast(`Applied ${label} knob LED palette`, "info");
   };
 
+  const handleKnobLedEffectChange = async (effect: KnobLedEffect) => {
+    if (!activeProfile || !activePage || !activeDevice) return;
+    lastKnobUndoRef.current = null;
+    pushUndoSnapshot();
+    const stored = effect === "static" ? undefined : effect;
+    setProfiles((prev) =>
+      prev.map((prof) =>
+        prof.id !== activeProfile.id
+          ? prof
+          : {
+              ...prof,
+              lastModifiedMs: Date.now(),
+              pages: prof.pages.map((pg, pIdx) =>
+                pIdx !== selectedPageIdx ? pg : { ...pg, knobLedEffect: stored }
+              ),
+            }
+      )
+    );
+    const colors = [0, 1, 2, 3].map((i) => {
+      const enc = activePage.encoders.find((e) => e.index === i);
+      return (enc?.ledColor || DEFAULT_KNOB_LED_COLORS[i] || "#35C98B").toUpperCase();
+    });
+    try {
+      const msg = await deckforgeApi.setKnobLedEffect(activeDevice.id, effect, colors);
+      triggerToast(msg, "info");
+    } catch (err) {
+      triggerToast(`Could not set knob LED effect: ${errorText(err)}`, "warning");
+    }
+  };
+
   const handleApplyKnobLedsToAllPages = () => {
     if (!activeProfile || !activePage) return;
     const byIndex = new Map(activePage.encoders.map((enc) => [enc.index, enc.ledColor ?? ""]));
@@ -1707,13 +1738,13 @@ export const App: React.FC = () => {
           </main>
 
           {/* RIGHT INSPECTOR PANE (320px — Button Properties matching Reference Screenshot) */}
-          <KeyInspector mediaLibrary={mediaLibrary} onMediaStored={clip => setMediaLibrary(prev => ({ ...prev, [clip.id]: clip }))} activeDevice={activeDevice} activeEncoder={activeEncoder} activeKey={activeKey} activeZone={activeZone} allActionTemplates={allActionTemplates} assignMedia={assignMedia} clipFor={clipFor} clipboardKey={clipboardKey} currentMedia={currentMedia} face={face} fileRef={fileRef} handleClearSelectedKey={handleClearSelectedKey} handleTestSelectedAction={handleTestSelectedAction} hotkeyTarget={hotkeyTarget} ingestFile={ingestFile} inspectorTab={inspectorTab} macros={macros} obsSettings={obsSettings} paramOptionsFor={paramOptionsFor} patchCurrentMedia={patchCurrentMedia} saveObs={saveObs} setActionCategoryFilter={setActionCategoryFilter} setClipboardKey={setClipboardKey} setCustomActions={setCustomActions} setHotkeyTarget={setHotkeyTarget} setInspectorTab={setInspectorTab} surface={surface} surfaceIndex={surfaceIndex} triggerToast={triggerToast} updateSelectedEncoder={updateSelectedEncoder} onKnobLedChange={handleKnobLedChange} onResetKnobLeds={() => void handleResetKnobLeds()} profileColorStrip={activeProfile.colorStrip} onApplyKnobLedPalette={handleApplyKnobLedPalette} onApplyKnobLedsToAllPages={handleApplyKnobLedsToAllPages} updateSelectedKey={updateSelectedKey} updateSelectedZone={updateSelectedZone} useSampleAnimation={useSampleAnimation} />
+          <KeyInspector mediaLibrary={mediaLibrary} onMediaStored={clip => setMediaLibrary(prev => ({ ...prev, [clip.id]: clip }))} activeDevice={activeDevice} activeEncoder={activeEncoder} activeKey={activeKey} activeZone={activeZone} allActionTemplates={allActionTemplates} assignMedia={assignMedia} clipFor={clipFor} clipboardKey={clipboardKey} currentMedia={currentMedia} face={face} fileRef={fileRef} handleClearSelectedKey={handleClearSelectedKey} handleTestSelectedAction={handleTestSelectedAction} hotkeyTarget={hotkeyTarget} ingestFile={ingestFile} inspectorTab={inspectorTab} macros={macros} obsSettings={obsSettings} paramOptionsFor={paramOptionsFor} patchCurrentMedia={patchCurrentMedia} saveObs={saveObs} setActionCategoryFilter={setActionCategoryFilter} setClipboardKey={setClipboardKey} setCustomActions={setCustomActions} setHotkeyTarget={setHotkeyTarget} setInspectorTab={setInspectorTab} surface={surface} surfaceIndex={surfaceIndex} triggerToast={triggerToast} updateSelectedEncoder={updateSelectedEncoder} onKnobLedChange={handleKnobLedChange} onResetKnobLeds={() => void handleResetKnobLeds()} profileColorStrip={activeProfile.colorStrip} onApplyKnobLedPalette={handleApplyKnobLedPalette} onApplyKnobLedsToAllPages={handleApplyKnobLedsToAllPages} knobLedEffect={activePage.knobLedEffect ?? "static"} onKnobLedEffectChange={(effect) => void handleKnobLedEffectChange(effect)} updateSelectedKey={updateSelectedKey} updateSelectedZone={updateSelectedZone} useSampleAnimation={useSampleAnimation} />
         </div>
       )}
 
       {/* 3. SCREEN 02: DEVICE MANAGER & DIAGNOSTICS (Spec Section 5) */}
       {activeScreen === "devices" && (
-        <DevicesScreen connectedDevices={connectedDevices} activeDevice={activeDevice} frameStats={frameStats} diagnostics={diagnostics} onRescan={handleRescanDevices} onSelectDevice={handleSelectDevice} onBrightness={handleBrightnessChange} onOpenWorkspace={() => setActiveScreen("workspace")} onRestartDeck={handleRestartDeck} encoders={activePage.encoders} onKnobLedChange={handleKnobLedChange} onResetKnobLeds={() => void handleResetKnobLeds()} ledBrightness={ledBrightness} onLedBrightness={(pct) => void handleLedBrightnessChange(pct)} ledFollowSleep={ledFollowSleep} onLedSleepMode={(follow) => void handleLedSleepModeChange(follow)} />
+        <DevicesScreen connectedDevices={connectedDevices} activeDevice={activeDevice} frameStats={frameStats} diagnostics={diagnostics} onRescan={handleRescanDevices} onSelectDevice={handleSelectDevice} onBrightness={handleBrightnessChange} onOpenWorkspace={() => setActiveScreen("workspace")} onRestartDeck={handleRestartDeck} encoders={activePage.encoders} onKnobLedChange={handleKnobLedChange} onResetKnobLeds={() => void handleResetKnobLeds()} ledBrightness={ledBrightness} onLedBrightness={(pct) => void handleLedBrightnessChange(pct)} ledFollowSleep={ledFollowSleep} onLedSleepMode={(follow) => void handleLedSleepModeChange(follow)} knobLedEffect={activePage.knobLedEffect ?? "static"} onKnobLedEffectChange={(effect) => void handleKnobLedEffectChange(effect)} />
       )}
 
       {/* 4. SCREEN 04: PLUGINS & LEGACY .sdPlugin BRIDGE (Spec Section 7) */}

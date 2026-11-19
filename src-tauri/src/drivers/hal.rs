@@ -377,6 +377,29 @@ pub fn default_knob_rgb(index: usize) -> [u8; 3] {
     }
 }
 
+pub fn parse_knob_rgb_list(colors_hex: &[String]) -> [[u8; 3]; 4] {
+    let mut rgb = [[0u8; 3]; 4];
+    for (k, slot) in rgb.iter_mut().enumerate() {
+        let fallback = default_knob_rgb(k);
+        *slot = colors_hex
+            .get(k)
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+            .map(|hex| parse_hex_color(hex, fallback))
+            .unwrap_or(fallback);
+    }
+    rgb
+}
+
+/// Sends a single `CRT\0\0SETLB` frame directly without appending diagnostic entries (for LED animations).
+pub fn write_knob_led_rgb(dev: &DeviceDescriptor, rgb: &[[u8; 3]; 4]) -> Result<(), String> {
+    if !dev.connected || dev.is_simulator {
+        return Ok(());
+    }
+    let pkt = build_knob_led_packet(rgb);
+    deck_write(vec![(pkt.to_vec(), 0)])
+}
+
 /// Sends a `CRT\0\0SETLB` packet setting the 4 rotary knob RGB LEDs on the deck.
 pub fn send_hardware_knob_leds(
     dev: &DeviceDescriptor,
