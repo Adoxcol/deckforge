@@ -758,6 +758,12 @@ pub async fn audio_apps() -> Result<Vec<actions::app_audio::AudioApp>, String> {
     tauri::async_runtime::spawn_blocking(actions::app_audio::list).await.map_err(|e| e.to_string())?
 }
 
+/// Local sound file for a soundboard key. `None` when the dialog is cancelled.
+#[tauri::command]
+pub async fn pick_sound_file() -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(crate::soundboard::pick_file).await.map_err(|e| e.to_string())?
+}
+
 // Frontend queues retain per-setting revision order; serialize file writes and
 // publication here as well, without blocking device state during disk I/O.
 static SETTINGS_WRITE: Mutex<()> = Mutex::new(());

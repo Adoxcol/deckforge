@@ -820,6 +820,11 @@ export const deckforgeApi = {
     return Date.now();
   },
 
+  async pickSoundFile(): Promise<string | null> {
+    if (!isTauriRuntime()) return null;
+    return invoke<string | null>("pick_sound_file");
+  },
+
   async testKeyAction(actionId: string, actionLabel: string, actionParam: string): Promise<ActionExecutionResult> {
     if (isTauriRuntime()) {
       return await invoke<ActionExecutionResult>("test_key_action", { actionId, actionLabel, actionParam });

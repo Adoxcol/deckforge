@@ -771,6 +771,8 @@ pub fn execute_key_action_live(
             "audio.volume_up" => { send_vk_tap(VK_VOLUME_UP); Ok("Sent volume-up key".into()) },
             "audio.volume_down" => { send_vk_tap(VK_VOLUME_DOWN); Ok("Sent volume-down key".into()) },
             "audio.mute_mic" => toggle_microphone_mute(),
+            "audio.play_sound" => crate::soundboard::play(action_param),
+            "audio.stop_sound" => crate::soundboard::stop(),
             "audio.volume_mute" => toggle_speaker_mute(),
             "audio.cycle_output" => cycle_output(action_param),
             "audio.app_volume_up" | "audio.app_volume_down" | "audio.app_mute" => app_audio::execute(action_id, action_param),

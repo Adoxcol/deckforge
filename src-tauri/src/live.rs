@@ -150,6 +150,8 @@ pub(crate) fn known_action(binding: &str) -> bool {
             | "audio.app_volume_down"
             | "audio.app_mute"
             | "audio.open_mixer"
+            | "audio.play_sound"
+            | "audio.stop_sound"
             | "sys.show_desktop"
             | "sys.screenshot"
             | "sys.task_manager"

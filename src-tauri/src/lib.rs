@@ -48,6 +48,7 @@ mod backup;
 mod draft;
 mod gestures;
 mod live;
+mod soundboard;
 mod macro_run;
 mod state;
 mod startup_profile;
@@ -174,7 +175,8 @@ pub fn run() {
             commands::plugin_open_page,
             updates::update_ready,
             commands::audio_apps,
-            commands::audio_outputs
+            commands::audio_outputs,
+            commands::pick_sound_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running DeckForge Tauri application");

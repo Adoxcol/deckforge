@@ -3,6 +3,8 @@ import React from "react";
 import type { ObsSettings } from "../types/deckforge";
 import { ActionPicker } from "./ActionPicker";
 import { joinOutputPair, splitOutputPair } from "../lib/audioOutputs";
+import { joinSound, splitSound } from "../lib/soundboard";
+import { deckforgeApi } from "../bridge/tauriBridge";
 
 export interface ActionChoice {
   id: string;
@@ -28,7 +30,8 @@ export function actionNeedsParam(id: string): boolean {
     id === "profile.switch" ||
     id === "macro.run" ||
     id.startsWith("audio.app_") ||
-    id === "audio.cycle_output"
+    id === "audio.cycle_output" ||
+    id === "audio.play_sound"
   );
 }
 
@@ -55,6 +58,7 @@ function paramLabel(actionId: string): string {
   if (actionId === "profile.switch") return "Profile";
   if (actionId === "macro.run") return "Macro";
   if (actionId === "audio.cycle_output") return "Outputs";
+  if (actionId === "audio.play_sound") return "Sound file";
   if (actionId === "custom.hotkey" || actionId === "sys.hotkey") return "Shortcut";
   return "Parameter";
 }
@@ -95,6 +99,50 @@ const OutputPair: React.FC<{ value: string; options: { value: string; label: str
   );
 };
 
+const SoundClip: React.FC<{ value: string; onChange: (value: string) => void }> = ({ value, onChange }) => {
+  const { volume, path } = splitSound(value);
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[10.5px] text-[var(--text-secondary)]">Sound file</span>
+        <button
+          type="button"
+          onClick={() => {
+            void deckforgeApi.pickSoundFile().then((picked) => {
+              if (picked) onChange(joinSound(volume, picked));
+            });
+          }}
+          className="px-2 py-0.5 rounded text-[10.5px] font-semibold cursor-pointer bg-[var(--accent-soft)] text-[var(--accent-text)] border border-[var(--accent-primary)]/45 hover:bg-[var(--accent-primary)] hover:text-white transition-colors"
+        >
+          Browse
+        </button>
+      </div>
+      <input
+        value={path}
+        aria-label="Sound file"
+        onChange={(event) => onChange(joinSound(volume, event.target.value))}
+        placeholder="C:\sounds\horn.wav"
+        className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+      />
+      <label className="flex items-center gap-2">
+        <span className="text-[10.5px] text-[var(--text-secondary)] w-16 shrink-0">Volume {volume}</span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={volume}
+          aria-label="Sound volume"
+          onChange={(event) => onChange(joinSound(Number(event.target.value), path))}
+          className="flex-1 accent-[var(--accent-primary)]"
+        />
+      </label>
+      <span className="text-[10.5px] text-[var(--text-muted)] leading-snug">
+        wav, mp3, or ogg, up to 20 MB. A new sound replaces the one that is playing.
+      </span>
+    </div>
+  );
+};
+
 export const ActionBinding: React.FC<{
   label: string;
   actionId: string;
@@ -124,6 +172,8 @@ export const ActionBinding: React.FC<{
         <AppAudioTarget value={actionParam} onChange={next => onChange(actionId, next)} />
       ) : actionId === "audio.cycle_output" ? (
         <OutputPair value={actionParam} options={paramOptions ?? []} onChange={(next) => onChange(actionId, next)} />
+      ) : actionId === "audio.play_sound" ? (
+        <SoundClip value={actionParam} onChange={(next) => onChange(actionId, next)} />
       ) : showParam && paramOptions && paramOptions.length > 0 ? (
         <select
           value={actionParam}
