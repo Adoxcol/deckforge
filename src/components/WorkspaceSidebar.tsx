@@ -4,7 +4,8 @@ import { Download, Plus, RefreshCw, Upload } from "lucide-react";
 import { DeckIcon } from "./DeckIcon";
 import { AppRuleList } from "./AppRuleList";
 import { STARTER_PROFILES, type StarterProfile } from "../data/starterProfiles";
-import type { AutoSwitchRule, DeviceDescriptor, Profile } from "../types/deckforge";
+import type { AutoSwitchRule, DeviceDescriptor, MacroSequence, Profile } from "../types/deckforge";
+import { searchBindings } from "../lib/bindingSearch";
 
 interface WorkspaceSidebarProps {
   activeProfile: Profile;
@@ -14,7 +15,10 @@ interface WorkspaceSidebarProps {
   onExportProfile: () => void;
   onImportProfile: () => void;
   profiles: Profile[];
+  macros: MacroSequence[];
   selectedPageIdx: number;
+  setSurface: React.Dispatch<React.SetStateAction<"key" | "zone" | "strip" | "encoder">>;
+  setSurfaceIndex: React.Dispatch<React.SetStateAction<number>>;
   saveRules: (rules: AutoSwitchRule[]) => void;
   setDevices: React.Dispatch<React.SetStateAction<DeviceDescriptor[]>>;
   setSelectedKeyIdx: React.Dispatch<React.SetStateAction<number>>;
@@ -31,7 +35,10 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
   onExportProfile,
   onImportProfile,
   profiles,
+  macros,
   selectedPageIdx,
+  setSurface,
+  setSurfaceIndex,
   saveRules,
   setDevices,
   setSelectedKeyIdx,
@@ -41,6 +48,11 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
 }: WorkspaceSidebarProps) {
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [rescanning, setRescanning] = React.useState(false);
+  const [bindingQuery, setBindingQuery] = React.useState("");
+  const bindingHits = React.useMemo(
+    () => searchBindings(profiles, bindingQuery, macros.map((macro) => ({ id: macro.id, name: macro.name }))),
+    [profiles, bindingQuery, macros],
+  );
 
   React.useEffect(() => {
     if (!pickerOpen) return;
@@ -178,6 +190,46 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
           </div>
         </div>
 
+        <label className="mb-2 flex flex-col gap-1">
+          <span className="sr-only">Find a binding</span>
+          <input
+            value={bindingQuery}
+            onChange={(event) => setBindingQuery(event.target.value)}
+            placeholder="Find a key, app, or macro"
+            aria-label="Find a binding"
+            className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+          />
+        </label>
+        {bindingQuery.trim() && (
+          <div role="listbox" aria-label="Binding results" className="mb-2 flex max-h-48 flex-col gap-0.5 overflow-y-auto">
+            {bindingHits.length === 0 ? (
+              <p className="px-2 py-1.5 text-[11px] text-[var(--text-muted)]">Nothing matches.</p>
+            ) : (
+              bindingHits.map((hit) => (
+                <button
+                  key={`${hit.profileId}:${hit.pageIndex}:${hit.surface}:${hit.index}`}
+                  type="button"
+                  role="option"
+                  onClick={() => {
+                    deckforgeApi.holdAutoSwitch().catch(() => {});
+                    setSelectedProfileId(hit.profileId);
+                    setSelectedPageIdx(hit.pageIndex);
+                    setSurface(hit.surface);
+                    setSurfaceIndex(hit.index);
+                    if (hit.surface === "key") setSelectedKeyIdx(hit.index);
+                    setBindingQuery("");
+                  }}
+                  className="px-2 py-1.5 rounded-md text-left hover:bg-[var(--bg-panel)] cursor-pointer"
+                >
+                  <span className="block truncate text-[12px] text-[var(--text-primary)]">{hit.title}</span>
+                  <span className="block truncate text-[10.5px] text-[var(--text-muted)]">
+                    {hit.profileName} · {hit.pageName} · {hit.where}
+                  </span>
+                </button>
+              ))
+            )}
+          </div>
+        )}
         <div className="flex flex-col gap-1">
           {profiles.map((prof) => {
             const isSel = prof.id === activeProfile.id;

@@ -1857,7 +1857,7 @@ export const App: React.FC = () => {
       {activeScreen === "workspace" && (
         <div className="flex-1 grid grid-cols-[232px_minmax(0,1fr)_292px] 2xl:grid-cols-[256px_minmax(0,1fr)_324px] overflow-hidden">
           {/* LEFT CONTEXTUAL SIDEBAR: Devices + Profiles */}
-          <WorkspaceSidebar activeProfile={activeProfile} autoSwitchRules={autoSwitchRules} connectedDevices={connectedDevices} handleAddProfile={sidebarCallbacks.handleAddProfile} onExportProfile={sidebarCallbacks.onExportProfile} onImportProfile={sidebarCallbacks.onImportProfile} profiles={profiles} selectedPageIdx={selectedPageIdx} saveRules={sidebarCallbacks.saveRules} setDevices={setDevices} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSelectedProfileId={setSelectedProfileId} triggerToast={sidebarCallbacks.triggerToast} />
+          <WorkspaceSidebar activeProfile={activeProfile} autoSwitchRules={autoSwitchRules} connectedDevices={connectedDevices} handleAddProfile={sidebarCallbacks.handleAddProfile} onExportProfile={sidebarCallbacks.onExportProfile} onImportProfile={sidebarCallbacks.onImportProfile} profiles={profiles} macros={macros} selectedPageIdx={selectedPageIdx} saveRules={sidebarCallbacks.saveRules} setDevices={setDevices} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSelectedProfileId={setSelectedProfileId} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} triggerToast={sidebarCallbacks.triggerToast} />
 
           {/* CENTER WORKSPACE COLUMN: Toolbar + Hardware Bezel + Bottom Action Library Drawer */}
           <main className="flex flex-col justify-between bg-[var(--bg-app)] overflow-hidden">
