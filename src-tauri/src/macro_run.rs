@@ -304,7 +304,14 @@ mod tests {
     #[cfg(target_os = "windows")]
     #[test]
     fn standalone_webhook_observes_http_success_failure_and_rejects_overlap() {
-        use std::{io::{Read, Write}, net::TcpListener, sync::mpsc};
+        use std::{io::{Read, Write}, net::TcpListener, sync::mpsc::{self, RecvTimeoutError}};
+        // `standalone_webhook` gives PowerShell 6 s in total, start-up included. A cold start on a
+        // loaded CI runner, with other tests starting PowerShell at the same time, can use all of
+        // it, so the request under test goes through `run_webhook` with a far longer deadline.
+        // The overlap check below still uses `standalone_webhook`.
+        const REQUEST_DEADLINE: Duration = Duration::from_secs(30);
+        // Outlast the request, so a request that never connects reports its own error.
+        const SERVER_WAIT: Duration = Duration::from_secs(32);
         for code in [200, 500] {
             let listener = TcpListener::bind("127.0.0.1:0").unwrap();
             listener.set_nonblocking(true).unwrap();
@@ -312,7 +319,7 @@ mod tests {
             let (arrived, received) = mpsc::channel();
             let (release, proceed) = mpsc::channel();
             let server = std::thread::spawn(move || {
-                let deadline = Instant::now() + Duration::from_secs(8);
+                let deadline = Instant::now() + SERVER_WAIT;
                 let mut socket = loop {
                     if let Ok((socket, _)) = listener.accept() { break socket; }
                     assert!(Instant::now() < deadline, "webhook did not reach loopback server");
@@ -321,16 +328,24 @@ mod tests {
                 // On Windows an accepted socket inherits the listener's non-blocking mode, so the
                 // read below failed with WouldBlock whenever the request had not arrived yet.
                 socket.set_nonblocking(false).unwrap();
-                socket.set_read_timeout(Some(Duration::from_secs(2))).unwrap();
+                socket.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
                 let _ = socket.read(&mut [0; 4096]).unwrap();
                 arrived.send(()).unwrap();
-                proceed.recv_timeout(Duration::from_secs(2)).unwrap();
+                proceed.recv_timeout(Duration::from_secs(10)).unwrap();
                 let reason = if code == 200 { "OK" } else { "Internal Server Error" };
                 socket.write_all(format!("HTTP/1.1 {code} {reason}\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{{}}").as_bytes()).unwrap();
             });
             let url = endpoint.clone();
-            let request = std::thread::spawn(move || standalone_webhook(&url));
-            received.recv_timeout(Duration::from_secs(8)).unwrap();
+            let request = std::thread::spawn(move || run_webhook(&url, &RunControl {
+                cancelled: Arc::new(AtomicBool::new(false)), deadline: Instant::now() + REQUEST_DEADLINE }));
+            let waited = Instant::now();
+            loop {
+                match received.recv_timeout(Duration::from_millis(50)) {
+                    Ok(()) => break,
+                    Err(RecvTimeoutError::Timeout) if !request.is_finished() && waited.elapsed() < SERVER_WAIT => {}
+                    Err(_) => panic!("webhook never reached the loopback server; the request returned {:?}", request.join()),
+                }
+            }
             assert!(standalone_webhook(&endpoint).unwrap_err().contains("already running"));
             release.send(()).unwrap();
             let result = request.join().unwrap();
