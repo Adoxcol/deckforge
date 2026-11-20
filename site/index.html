@@ -20,9 +20,7 @@
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="preload" href="assets/fonts/inter-latin-wght.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="styles.css" />
     <script src="main.js" type="module"></script>
   </head>
@@ -177,23 +175,24 @@
               </div>
 
               <div class="knobs">
-                <button class="knob" type="button" style="--tint: var(--mint)" data-kind="knob" data-where="Knob 1" data-name="Master Vol" data-cw="Audio: Volume up" data-ccw="Audio: Volume down" data-push="Audio: Mute speakers" data-value="72" data-step="2" data-unit="%" aria-label="Master Vol knob. Drag or use arrow keys to turn, Enter to push.">
+                <button class="knob" type="button" style="--tint: var(--mint)" data-kind="knob" data-where="Knob 1" data-name="Master Vol" data-cw="Audio: Volume up" data-ccw="Audio: Volume down" data-push="Audio: Mute speakers" data-value="72" data-step="2" data-unit="%" aria-describedby="knob-help">
                   <span class="knob-dial" aria-hidden="true"><span class="knob-mark"></span></span>
                   <span class="knob-text"><span class="knob-name">Master Vol</span><span class="knob-val">72%</span></span>
                 </button>
-                <button class="knob" type="button" style="--tint: var(--sky)" data-kind="knob" data-where="Knob 2" data-name="Media Track" data-cw="Media: Next track" data-ccw="Media: Previous track" data-push="Media: Play / pause" aria-label="Media Track knob. Drag or use arrow keys to turn, Enter to push.">
+                <button class="knob" type="button" style="--tint: var(--sky)" data-kind="knob" data-where="Knob 2" data-name="Media Track" data-cw="Media: Next track" data-ccw="Media: Previous track" data-push="Media: Play / pause" aria-describedby="knob-help">
                   <span class="knob-dial" aria-hidden="true"><span class="knob-mark"></span></span>
                   <span class="knob-text"><span class="knob-name">Media Track</span><span class="knob-val">Prev / Next</span></span>
                 </button>
-                <button class="knob" type="button" style="--tint: var(--violet)" data-kind="knob" data-where="Knob 3" data-name="Timeline" data-cw="Shortcut: Right" data-ccw="Shortcut: Left" data-push="Shortcut: Space" aria-label="Timeline knob. Drag or use arrow keys to turn, Enter to push.">
+                <button class="knob" type="button" style="--tint: var(--violet)" data-kind="knob" data-where="Knob 3" data-name="Timeline" data-cw="Shortcut: Right" data-ccw="Shortcut: Left" data-push="Shortcut: Space" aria-describedby="knob-help">
                   <span class="knob-dial" aria-hidden="true"><span class="knob-mark"></span></span>
                   <span class="knob-text"><span class="knob-name">Timeline</span><span class="knob-val">Left / Right</span></span>
                 </button>
-                <button class="knob" type="button" style="--tint: var(--gold)" data-kind="knob" data-where="Knob 4" data-name="Brightness" data-cw="Deck: Brightness up" data-ccw="Deck: Brightness down" data-push="Deck: Toggle backlight" data-value="85" data-step="5" data-unit="%" aria-label="Brightness knob. Drag or use arrow keys to turn, Enter to push.">
+                <button class="knob" type="button" style="--tint: var(--gold)" data-kind="knob" data-where="Knob 4" data-name="Brightness" data-cw="Deck: Brightness up" data-ccw="Deck: Brightness down" data-push="Deck: Toggle backlight" data-value="85" data-step="5" data-unit="%" aria-describedby="knob-help">
                   <span class="knob-dial" aria-hidden="true"><span class="knob-mark"></span></span>
                   <span class="knob-text"><span class="knob-name">Brightness</span><span class="knob-val">85%</span></span>
                 </button>
               </div>
+              <p class="sr-only" id="knob-help">Knob. Drag or use the arrow keys to turn it, and press Enter to push it.</p>
             </div>
 
             <div class="readout" data-readout>
@@ -235,42 +234,42 @@
             <div class="tabpanel" role="tabpanel" id="panel-workspace" aria-labelledby="tab-workspace">
               <div class="window">
                 <div class="window-bar" aria-hidden="true"><span class="window-title"><img src="assets/logo.svg" alt="" width="14" height="14" />DeckForge</span><span class="window-ctrls"><i></i><i></i><i></i></span></div>
-                <a class="shot-link" href="assets/screens/workspace@2x.webp" target="_blank" rel="noopener"><img src="assets/screens/workspace.webp" srcset="assets/screens/workspace.webp 1440w, assets/screens/workspace@2x.webp 2880w" sizes="(min-width: 1232px) 1168px, calc(100vw - 32px)" width="1440" height="900" alt="The Profiles and keys screen: a Streaming profile with ten keys, a four-zone touch strip and four knobs, the action list below, and the selected key's tap, double-press and hold settings on the right." /></a>
+                <a class="shot-link" href="assets/screens/workspace-2880.webp" target="_blank" rel="noopener"><img src="assets/screens/workspace-1440.webp" srcset="assets/screens/workspace-720.webp 720w, assets/screens/workspace-1440.webp 1440w, assets/screens/workspace-2880.webp 2880w" sizes="(min-width: 1232px) 1168px, calc(100vw - 32px)" width="1440" height="900" alt="The Profiles and keys screen: a Streaming profile with ten keys, a four-zone touch strip and four knobs, the action list below, and the selected key's tap, double-press and hold settings on the right." /></a>
               </div>
               <p class="shot-caption">Lay out keys, touch-strip zones and knobs page by page. Each key gets a tap, a double-press and a hold, and profiles can follow the app in focus.</p>
             </div>
             <div class="tabpanel" role="tabpanel" id="panel-macro" aria-labelledby="tab-macro" hidden>
               <div class="window">
                 <div class="window-bar" aria-hidden="true"><span class="window-title"><img src="assets/logo.svg" alt="" width="14" height="14" />DeckForge</span><span class="window-ctrls"><i></i><i></i><i></i></span></div>
-                <a class="shot-link" href="assets/screens/macro-studio@2x.webp" target="_blank" rel="noopener"><img src="assets/screens/macro-studio.webp" srcset="assets/screens/macro-studio.webp 1440w, assets/screens/macro-studio@2x.webp 2880w" sizes="(min-width: 1232px) 1168px, calc(100vw - 32px)" width="1440" height="900" loading="lazy" alt="Macro studio showing a four-block chain that checks OBS is running, sends a scene hotkey, waits 500 ms and switches profile, with a timing bar above it." /></a>
+                <a class="shot-link" href="assets/screens/macro-studio-2880.webp" target="_blank" rel="noopener"><img src="assets/screens/macro-studio-1440.webp" srcset="assets/screens/macro-studio-720.webp 720w, assets/screens/macro-studio-1440.webp 1440w, assets/screens/macro-studio-2880.webp 2880w" sizes="(min-width: 1232px) 1168px, calc(100vw - 32px)" width="1440" height="900" loading="lazy" alt="Macro studio showing a four-block chain that checks OBS is running, sends a scene hotkey, waits 500 ms and switches profile, with a timing bar above it." /></a>
               </div>
               <p class="shot-caption">Chain shortcuts, waits, “if running” checks, profile switches and webhooks. One chain runs at a time, capped at 256 blocks and 60 seconds, and Stop cancels what hasn’t run yet.</p>
             </div>
             <div class="tabpanel" role="tabpanel" id="panel-game" aria-labelledby="tab-game" hidden>
               <div class="window">
                 <div class="window-bar" aria-hidden="true"><span class="window-title"><img src="assets/logo.svg" alt="" width="14" height="14" />DeckForge</span><span class="window-ctrls"><i></i><i></i><i></i></span></div>
-                <a class="shot-link" href="assets/screens/game-mode@2x.webp" target="_blank" rel="noopener"><img src="assets/screens/game-mode.webp" srcset="assets/screens/game-mode.webp 1440w, assets/screens/game-mode@2x.webp 2880w" sizes="(min-width: 1232px) 1168px, calc(100vw - 32px)" width="1440" height="900" loading="lazy" alt="Game Mode listing the open apps, background processes and services that can be closed, with a list of things that are never touched." /></a>
+                <a class="shot-link" href="assets/screens/game-mode-2880.webp" target="_blank" rel="noopener"><img src="assets/screens/game-mode-1440.webp" srcset="assets/screens/game-mode-720.webp 720w, assets/screens/game-mode-1440.webp 1440w, assets/screens/game-mode-2880.webp 2880w" sizes="(min-width: 1232px) 1168px, calc(100vw - 32px)" width="1440" height="900" loading="lazy" alt="Game Mode listing the open apps, background processes and services that can be closed, with a list of things that are never touched." /></a>
               </div>
               <p class="shot-caption">Pick what to close from what is actually running, optionally switch power plan, and get it all back afterwards. Anti-cheat, drivers, audio and security software are never offered.</p>
             </div>
             <div class="tabpanel" role="tabpanel" id="panel-icons" aria-labelledby="tab-icons" hidden>
               <div class="window">
                 <div class="window-bar" aria-hidden="true"><span class="window-title"><img src="assets/logo.svg" alt="" width="14" height="14" />DeckForge</span><span class="window-ctrls"><i></i><i></i><i></i></span></div>
-                <a class="shot-link" href="assets/screens/icon-studio@2x.webp" target="_blank" rel="noopener"><img src="assets/screens/icon-studio.webp" srcset="assets/screens/icon-studio.webp 1440w, assets/screens/icon-studio@2x.webp 2880w" sizes="(min-width: 1232px) 1168px, calc(100vw - 32px)" width="1440" height="900" loading="lazy" alt="Icon studio with a large preview of the Start Stream key, layer controls for picture, title, icon and background, and grids of icons and brand logos." /></a>
+                <a class="shot-link" href="assets/screens/icon-studio-2880.webp" target="_blank" rel="noopener"><img src="assets/screens/icon-studio-1440.webp" srcset="assets/screens/icon-studio-720.webp 720w, assets/screens/icon-studio-1440.webp 1440w, assets/screens/icon-studio-2880.webp 2880w" sizes="(min-width: 1232px) 1168px, calc(100vw - 32px)" width="1440" height="900" loading="lazy" alt="Icon studio with a large preview of the Start Stream key, layer controls for picture, title, icon and background, and grids of icons and brand logos." /></a>
               </div>
               <p class="shot-caption">Build a key face from a picture, a title, an icon and a background, or start from 3,000+ app and brand logos.</p>
             </div>
             <div class="tabpanel" role="tabpanel" id="panel-themes" aria-labelledby="tab-themes" hidden>
               <div class="window">
                 <div class="window-bar" aria-hidden="true"><span class="window-title"><img src="assets/logo.svg" alt="" width="14" height="14" />DeckForge</span><span class="window-ctrls"><i></i><i></i><i></i></span></div>
-                <a class="shot-link" href="assets/screens/themes@2x.webp" target="_blank" rel="noopener"><img src="assets/screens/themes.webp" srcset="assets/screens/themes.webp 1440w, assets/screens/themes@2x.webp 2880w" sizes="(min-width: 1232px) 1168px, calc(100vw - 32px)" width="1440" height="900" loading="lazy" alt="Themes screen with six animated looks (Synthwave, Code rain, Aurora, Ember, Glitch and Warp) and a full-deck wallpaper option." /></a>
+                <a class="shot-link" href="assets/screens/themes-2880.webp" target="_blank" rel="noopener"><img src="assets/screens/themes-1440.webp" srcset="assets/screens/themes-720.webp 720w, assets/screens/themes-1440.webp 1440w, assets/screens/themes-2880.webp 2880w" sizes="(min-width: 1232px) 1168px, calc(100vw - 32px)" width="1440" height="900" loading="lazy" alt="Themes screen with six animated looks (Synthwave, Code rain, Aurora, Ember, Glitch and Warp) and a full-deck wallpaper option." /></a>
               </div>
               <p class="shot-caption">Animated looks for a whole page, or one GIF split across every key so the deck plays a single animation.</p>
             </div>
             <div class="tabpanel" role="tabpanel" id="panel-devices" aria-labelledby="tab-devices" hidden>
               <div class="window">
                 <div class="window-bar" aria-hidden="true"><span class="window-title"><img src="assets/logo.svg" alt="" width="14" height="14" />DeckForge</span><span class="window-ctrls"><i></i><i></i><i></i></span></div>
-                <a class="shot-link" href="assets/screens/devices@2x.webp" target="_blank" rel="noopener"><img src="assets/screens/devices.webp" srcset="assets/screens/devices.webp 1440w, assets/screens/devices@2x.webp 2880w" sizes="(min-width: 1232px) 1168px, calc(100vw - 32px)" width="1440" height="900" loading="lazy" alt="Devices screen for the Ajazz AKP05E Pro showing its driver, screen-update statistics, brightness and knob LED ring colors." /></a>
+                <a class="shot-link" href="assets/screens/devices-2880.webp" target="_blank" rel="noopener"><img src="assets/screens/devices-1440.webp" srcset="assets/screens/devices-720.webp 720w, assets/screens/devices-1440.webp 1440w, assets/screens/devices-2880.webp 2880w" sizes="(min-width: 1232px) 1168px, calc(100vw - 32px)" width="1440" height="900" loading="lazy" alt="Devices screen for the Ajazz AKP05E Pro showing its driver, screen-update statistics, brightness and knob LED ring colors." /></a>
               </div>
               <p class="shot-caption">See which driver is talking to the deck, how many unchanged images were skipped, and set knob LED ring colors.</p>
             </div>

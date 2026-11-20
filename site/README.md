@@ -3,6 +3,8 @@
 Live at **https://deckforge.adoxcol.com**.
 
 A static page with no build step: `index.html`, `404.html`, `styles.css`, `main.js` and `assets/`.
+Fonts (Inter and JetBrains Mono, Latin subset, SIL OFL 1.1) are served from `assets/fonts/`,
+so the page makes no third-party requests before it paints.
 
 ## Hosting
 
@@ -36,8 +38,8 @@ Then open http://localhost:8080.
 
 ## Things to update by hand
 
-- **Editor screenshots** (`assets/screens/`): run `npm run dev`, then
-  `node scripts/capture-site-screens.mjs`. It needs Playwright with Chromium.
+- **Editor screenshots** (`assets/screens/`, each at 720, 1440 and 2880 px wide): run `npm run dev`,
+  then `node scripts/capture-site-screens.mjs`. It needs Playwright with Chromium.
 - **Hardware section**: keep it in line with the release notes. Move a device to “Tested on hardware”
   only after it has been checked on a real deck.
 - **Demo deck** in the hero: its action names come from `src/data/actionCatalog.ts` and
