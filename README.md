@@ -2,6 +2,8 @@
 
 Open-source universal Stream Deck & Stream Dock desktop controller built with **Tauri v2**, **Rust**, **React 19**, **TypeScript**, **Tailwind CSS v4**, and **HIDAPI (`windows-native`)**.
 
+**Website:** [deckforge.adoxcol.com](https://deckforge.adoxcol.com) · **Download:** [latest release](https://github.com/Adoxcol/deckforge/releases/latest)
+
 ## Highlights
 - **Verified Ajazz AKP05E Pro (`VID_0300&PID_3013`, V4 1024-Byte Payload Protocol)**:
   - Hardware-verified `1025`-byte (`0x401`) HID output report framing (`CRT\0\0HAN`, `CRT\0\0LIG`, `CRT\0\0BAT`, `CRT\0\0DRA`, `CRT\0\0STP`, `CRT\0\0CLE`) and `ACK\0\0OK` input listener (`MI_00`).

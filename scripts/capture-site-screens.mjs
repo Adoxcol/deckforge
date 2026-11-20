@@ -5,7 +5,8 @@
 //   2. node scripts/capture-site-screens.mjs
 //
 // Needs Playwright with Chromium (`npm i -g playwright && npx playwright install chromium`).
-// Each screen is written at 1440 px and 2880 px wide as WebP, encoded by Chromium itself.
+// Each screen is written as <name>-720.webp, -1440.webp and -2880.webp, encoded by Chromium itself,
+// so phones, desktops and high-density displays each get a size close to what they show.
 
 import { createRequire } from "node:module";
 import { mkdir, writeFile } from "node:fs/promises";
@@ -24,6 +25,7 @@ try {
 const BASE_URL = process.env.DECKFORGE_URL ?? "http://localhost:1420/";
 const OUT_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "site", "assets", "screens");
 const VIEWPORT = { width: 1440, height: 900 };
+const WIDTHS = [720, 1440, 2880];
 const QUALITY = 0.86;
 
 // `nav` is the sidebar button's accessible name; null stays on Profiles and keys.
@@ -63,7 +65,7 @@ try {
     await page.waitForTimeout(900);
 
     const png = await page.screenshot({ type: "png" });
-    for (const [suffix, width] of [["", VIEWPORT.width], ["@2x", VIEWPORT.width * 2]]) {
+    for (const width of WIDTHS) {
       const dataUrl = await encoder.evaluate(
         async ({ src, width, quality }) => {
           const img = new Image();
@@ -79,7 +81,7 @@ try {
         },
         { src: `data:image/png;base64,${png.toString("base64")}`, width, quality: QUALITY },
       );
-      const target = join(OUT_DIR, `${screen.file}${suffix}.webp`);
+      const target = join(OUT_DIR, `${screen.file}-${width}.webp`);
       await writeFile(target, Buffer.from(dataUrl.split(",")[1], "base64"));
       console.log(`wrote ${target}`);
     }
