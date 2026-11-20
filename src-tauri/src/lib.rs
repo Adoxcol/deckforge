@@ -8,8 +8,8 @@ pub mod plugins;
 pub mod updates;
 
 use actions::{
-    collect_system_telemetry, execute_key_action_live, foreground_window, launch_app_or_url,
-    macro_delay_ms, process_is_running, read_audio_face, read_media_face, send_hotkey_chord,
+    collect_system_telemetry, foreground_window, launch_app_or_url,
+    macro_delay_ms, process_is_running, send_hotkey_chord,
     ActionExecutionResult, MacroRunReport,
     ObsSettings, SystemTelemetrySnapshot,
 };
@@ -17,24 +17,22 @@ use db::{
     load_auto_switch_rules, load_saved_macros, load_saved_profiles, parse_all_legacy_sdprofiles,
     scan_legacy_streamdock_environment, write_auto_switch_rules, write_saved_macros, write_saved_profiles,
     AutoSwitchRule,
-    KeyConfig, LegacyStreamDockSummary, MacroSequence, Profile, ProfilePage, TouchZoneConfig,
+    LegacyStreamDockSummary, MacroSequence, Profile, ProfilePage,
 };
 use drivers::akp05e_protocol::{
     build_touch_strip_packets, parse_input_report, resolve_strip_point,
     HardwareInputEvent, InputControlKind, StripGesture,
-    encode_procedural_key_jpeg, encode_touch_strip_jpeg,
 };
 use drivers::frame_cache::{AntiFreezeFrameCache, FrameCacheStats};
 use drivers::hal::{
     builtin_device_catalog, deck_generation, deck_next_report, deck_status, DeckStatus,
-    device_uses_akp05e_face, get_cache_stats, key_image_slot, now_ms, publish_screens,
+    get_cache_stats, key_image_slot, now_ms,
     reset_hardware_knob_leds, scan_usb_devices, send_hardware_brightness, send_hardware_knob_leds,
     send_hardware_led_brightness, send_hardware_led_sleep_mode,
     touch_zone_image_slot, write_animation_frames, write_hid_bursts,
-    write_panel_brightness, wake_panel, deck_note, request_full_push, DeviceDescriptor, DiagnosticEntry,
+    wake_panel, request_full_push, DeviceDescriptor, DiagnosticEntry,
     HidBurst, PlaybackSlot,
-    PlaybackTarget, ScreenJob, StripJob, SyncKeyResult, ZoneJob, AKP05E_TOUCH_WINDOW_H,
-    AKP05E_TOUCH_WINDOW_W,
+    PlaybackTarget, SyncKeyResult,
 };
 use media::{decode_b64, MediaPreview, MediaStore};
 use serde::{Deserialize, Serialize};
