@@ -556,6 +556,24 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
         <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
           A double-press waits a moment so it can be told apart from a tap. A hold runs when the key stays down.
         </p>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-xs text-[var(--text-secondary)]">Stay lit</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={activeKey.latch === true}
+            aria-label="Stay lit"
+            onClick={() => updateSelectedKey({ latch: !activeKey.latch })}
+            className={`w-10 h-5 rounded-full p-0.5 transition-colors cursor-pointer ${
+              activeKey.latch ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"
+            }`}
+          >
+            <div className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${activeKey.latch ? "translate-x-5" : "translate-x-0"}`} />
+          </button>
+        </div>
+        <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
+          After a press the key reads ON until you press it again. Apply to Device to show that on the deck.
+        </p>
         {(["doublePress", "hold"] as const).map((which) => {
           const label = which === "doublePress" ? "Double-press" : "Hold";
           const target = which === "doublePress" ? "double" : "hold";

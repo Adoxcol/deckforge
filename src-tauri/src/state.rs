@@ -45,6 +45,13 @@ pub struct DeckFaceState {
     /// Album art of what is playing, as the image bytes Windows hands out.
     #[serde(skip)]
     pub media_art: Vec<u8>,
+    /// Keys on the applied page that are currently latched on.
+    #[serde(default)]
+    pub latched_keys: Vec<u8>,
+    #[serde(default)]
+    pub latched_profile_id: String,
+    #[serde(default)]
+    pub latched_page_id: String,
     /// What plugins asked to show on the keys of the page on the deck, by key index.
     #[serde(skip)]
     pub plugin_keys: std::collections::BTreeMap<u8, PluginKeyFace>,
@@ -158,6 +165,8 @@ pub struct ManagedAppState {
     pub last_reactive_knob_leds: Option<Vec<String>>,
     pub live_knob_led_effect: String,
     pub live_knob_led_base: [[u8; 3]; 4],
+    /// Keys remembered as on, keyed by profile id, page id, and key index.
+    pub latched: std::collections::HashSet<String>,
 }
 
 impl Default for ManagedAppState {
@@ -243,6 +252,7 @@ impl Default for ManagedAppState {
             custom_knob_leds_active: false,
             last_reactive_knob_leds: None,
             live_knob_led_effect: String::new(),
+            latched: std::collections::HashSet::new(),
             live_knob_led_base: [
                 drivers::hal::default_knob_rgb(0),
                 drivers::hal::default_knob_rgb(1),

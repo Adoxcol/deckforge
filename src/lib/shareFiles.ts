@@ -235,6 +235,7 @@ function readKey(raw: Rec, fallbackIndex: number): KeyConfig {
     actionCategory: str(raw.actionCategory, "Custom"),
     actionParam: str(raw.actionParam),
     ...gestureFields(raw),
+    ...(bool(raw.latch, false) ? { latch: true } : {}),
     accentColor: color(raw.accentColor, "#8B5CF6"),
     bgColor: color(raw.bgColor, "#231B38"),
     showTitle: bool(raw.showTitle, true),

@@ -100,7 +100,14 @@ export const DeckStage = React.memo(function DeckStage({
             const isSelected = surface === "key" && k.index === activeKey.index;
             const isLivePressed = livePressedKeyIdx === k.index;
             const clip = clipFor(k.media);
-            const look = liveKeyLook(k.actionId, k.title, k.iconName, k.media ? null : face, k.actionParam);
+            const baseLook = liveKeyLook(k.actionId, k.title, k.iconName, k.media ? null : face, k.actionParam);
+            const lit = Boolean(
+              k.latch &&
+              face?.latchedKeys?.includes(k.index) &&
+              face.latchedProfileId === activeProfile.id &&
+              face.latchedPageId === activePage.id,
+            );
+            const look = lit ? { ...baseLook, title: `ON ${baseLook.title}`, icon: "Check" } : baseLook;
             return (
               <button
                 key={k.index}
@@ -158,7 +165,7 @@ export const DeckStage = React.memo(function DeckStage({
                     : isSelected
                     ? "ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-panel)] shadow-[0_0_18px_rgba(124,131,247,0.24)]"
                     : "hover:border-[var(--border-strong)] hover:-translate-y-[1px]"
-                }`}
+                } ${lit ? "outline outline-2 outline-[var(--status-success)]" : ""}`}
               >
                 {clip ? (
                   <ScreenFace

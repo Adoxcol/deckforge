@@ -51,4 +51,14 @@ test("an older profile file without gestures still loads", () => {
   const key = parseProfileFile(older).profile.pages[0].keys[0];
   assert.equal(key.doublePress, undefined);
   assert.equal(key.hold, undefined);
+  assert.equal(key.latch, undefined);
+});
+
+test("stay lit survives a shared profile", () => {
+  const text = JSON.stringify({
+    kind: "deckforge.profile",
+    version: 1,
+    profile: { id: "p", name: "P", pages: [{ id: "main", name: "Main", keys: [{ index: 0, title: "Cam", actionId: "custom.hotkey", actionParam: "Ctrl+1", latch: true }] }] },
+  });
+  assert.equal(parseProfileFile(text).profile.pages[0].keys[0].latch, true);
 });

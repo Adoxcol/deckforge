@@ -51,6 +51,9 @@ pub struct KeyConfig {
     pub double_press: Option<KeyGesture>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hold: Option<KeyGesture>,
+    /// Press flips this key between off and on, and the deck keeps showing that.
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub latch: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -223,7 +226,7 @@ pub fn default_keys() -> Vec<KeyConfig> {
             corner_radius: 8,
             media: None,
             double_press: None,
-            hold: None,
+            hold: None, latch: false,
         });
     }
     out
@@ -358,7 +361,7 @@ fn paint_keys(specs: &[KeySpec], accent: &str, bg: &str) -> Vec<KeyConfig> {
             corner_radius: 8,
             media: None,
             double_press: None,
-            hold: None,
+            hold: None, latch: false,
         });
     }
     out
@@ -870,7 +873,7 @@ fn parse_sdprofile_action(key_index: u8, act_val: &serde_json::Value) -> KeyConf
         corner_radius: 8,
         media: None,
         double_press: None,
-        hold: None,
+        hold: None, latch: false,
     }
 }
 
@@ -949,7 +952,7 @@ pub fn parse_all_legacy_sdprofiles() -> Vec<Profile> {
                 corner_radius: 8,
                 media: None,
                 double_press: None,
-                hold: None,
+                hold: None, latch: false,
             })
             .collect();
 

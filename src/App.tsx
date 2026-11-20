@@ -825,6 +825,7 @@ export const App: React.FC = () => {
       actionParam: "",
       doublePress: null,
       hold: null,
+      latch: false,
       accentColor: "#394158",
       bgColor: "#151925",
     };
@@ -1140,6 +1141,7 @@ export const App: React.FC = () => {
       actionParam: "",
       doublePress: null,
       hold: null,
+      latch: false,
       accentColor: "#394158",
       bgColor: "#151925",
       media: null,

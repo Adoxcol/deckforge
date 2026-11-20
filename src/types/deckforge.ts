@@ -86,6 +86,8 @@ export interface KeyConfig {
   actionParam: string;
   doublePress?: KeyGestureBinding | null;
   hold?: KeyGestureBinding | null;
+  /** Press turns the key on, and it stays lit until the next press. */
+  latch?: boolean;
   accentColor: string;
   bgColor: string;
   showTitle: boolean;
@@ -277,6 +279,9 @@ export interface DeckFaceState {
   cpuPercent?: number | null;
   ramPercent?: number | null;
   clock?: string;
+  latchedKeys?: number[];
+  latchedProfileId?: string;
+  latchedPageId?: string;
 }
 
 export type GameModeGroup = "apps" | "background";

@@ -295,6 +295,9 @@ pub(crate) fn styled_key(key: &KeyConfig, face: &DeckFaceState) -> (String, Stri
     if key.media.is_some() {
         return (key.title.clone(), key.icon_name.clone());
     }
+    if key.latch && face.latched_keys.contains(&key.index) {
+        return (format!("ON {}", key.title), "Check".to_string());
+    }
     if key.action_id.starts_with("audio.app_") {
         return (app_audio_label(&key.action_param, face), key.icon_name.clone());
     }
@@ -842,10 +845,15 @@ pub(crate) fn dispatch_live_action(
         apply_brightness_action(shared, &action.action_id)
             .or_else(|| apply_navigation(app, shared, &action.action_id, &action.param))
     };
-    if let Some(outcome) = outcome { return actions::action_result(&action.action_id, &action.label, start, outcome); }
+    if let Some(outcome) = outcome {
+        let result = actions::action_result(&action.action_id, &action.label, start, outcome);
+        if result.success { note_latch(shared, action); }
+        return result;
+    }
     let obs = shared.lock_safe().obs.clone();
     let result = execute_key_action_live(&action.action_id, &action.label, &action.param, true, &obs);
     if result.success && face_changes(&action.action_id) { shared.lock_safe().sample_after_ms = now_ms().saturating_add(160); }
+    if result.success { note_latch(shared, action); }
     result
 }
 
@@ -1031,8 +1039,9 @@ fn sample_face_with(
         guard.sample_after_ms = 0;
         (guard.face.clone(), refresh_requested)
     };
-    let next = sample(&previous);
+    let mut next = sample(&previous);
     let mut guard = shared.lock_safe();
+    stamp_latch(&guard, &mut next);
     let changed = next != guard.face;
     if changed {
         guard.face = next;
@@ -1068,7 +1077,43 @@ fn read_face(previous: &DeckFaceState, needs_apps: bool, needs_foreground: bool)
         clock: stats.clock,
         media_art,
         plugin_keys: crate::plugins::current_faces(),
+        latched_keys: Vec::new(),
+        latched_profile_id: String::new(),
+        latched_page_id: String::new(),
     }
+}
+
+fn latch_view(latched: &std::collections::HashSet<String>, layout: Option<&AppliedLayout>) -> (Vec<u8>, String, String) {
+    let Some(layout) = layout else { return (Vec::new(), String::new(), String::new()) };
+    let prefix = format!("{}/{}/", layout.profile_id, layout.page.id);
+    let mut keys: Vec<u8> = latched.iter().filter_map(|id| id.strip_prefix(&prefix)?.parse().ok()).collect();
+    keys.sort_unstable();
+    (keys, layout.profile_id.clone(), layout.page.id.clone())
+}
+
+fn stamp_latch(guard: &ManagedAppState, face: &mut DeckFaceState) {
+    let (keys, profile_id, page_id) = latch_view(&guard.latched, guard.applied_layout.as_ref());
+    face.latched_keys = keys;
+    face.latched_profile_id = profile_id;
+    face.latched_page_id = page_id;
+}
+
+/// Flips a latched key and asks the deck to repaint. Keys without Stay lit are left alone.
+pub(crate) fn note_latch(shared: &SharedState, action: &LiveAction) {
+    let Some(index) = action.key_index else { return };
+    let mut guard = shared.lock_safe();
+    let Some(layout) = guard.applied_layout.clone() else { return };
+    let Some(key) = layout.page.keys.iter().find(|key| key.index == index) else { return };
+    if !key.latch { return };
+    let id = format!("{}/{}/{}", layout.profile_id, layout.page.id, index);
+    if !guard.latched.remove(&id) {
+        guard.latched.insert(id);
+    }
+    let (keys, profile_id, page_id) = latch_view(&guard.latched, guard.applied_layout.as_ref());
+    guard.face.latched_keys = keys;
+    guard.face.latched_profile_id = profile_id;
+    guard.face.latched_page_id = page_id;
+    guard.sample_after_ms = now_ms();
 }
 
 pub(crate) fn push_face_deltas(shared: &SharedState, app: &tauri::AppHandle) {
@@ -1191,7 +1236,8 @@ fn render_face_frames(dev: &DeviceDescriptor, page: &ProfilePage, face: &DeckFac
         let level = key_level_for(key, face);
         let (title, icon) = styled_key(key, face);
         let art = key_art(key, face);
-        if title == key.title && icon == key.icon_name && level.is_none() && art.is_none() {
+        let resting = title == key.title && icon == key.icon_name && level.is_none() && art.is_none();
+        if resting && !key.latch {
             continue;
         }
         let art_jpeg = art.and_then(|bytes| {
@@ -1362,6 +1408,7 @@ mod live_tests {
                 drivers::hal::default_knob_rgb(2),
                 drivers::hal::default_knob_rgb(3),
             ],
+            latched: std::collections::HashSet::new(),
         }))
     }
 
@@ -2017,7 +2064,7 @@ mod live_tests {
             action_id: action.into(), action_label: String::new(), action_category: String::new(),
             action_param: String::new(), accent_color: "#fff".into(), bg_color: "#000".into(),
             show_title: true, title_size: "Medium".into(), background_style: "Gradient".into(),
-            corner_radius: 8, media: None, double_press: None, hold: None,
+            corner_radius: 8, media: None, double_press: None, hold: None, latch: false,
         };
         let face = DeckFaceState {
             cpu_percent: Some(42), ram_percent: Some(61), clock: "09:05".into(),
@@ -2033,6 +2080,12 @@ mod live_tests {
         // Before the first sample the key keeps its own title.
         assert_eq!(styled_key(&key("sys.cpu"), &DeckFaceState::default()).0, "Key");
         assert!(known_action("sys.clock") && known_action("media.now_playing"));
+        let mut latched = key("custom.hotkey");
+        latched.latch = true;
+        latched.title = "Camera".into();
+        assert_eq!(styled_key(&latched, &DeckFaceState::default()).0, "Camera");
+        let on = DeckFaceState { latched_keys: vec![0], ..Default::default() };
+        assert_eq!(styled_key(&latched, &on), ("ON Camera".to_string(), "Check".to_string()));
     }
 
     #[test]
