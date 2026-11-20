@@ -37,14 +37,25 @@ impl AntiFreezeFrameCache {
     /// Returns `Some(sha256_hex)` if the payload has changed and MUST be sent over USB,
     /// or `None` if the exact frame is already displayed on the hardware key/strip.
     pub fn should_transmit(&mut self, device_id: &str, slot_id: &str, payload: &[u8]) -> Option<String> {
+        self.should_transmit_parts(device_id, slot_id, &[payload])
+    }
+
+    /// Same digest as concatenating `parts` first. The JPEG stays where it is.
+    pub fn should_transmit_parts(&mut self, device_id: &str, slot_id: &str, parts: &[&[u8]]) -> Option<String> {
         self.stats.frames_evaluated += 1;
         let key = format!("{}::{}", device_id, slot_id);
-        let digest = Self::compute_sha256_hex(payload);
+        let mut hasher = Sha256::new();
+        let mut len = 0u64;
+        for part in parts {
+            hasher.update(part);
+            len += part.len() as u64;
+        }
+        let digest = hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect::<String>();
 
         if let Some(prev) = self.slot_hashes.get(&key) {
             if prev == &digest {
                 self.stats.frames_deduplicated_skipped += 1;
-                self.stats.bytes_saved += payload.len() as u64;
+                self.stats.bytes_saved += len;
                 return None;
             }
         }
@@ -118,6 +129,20 @@ mod tests {
         assert!(cache.should_transmit("a", "key-0", b"old").is_some());
         assert!(cache.should_transmit("b", "key-0", b"other").is_none());
         assert_eq!(cache.stats.frames_transmitted, 2);
+    }
+
+    #[test]
+    fn split_parts_hash_the_same_as_one_buffer() {
+        let mut whole = AntiFreezeFrameCache::new();
+        let mut parts = AntiFreezeFrameCache::new();
+        let jpeg = b"jpeg-bytes";
+        let extra = b"CPU 42%Cpu";
+        let mut joined = jpeg.to_vec();
+        joined.extend_from_slice(extra);
+        assert_eq!(
+            whole.should_transmit("deck", "key-0", &joined),
+            parts.should_transmit_parts("deck", "key-0", &[jpeg, extra]),
+        );
     }
 
     #[test]

@@ -1010,7 +1010,7 @@ pub(crate) fn resolve_page_index(guard: &ManagedAppState, param: &str) -> Option
 
 /// Windows media/COM calls may block. Never hold app state while sampling them.
 pub(crate) fn sample_face(shared: &SharedState) -> bool {
-    let (needs_apps, needs_foreground) = {
+    let (needs_apps, needs_foreground, face_needs) = {
         let guard = shared.lock_safe();
         let uses = |page: &ProfilePage| {
             page.keys.iter().any(|k| k.action_id.starts_with("audio.app_"))
@@ -1023,12 +1023,19 @@ pub(crate) fn sample_face(shared: &SharedState) -> bool {
                 || page.touch_zones.iter().any(|z| is_target(&z.tap_action_id, &z.tap_action_param))
                 || page.encoders.iter().any(|e| is_target(&e.cw_action, &e.cw_param) || is_target(&e.ccw_action, &e.ccw_param) || is_target(&e.push_action, &e.push_param))
         };
-        let mut pages = guard.profiles.iter().flat_map(|p| &p.pages);
         let applied = guard.applied_layout.as_ref().map(|a| &a.page);
+        // Once a page is on the deck, only that page pays for media, volume, and stats.
+        // Before the first apply, the editor still samples whatever any page displays.
+        let face_needs = match applied {
+            Some(page) => page_face_needs(page),
+            None => guard.profiles.iter().flat_map(|profile| &profile.pages).fold(FaceNeeds::default(), |acc, page| acc.or(page_face_needs(page))),
+        };
+        let mut pages = guard.profiles.iter().flat_map(|p| &p.pages);
         (pages.clone().any(uses) || applied.is_some_and(uses),
-         pages.any(uses_foreground) || applied.is_some_and(uses_foreground))
+         pages.any(uses_foreground) || applied.is_some_and(uses_foreground),
+         face_needs)
     };
-    sample_face_with(shared, |previous| read_face(previous, needs_apps, needs_foreground))
+    sample_face_with(shared, |previous| read_face(previous, needs_apps, needs_foreground, face_needs))
 }
 
 fn sample_face_with(
@@ -1052,12 +1059,66 @@ fn sample_face_with(
     changed || refresh_requested
 }
 
-fn read_face(previous: &DeckFaceState, needs_apps: bool, needs_foreground: bool) -> DeckFaceState {
+#[derive(Clone, Copy, Default)]
+struct FaceNeeds {
+    media: bool,
+    audio: bool,
+    stats: bool,
+}
+
+impl FaceNeeds {
+    fn or(self, other: Self) -> Self {
+        Self { media: self.media || other.media, audio: self.audio || other.audio, stats: self.stats || other.stats }
+    }
+}
+
+fn note_face_action(needs: &mut FaceNeeds, action: &str) {
+    match action {
+        "media.play_pause" | "media.now_playing" | "media.next" | "media.prev" | "media.stop" => needs.media = true,
+        "audio.mute_mic" | "audio.volume_mute" | "audio.volume_up" | "audio.volume_down" => needs.audio = true,
+        "sys.cpu" | "sys.ram" | "sys.clock" => needs.stats = true,
+        _ => {}
+    }
+}
+
+fn page_face_needs(page: &ProfilePage) -> FaceNeeds {
+    let mut needs = FaceNeeds::default();
+    for key in &page.keys {
+        note_face_action(&mut needs, &key.action_id);
+    }
+    for zone in &page.touch_zones {
+        note_face_action(&mut needs, &zone.tap_action_id);
+    }
+    for encoder in &page.encoders {
+        note_face_action(&mut needs, &encoder.cw_action);
+        note_face_action(&mut needs, &encoder.ccw_action);
+        note_face_action(&mut needs, &encoder.push_action);
+    }
+    needs
+}
+
+fn read_face(previous: &DeckFaceState, needs_apps: bool, needs_foreground: bool, face_needs: FaceNeeds) -> DeckFaceState {
     let _timing = performance::timer(performance::Stage::Media);
-    let (playing, title) = read_media_face();
-    let audio = read_audio_face();
-    let stats = crate::actions::read_quick_stats();
-    let media_art = if previous.media_title == title && !previous.media_art.is_empty() {
+    let (playing, title) = if face_needs.media {
+        read_media_face()
+    } else {
+        (previous.media_playing, previous.media_title.clone())
+    };
+    let (mic_muted, speaker_muted, volume_percent) = if face_needs.audio {
+        let audio = read_audio_face();
+        (audio.mic_muted, audio.speaker_muted, audio.volume_percent)
+    } else {
+        (previous.mic_muted, previous.speaker_muted, previous.volume_percent)
+    };
+    let (cpu_percent, ram_percent, clock) = if face_needs.stats {
+        let stats = crate::actions::read_quick_stats();
+        (stats.cpu_percent, stats.ram_percent, stats.clock)
+    } else {
+        (previous.cpu_percent, previous.ram_percent, previous.clock.clone())
+    };
+    let media_art = if !face_needs.media {
+        previous.media_art.clone()
+    } else if previous.media_title == title && !previous.media_art.is_empty() {
         previous.media_art.clone()
     } else if playing.is_some() {
         crate::actions::read_media_art()
@@ -1067,16 +1128,16 @@ fn read_face(previous: &DeckFaceState, needs_apps: bool, needs_foreground: bool)
     DeckFaceState {
         media_playing: playing,
         media_title: title,
-        mic_muted: audio.mic_muted,
-        speaker_muted: audio.speaker_muted,
-        volume_percent: audio.volume_percent,
+        mic_muted,
+        speaker_muted,
+        volume_percent,
         app_audio: if needs_apps { actions::app_audio::list().ok().map(|apps| apps.into_iter().map(|app| (app.exe.clone(), app)).collect()) } else { None },
         foreground_audio_exe: if needs_foreground { foreground_window().map(|window| window.exe_name.to_lowercase()).filter(|exe| exe != "deckforge.exe") } else { None },
         game_mode: Some(game_mode::is_active()),
         game_mode_busy: game_mode::is_busy(),
-        cpu_percent: stats.cpu_percent,
-        ram_percent: stats.ram_percent,
-        clock: stats.clock,
+        cpu_percent,
+        ram_percent,
+        clock,
         media_art,
         plugin_keys: crate::plugins::current_faces(),
         latched_keys: Vec::new(),
@@ -1187,8 +1248,9 @@ pub(crate) fn transmit_cached_frames(
 
 struct RenderedFaceFrame {
     slot: String,
-    hash_payload: Vec<u8>,
     jpeg: Vec<u8>,
+    /// Title and icon bytes mixed into the frame hash. Kept off the JPEG allocation.
+    hash_extra: Vec<u8>,
     image_slot: u8,
 }
 
@@ -1219,7 +1281,7 @@ fn face_delta_bursts_with(
             return None;
         }
         frames.into_iter().filter(|frame| {
-            guard.frame_cache.should_transmit(&dev.id, &frame.slot, &frame.hash_payload).is_some()
+            guard.frame_cache.should_transmit_parts(&dev.id, &frame.slot, &[&frame.jpeg, &frame.hash_extra]).is_some()
         }).collect::<Vec<_>>()
     };
     let bursts = pending.into_iter().map(|frame| drivers::hal::key_image_burst(&dev, frame.image_slot, &frame.jpeg)).collect();
@@ -1262,12 +1324,12 @@ fn render_face_frames(dev: &DeviceDescriptor, page: &ProfilePage, face: &DeckFac
             dev.keys.rotation,
             level,
         ) };
-        let mut hash = jpeg.clone();
-        hash.extend_from_slice(title.as_bytes());
-        hash.extend_from_slice(icon.as_bytes());
+        let mut hash_extra = Vec::with_capacity(title.len() + icon.len());
+        hash_extra.extend_from_slice(title.as_bytes());
+        hash_extra.extend_from_slice(icon.as_bytes());
         let slot = format!("key-{}", key.index);
         bursts.push(RenderedFaceFrame {
-            slot, hash_payload: hash, jpeg,
+            slot, hash_extra, jpeg,
             image_slot: key_image_slot(dev, key.index),
         });
     }
@@ -1288,7 +1350,7 @@ fn render_face_frames(dev: &DeviceDescriptor, page: &ProfilePage, face: &DeckFac
             );
             let slot = format!("touch-zone-{}", zone.index);
             bursts.push(RenderedFaceFrame {
-                slot, hash_payload: jpeg.clone(), jpeg,
+                slot, hash_extra: Vec::new(), jpeg,
                 image_slot: touch_zone_image_slot(dev, zone.index),
             });
         }
@@ -1564,7 +1626,7 @@ mod live_tests {
             let mut guard = shared.try_lock().expect("rendering must leave UI and key state accessible");
             guard.layout_ready = false;
             vec![RenderedFaceFrame {
-                slot: "key-0".into(), hash_payload: vec![1], jpeg: vec![1], image_slot: 1,
+                slot: "key-0".into(), jpeg: vec![1], hash_extra: Vec::new(), image_slot: 1,
             }]
         });
         assert!(result.is_none());
@@ -2088,6 +2150,35 @@ mod live_tests {
         assert_eq!(styled_key(&latched, &DeckFaceState::default()).0, "Camera");
         let on = DeckFaceState { latched_keys: vec![0], ..Default::default() };
         assert_eq!(styled_key(&latched, &on), ("ON Camera".to_string(), "Check".to_string()));
+    }
+
+    #[test]
+    fn the_applied_page_decides_which_face_reads_run() {
+        let key = |action: &str| KeyConfig {
+            index: 0, title: "Key".into(), subtitle: String::new(), icon_name: "Cpu".into(),
+            action_id: action.into(), action_label: String::new(), action_category: String::new(),
+            action_param: String::new(), accent_color: "#fff".into(), bg_color: "#000".into(),
+            show_title: true, title_size: "Medium".into(), background_style: "Gradient".into(),
+            corner_radius: 8, media: None, double_press: None, hold: None, latch: false,
+        };
+        let page = ProfilePage {
+            id: "p".into(), name: "Page".into(), keys: vec![key("sys.cpu")],
+            touch_zones: vec![], encoders: vec![], strip_media: None, knob_led_effect: String::new(),
+        };
+        let needs = page_face_needs(&page);
+        assert!(needs.stats);
+        assert!(!needs.media && !needs.audio);
+        let with_knob = ProfilePage {
+            encoders: vec![db::EncoderConfig {
+                index: 0, label: String::new(), value_text: String::new(),
+                cw_action: "audio.volume_up".into(), ccw_action: String::new(), push_action: "media.play_pause".into(),
+                cw_param: String::new(), ccw_param: String::new(), push_param: String::new(),
+                led_color: String::new(), led_reactive: false,
+            }],
+            ..page
+        };
+        let needs = page_face_needs(&with_knob);
+        assert!(needs.stats && needs.audio && needs.media);
     }
 
     #[test]

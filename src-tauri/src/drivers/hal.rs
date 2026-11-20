@@ -867,16 +867,16 @@ pub fn publish_screens(
             animated += 1;
         }
         let frame0 = rendered.jpegs.first().cloned().unwrap_or_default();
-        let mut hash_input = frame0.clone();
-        hash_input.extend_from_slice(job.title.as_bytes());
-        hash_input.extend_from_slice(job.icon_name.as_bytes());
+        let mut hash_extra = Vec::with_capacity(job.title.len() + job.icon_name.len() + job.media_id.as_ref().map(|id| id.len() + job.fit.len()).unwrap_or(0));
+        hash_extra.extend_from_slice(job.title.as_bytes());
+        hash_extra.extend_from_slice(job.icon_name.as_bytes());
         if let Some(id) = &job.media_id {
-            hash_input.extend_from_slice(id.as_bytes());
-            hash_input.extend_from_slice(job.fit.as_bytes());
+            hash_extra.extend_from_slice(id.as_bytes());
+            hash_extra.extend_from_slice(job.fit.as_bytes());
         }
         let slot_id = format!("key-{}", job.index);
         if frame_cache
-            .should_transmit(&dev.id, &slot_id, &hash_input)
+            .should_transmit_parts(&dev.id, &slot_id, &[&frame0, &hash_extra])
             .is_some()
         {
             let burst = key_image_burst(dev, key_image_slot(dev, job.index), &frame0);
