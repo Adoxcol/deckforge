@@ -2,6 +2,7 @@
 
 @layer base {
   :root {
+    color-scheme: dark;
     /* Neutral graphite surfaces, one accent. Colour on the deck comes from the user. */
     --bg-app: #0E0F12;
     --bg-sidebar: #121317;
@@ -39,6 +40,8 @@
     font-size: 13px;
     line-height: 1.45;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     font-feature-settings: 'cv11', 'ss01';
     margin: 0;
     padding: 0;
@@ -80,7 +83,26 @@
   select.outline-none:focus-visible,
   textarea.outline-none:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(124, 131, 247, 0.28);
+    box-shadow: 0 0 0 2px rgba(124, 131, 247, 0.25);
+  }
+
+  input[type="color"] {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  input[type="color"]::-webkit-color-swatch-wrapper {
+    padding: 1px;
+  }
+
+  input[type="color"]::-webkit-color-swatch {
+    border: none;
+    border-radius: 4px;
+  }
+
+  input[type="color"]::-moz-color-swatch {
+    border: none;
+    border-radius: 4px;
   }
 
   input[type="range"] {
@@ -89,6 +111,11 @@
     height: 5px;
     border-radius: 9999px;
     background: var(--border-strong);
+  }
+
+  input[type="range"]:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(124, 131, 247, 0.28);
   }
 
   input[type="range"]::-webkit-slider-thumb {
@@ -101,12 +128,13 @@
     border: 2px solid var(--bg-panel);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
     cursor: pointer;
-    transition: transform 120ms ease, background-color 120ms ease;
+    transition: transform 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
   }
 
   input[type="range"]::-webkit-slider-thumb:hover {
     background: var(--accent-hover);
     transform: scale(1.12);
+    box-shadow: 0 0 0 3px rgba(124, 131, 247, 0.2);
   }
 
   input[type="range"]::-moz-range-thumb {
@@ -117,12 +145,13 @@
     border: 2px solid var(--bg-panel);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
     cursor: pointer;
-    transition: transform 120ms ease, background-color 120ms ease;
+    transition: transform 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
   }
 
   input[type="range"]::-moz-range-thumb:hover {
     background: var(--accent-hover);
     transform: scale(1.12);
+    box-shadow: 0 0 0 3px rgba(124, 131, 247, 0.2);
   }
 
   ::-webkit-scrollbar {

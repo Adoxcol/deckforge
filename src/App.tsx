@@ -1661,19 +1661,19 @@ export const App: React.FC = () => {
     <div className="h-screen w-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col overflow-hidden select-none">
       {quitDialog}
       {(!savedLocally || draftStatus.error) && (
-        <div role={draftStatus.error ? "alert" : "status"} className="px-4 py-1.5 text-[11.5px] bg-[var(--bg-panel)] border-b border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center gap-2.5">
+        <div role={draftStatus.error ? "alert" : "status"} className="px-4 py-1.5 text-[11.5px] bg-[var(--bg-panel)] border-b border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center gap-2.5 shrink-0">
           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${draftStatus.error ? "bg-[var(--status-warning)]" : draftStatus.pending ? "bg-[var(--accent-primary)] animate-pulse" : "bg-[var(--status-success)]"}`} />
-          <span>{draftStatus.error ? `Recovery copy could not update: ${draftStatus.error}. Retry recovery or save your profiles.` : draftStatus.pending ? "Updating recovery copy…" : "Recovery copy saved · Profile edits are still unsaved"}</span>
-          {draftStatus.error && <button type="button" className="underline text-[var(--status-warning)] hover:text-[var(--text-primary)] cursor-pointer font-medium transition-colors" onClick={draftWriter.retry}>Retry recovery copy</button>}
+          <span className="truncate">{draftStatus.error ? `Recovery copy could not update: ${draftStatus.error}. Retry recovery or save your profiles.` : draftStatus.pending ? "Updating recovery copy…" : "Recovery copy saved · Profile edits are still unsaved"}</span>
+          {draftStatus.error && <button type="button" className="ml-auto shrink-0 underline text-[var(--status-warning)] hover:text-[var(--text-primary)] cursor-pointer font-medium transition-colors" onClick={draftWriter.retry}>Retry recovery copy</button>}
         </div>
       )}
       {Object.entries(saveQueues).map(([name, queue]) => {
         const status = saveStatuses[name] ?? savedStatus;
         if (!status.pending) return null;
         return (
-          <div key={name} role={status.error ? "alert" : "status"} className="px-4 py-1.5 text-[11.5px] bg-[var(--accent-soft)] border-b border-[var(--accent-primary)]/30 text-[var(--status-warning)] flex items-center gap-2.5">
-            <span>{status.error ? `${name} not saved: ${status.error}. Your edits remain in this session.` : `Saving ${name.toLowerCase()}…`}</span>
-            {status.error && <button type="button" className="underline font-semibold cursor-pointer hover:text-white transition-colors" onClick={queue.retry}>Retry save</button>}
+          <div key={name} role={status.error ? "alert" : "status"} className="px-4 py-1.5 text-[11.5px] bg-[var(--accent-soft)] border-b border-[var(--accent-primary)]/30 text-[var(--status-warning)] flex items-center gap-2.5 shrink-0">
+            <span className="truncate">{status.error ? `${name} not saved: ${status.error}. Your edits remain in this session.` : `Saving ${name.toLowerCase()}…`}</span>
+            {status.error && <button type="button" className="ml-auto shrink-0 underline font-semibold cursor-pointer hover:text-white transition-colors" onClick={queue.retry}>Retry save</button>}
           </div>
         );
       })}
@@ -1749,8 +1749,8 @@ export const App: React.FC = () => {
 
       <div className="flex-1 min-h-0 flex">
       {/* Icon rail: one place to switch screens, labels on hover. */}
-      <nav aria-label="Screens" className="w-14 shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] flex flex-col items-center gap-1 py-3">
-        <div aria-hidden className="w-7 h-7 mb-3 rounded-[var(--radius-sm)] bg-[var(--accent-primary)] p-[5px] grid grid-cols-2 gap-[3px] shadow-[0_2px_10px_rgba(124,131,247,0.3)]">
+      <nav aria-label="Screens" className="w-14 shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] flex flex-col items-center gap-1.5 py-3">
+        <div aria-hidden className="w-7 h-7 mb-2.5 rounded-[var(--radius-sm)] bg-[var(--accent-primary)] p-[5px] grid grid-cols-2 gap-[3px] shadow-[0_2px_10px_rgba(124,131,247,0.3)]">
           <span className="bg-[var(--bg-app)] rounded-[1.5px]" />
           <span className="bg-[var(--bg-app)] rounded-[1.5px]" />
           <span className="bg-[var(--bg-app)] rounded-[1.5px]" />
@@ -1778,15 +1778,15 @@ export const App: React.FC = () => {
                 }}
                 className={`group relative w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center transition-all duration-150 cursor-pointer ${
                   isActive
-                    ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-strong)]/60 shadow-xs"
+                    ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-strong)]/70 shadow-xs"
                     : "border border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
                 }`}
               >
-                {isActive && <span aria-hidden className="absolute -left-2 top-2.5 bottom-2.5 w-[3px] rounded-r bg-[var(--accent-primary)] shadow-[0_0_8px_rgba(124,131,247,0.65)]" />}
-                <Icon size={19} strokeWidth={isActive ? 2 : 1.75} />
+                {isActive && <span aria-hidden className="absolute -left-[9px] top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-[var(--accent-primary)] shadow-[0_0_8px_rgba(124,131,247,0.65)]" />}
+                <Icon size={18} strokeWidth={isActive ? 2.1 : 1.75} />
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute left-full ml-2.5 z-50 px-2.5 py-1 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-strong)] shadow-xl text-[11.5px] font-medium text-[var(--text-primary)] whitespace-nowrap opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0 transition-all duration-150"
+                  className="pointer-events-none absolute left-full ml-3 z-50 px-2.5 py-1 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-strong)] shadow-xl text-[11.5px] font-medium text-[var(--text-primary)] whitespace-nowrap opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0 transition-all duration-150"
                 >
                   {tab.label}
                 </span>
@@ -1795,7 +1795,7 @@ export const App: React.FC = () => {
           );
         })}
       </nav>
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
       <header className="h-12 bg-[var(--bg-app)] border-b border-[var(--border-subtle)] px-4 flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
           <h1 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary)] truncate">
@@ -1817,7 +1817,7 @@ export const App: React.FC = () => {
             type="button"
             onClick={handleImportLegacyProfiles}
             title="Parse & Import Legacy .sdProfile Configurations from %APPDATA%\HotSpot\StreamDock\profiles"
-            className="h-8 px-2.5 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-panel)]/60 hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] text-[12px] font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
+            className="h-8 px-2.5 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-panel)]/70 hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] text-[12px] font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
           >
             <Download size={13} />
             <span>Import from Stream Dock</span>
@@ -1857,12 +1857,12 @@ export const App: React.FC = () => {
 
       {/* 2. SCREEN 01: WORKSPACE / KEY EDITOR (Matches Reference Screenshot + Spec Section 4) */}
       {activeScreen === "workspace" && (
-        <div className="flex-1 grid grid-cols-[232px_minmax(0,1fr)_292px] 2xl:grid-cols-[256px_minmax(0,1fr)_324px] overflow-hidden">
+        <div className="flex-1 min-h-0 grid grid-cols-[232px_minmax(0,1fr)_292px] 2xl:grid-cols-[256px_minmax(0,1fr)_324px] overflow-hidden">
           {/* LEFT CONTEXTUAL SIDEBAR: Devices + Profiles */}
           <WorkspaceSidebar activeProfile={activeProfile} autoSwitchRules={autoSwitchRules} connectedDevices={connectedDevices} handleAddProfile={sidebarCallbacks.handleAddProfile} onExportProfile={sidebarCallbacks.onExportProfile} onImportProfile={sidebarCallbacks.onImportProfile} profiles={profiles} macros={macros} selectedPageIdx={selectedPageIdx} saveRules={sidebarCallbacks.saveRules} setDevices={setDevices} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSelectedProfileId={setSelectedProfileId} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} triggerToast={sidebarCallbacks.triggerToast} />
 
           {/* CENTER WORKSPACE COLUMN: Toolbar + Hardware Bezel + Bottom Action Library Drawer */}
-          <main className="flex flex-col justify-between bg-[var(--bg-app)] overflow-hidden">
+          <main className="min-h-0 flex flex-col justify-between bg-[var(--bg-app)] overflow-hidden">
             {/* Top Workspace Toolbar */}
             <WorkspaceToolbar activeDevice={activeDevice} activeProfile={activeProfile} canvasZoom={canvasZoom} connectedDevices={connectedDevices} handleApplyToDevice={handleApplyToDevice} handleSaveLocally={handleSaveLocally} setCanvasZoom={setCanvasZoom} setSelectedDeviceId={setSelectedDeviceId} setSelectedKeyIdx={setSelectedKeyIdx} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} />
 

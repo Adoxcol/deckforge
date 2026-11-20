@@ -1,6 +1,6 @@
 import React from "react";
 import { deckforgeApi } from "../bridge/tauriBridge";
-import { Download, Plus, RefreshCw, Upload } from "lucide-react";
+import { Download, Plus, RefreshCw, Search, Upload, X } from "lucide-react";
 import { DeckIcon } from "./DeckIcon";
 import { AppRuleList } from "./AppRuleList";
 import { STARTER_PROFILES, type StarterProfile } from "../data/starterProfiles";
@@ -66,7 +66,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
   const iconButtonClass =
     "w-6 h-6 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] transition-all duration-150 flex items-center justify-center cursor-pointer";
   return (
-    <aside className="bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-3.5 flex flex-col gap-4 overflow-y-auto">
+    <aside className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-3.5 flex flex-col gap-4 overflow-y-auto">
       {/* Devices Section */}
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -190,20 +190,30 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
           </div>
         </div>
 
-        <label className="mb-2 flex flex-col gap-1">
-          <span className="sr-only">Find a binding</span>
+        <div className="relative mb-2">
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
           <input
             value={bindingQuery}
             onChange={(event) => setBindingQuery(event.target.value)}
             placeholder="Find a key, app, or macro"
             aria-label="Find a binding"
-            className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+            className="w-full h-8 pl-8 pr-7 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] transition-colors"
           />
-        </label>
+          {bindingQuery && (
+            <button
+              type="button"
+              aria-label="Clear binding search"
+              onClick={() => setBindingQuery("")}
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
+            >
+              <X size={12} />
+            </button>
+          )}
+        </div>
         {bindingQuery.trim() && (
-          <div role="listbox" aria-label="Binding results" className="mb-2 flex max-h-48 flex-col gap-0.5 overflow-y-auto">
+          <div role="listbox" aria-label="Binding results" className="mb-2.5 p-1 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] shadow-lg flex max-h-48 flex-col gap-0.5 overflow-y-auto animate-pop-in">
             {bindingHits.length === 0 ? (
-              <p className="px-2 py-1.5 text-[11px] text-[var(--text-muted)]">Nothing matches.</p>
+              <p className="px-2.5 py-2 text-[11px] text-[var(--text-muted)]">Nothing matches.</p>
             ) : (
               bindingHits.map((hit) => (
                 <button
@@ -219,9 +229,9 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                     if (hit.surface === "key") setSelectedKeyIdx(hit.index);
                     setBindingQuery("");
                   }}
-                  className="px-2 py-1.5 rounded-md text-left hover:bg-[var(--bg-panel)] cursor-pointer"
+                  className="px-2 py-1.5 rounded-md text-left hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
                 >
-                  <span className="block truncate text-[12px] text-[var(--text-primary)]">{hit.title}</span>
+                  <span className="block truncate text-[12px] font-medium text-[var(--text-primary)]">{hit.title}</span>
                   <span className="block truncate text-[10.5px] text-[var(--text-muted)]">
                     {hit.profileName} · {hit.pageName} · {hit.where}
                   </span>
@@ -240,19 +250,12 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
               setSelectedKeyIdx(0);
             };
             return (
-              <div
+              <button
                 key={prof.id}
-                role="button"
-                tabIndex={0}
+                type="button"
                 aria-current={isSel ? "true" : undefined}
                 onClick={selectProfile}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    selectProfile();
-                  }
-                }}
-                className={`px-2.5 py-2 rounded-lg border flex items-center justify-between gap-2 cursor-pointer transition-all duration-150 ${
+                className={`w-full text-left px-2.5 py-2 rounded-lg border flex items-center justify-between gap-2 cursor-pointer transition-all duration-150 ${
                   isSel
                     ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/50 text-[var(--text-primary)] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                     : "bg-transparent border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:border-[var(--border-subtle)] hover:text-[var(--text-primary)]"
@@ -267,14 +270,14 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                   <span className="text-[12.5px] truncate">{prof.name}</span>
                 </div>
                 <span
-                  className={`text-[10px] font-mono px-1.5 py-0.5 rounded shrink-0 ${
+                  className={`text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded shrink-0 ${
                     isSel ? "bg-[var(--accent-primary)]/20 text-[var(--accent-text)]" : "text-[var(--text-muted)]"
                   }`}
                   title={`${prof.pages.length} ${prof.pages.length === 1 ? "page" : "pages"}`}
                 >
                   {prof.pages.length}p
                 </span>
-              </div>
+              </button>
             );
           })}
         </div>

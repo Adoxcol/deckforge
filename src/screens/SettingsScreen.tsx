@@ -40,7 +40,7 @@ export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: s
   const selected = sections.find(item => item.id === section)!;
 
   return <div className="flex-1 min-h-0 grid grid-cols-[224px_1fr] overflow-hidden">
-    <nav aria-label="Settings sections" className="bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 space-y-1.5">
+    <nav aria-label="Settings sections" className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 space-y-1.5 overflow-y-auto">
       <p className="px-3 py-1.5 text-[11px] font-semibold tracking-wide text-[var(--text-muted)]">Preferences</p>
       {sections.map(({ id, name, hint, icon: Icon }) => <button type="button" key={id} onClick={() => setSection(id)}
         aria-current={section === id ? "page" : undefined} aria-controls="settings-content"
@@ -48,7 +48,7 @@ export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: s
         <Icon size={16} className="mt-0.5 shrink-0" /><span><span className="block text-xs font-semibold">{name}</span><span className="block text-[10.5px] text-[var(--text-secondary)] mt-0.5">{hint}</span></span>
       </button>)}
     </nav>
-    <main id="settings-content" aria-labelledby="settings-heading" className="overflow-y-auto p-6 lg:p-8">
+    <main id="settings-content" aria-labelledby="settings-heading" className="min-h-0 overflow-y-auto p-6 lg:p-8">
       <div className="max-w-3xl mx-auto space-y-5 text-sm text-[var(--text-secondary)]">
         <header className="flex items-start justify-between gap-4 pb-2">
           <div><h1 id="settings-heading" className="text-xl font-bold text-[var(--text-primary)]">{selected.name}</h1><p className="text-xs mt-1">{selected.hint}</p></div>

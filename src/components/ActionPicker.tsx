@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Search } from "lucide-react";
+import { Check, ChevronDown, Search, X } from "lucide-react";
 import { DeckIcon } from "./DeckIcon";
 import { groupOf, matchesQuery, nameOf } from "../lib/actionSearch";
 
@@ -101,6 +101,8 @@ export const ActionPicker: React.FC<{
       <button
         ref={buttonRef}
         type="button"
+        aria-expanded={open}
+        aria-haspopup="listbox"
         onClick={() => (open ? setOpen(false) : openPicker())}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
@@ -116,7 +118,7 @@ export const ActionPicker: React.FC<{
       >
         {current?.iconName && <DeckIcon name={current.iconName} size={13} className="shrink-0 text-[var(--text-secondary)]" />}
         <span className="truncate text-left flex-1">{current ? current.actionLabel : value || "Choose an action"}</span>
-        <ChevronDown size={14} className="shrink-0 text-[var(--text-secondary)]" />
+        <ChevronDown size={14} className={`shrink-0 text-[var(--text-secondary)] transition-transform duration-150 ${open ? "rotate-180" : ""}`} />
       </button>
       {open && rect &&
         createPortal(
@@ -136,6 +138,16 @@ export const ActionPicker: React.FC<{
                   placeholder="Search actions…"
                   className="flex-1 bg-transparent text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"
                 />
+                {query && (
+                  <button
+                    type="button"
+                    aria-label="Clear action search"
+                    onClick={() => setQuery("")}
+                    className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
                 <span className="text-[10px] font-mono text-[var(--text-muted)] tabular-nums">{flat.length}</span>
               </div>
               <div ref={listRef} className="overflow-y-auto py-1" role="listbox">
@@ -169,7 +181,8 @@ export const ActionPicker: React.FC<{
                           ) : (
                             <span className="w-[13px] shrink-0" />
                           )}
-                          <span className="truncate">{nameOf(choice)}</span>
+                          <span className="truncate flex-1">{nameOf(choice)}</span>
+                          {selected && <Check size={12} className="shrink-0 text-[var(--accent-primary)]" />}
                         </button>
                       );
                     })}

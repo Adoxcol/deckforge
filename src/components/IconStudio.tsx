@@ -129,8 +129,8 @@ export const IconStudio: React.FC<{
   const timing = delays.reduce((sum, value) => sum + value, 0);
 
   return (
-    <div className="flex-1 grid grid-cols-[288px_1fr_300px] overflow-hidden">
-      <aside className="bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
+    <div className="flex-1 min-h-0 grid grid-cols-[288px_1fr_300px] overflow-hidden">
+      <aside className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
         <div className="text-[11px] font-semibold text-[var(--text-secondary)]">This page</div>
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(1, columns)}, 44px)` }}>
           {keys.map((item) => {
@@ -234,7 +234,7 @@ export const IconStudio: React.FC<{
         </div>
       </main>
 
-      <aside className="bg-[var(--bg-sidebar)] border-l border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
+      <aside className="min-h-0 bg-[var(--bg-sidebar)] border-l border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
         <div className="text-sm font-bold text-[var(--text-primary)]">
           {layer === "picture" ? "Picture" : layer === "title" ? "Title" : layer === "icon" ? "Icon" : "Background"}
         </div>
@@ -259,11 +259,12 @@ export const IconStudio: React.FC<{
             </button>
             {clip && face.media && (
               <>
-                <div className="grid grid-cols-3 gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
+                <div role="group" aria-label="Image fit" className="grid grid-cols-3 gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
                   {(["cover", "contain", "stretch"] as const).map((fit) => (
                     <button
                       key={fit}
                       type="button"
+                      aria-pressed={face.media?.fit === fit}
                       onClick={() => onMediaPatch({ fit })}
                       className={`h-7 rounded text-[11px] capitalize cursor-pointer transition-all border ${
                         face.media?.fit === fit
@@ -328,11 +329,12 @@ export const IconStudio: React.FC<{
               {face.showTitle ? <Eye size={13} /> : <EyeOff size={13} />}
               {face.showTitle ? "Title is on the key" : "Title is hidden"}
             </button>
-            <div className="grid grid-cols-3 gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
+            <div role="group" aria-label="Title size" className="grid grid-cols-3 gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
               {(["Small", "Medium", "Large"] as const).map((size) => (
                 <button
                   key={size}
                   type="button"
+                  aria-pressed={face.titleSize === size}
                   onClick={() => onChange({ titleSize: size })}
                   className={`h-7 rounded text-[11px] cursor-pointer transition-all border ${
                     face.titleSize === size
@@ -382,7 +384,7 @@ export const IconStudio: React.FC<{
                   aria-label={`Use ${look.name} look`}
                   aria-pressed={face.accentColor === look.accent}
                   onClick={() => onChange({ accentColor: look.accent, bgColor: look.bg, backgroundStyle: "Gradient" })}
-                  className={`h-9 rounded-lg border cursor-pointer transition-transform ${face.accentColor === look.accent ? "border-white scale-105" : "border-white/10 hover:scale-105"}`}
+                  className={`h-9 rounded-lg border cursor-pointer transition-transform ${face.accentColor === look.accent ? "border-white ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-sidebar)] scale-105" : "border-white/10 hover:scale-105"}`}
                   style={{ background: `linear-gradient(160deg, ${look.accent}, ${look.bg})` }}
                 />
               ))}

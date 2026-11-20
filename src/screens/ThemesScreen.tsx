@@ -1,6 +1,6 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ImagePlus, Sparkles, Wand2 } from "lucide-react";
+import { ImagePlus, RefreshCw, Sparkles, Wand2 } from "lucide-react";
 import type { KeyConfig } from "../types/deckforge";
 import { DeckIcon } from "../components/DeckIcon";
 import { KEY_THEMES, THEME_DELAY_MS, drawThemeFrame, renderThemeFrames, svgToImage, type ThemeId } from "../lib/keyThemes";
@@ -196,13 +196,14 @@ export const ThemesScreen: React.FC<{
           onClick={() => fileInput.current?.click()}
           className="h-9 px-4 shrink-0 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-[0.98] transition-all"
         >
-          <ImagePlus size={14} /> {busy === "wallpaper" ? "Splitting…" : "Choose GIF"}
+          {busy === "wallpaper" ? <RefreshCw size={14} className="animate-spin" /> : <ImagePlus size={14} />}
+          {busy === "wallpaper" ? "Splitting…" : "Choose GIF"}
         </button>
       </section>
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
         {KEY_THEMES.map((theme) => (
-          <div key={theme.id} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:shadow-lg transition-all flex flex-col gap-3">
+          <div key={theme.id} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:-translate-y-[1px] hover:shadow-lg transition-all flex flex-col gap-3">
             <ThemePreview theme={theme.id} icons={previewIcons} />
             <div>
               <div className="font-bold text-sm">{theme.name}</div>
@@ -213,16 +214,18 @@ export const ThemesScreen: React.FC<{
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void applyTheme(theme.id, false)}
-                className="flex-1 h-8 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer disabled:opacity-50 transition-colors"
+                className="flex-1 h-8 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
               >
+                {busy === `${theme.id}:false` && <RefreshCw size={12} className="animate-spin" />}
                 {busy === `${theme.id}:false` ? "Drawing…" : "Apply to page"}
               </button>
               <button
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void applyTheme(theme.id, true)}
-                className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer disabled:opacity-50 transition-colors"
+                className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
               >
+                {busy === `${theme.id}:true` && <RefreshCw size={12} className="animate-spin" />}
                 {busy === `${theme.id}:true` ? "Drawing…" : `Key ${selectedIndex + 1} only`}
               </button>
             </div>

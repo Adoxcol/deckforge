@@ -1,5 +1,5 @@
 import React from "react";
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
 import type { SimpleIcon } from "simple-icons";
 
 type BrandIcon = Pick<SimpleIcon, "title" | "slug" | "hex" | "path">;
@@ -82,31 +82,43 @@ export const BrandIconPicker: React.FC<{ onPick: (file: File, icon: BrandIcon) =
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-[var(--text-secondary)]">App and brand logos</span>
-        <div className="flex gap-1 text-[10.5px]">
+        <div role="group" aria-label="Logo style" className="flex gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md text-[10.5px]">
           {(["brand", "dark"] as const).map((l) => (
             <button
               key={l}
               type="button"
               onClick={() => setLook(l)}
               aria-pressed={look === l}
-              className={`px-2 py-0.5 rounded cursor-pointer ${look === l ? "bg-[var(--accent-soft)] text-white" : "text-[var(--text-secondary)]"}`}
+              className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
+                look === l ? "bg-[var(--accent-soft)] text-white font-medium" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              }`}
             >
               {l === "brand" ? "Brand color" : "Dark"}
             </button>
           ))}
         </div>
       </div>
-      <div className="flex items-center gap-2 h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] transition-colors">
+      <div className="flex items-center gap-2 h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 transition-all">
         <Search size={13} className="text-[var(--text-muted)] shrink-0" />
         <input
           aria-label="Search app and brand logos"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search 3,000+ logos (Spotify, Discord…)"
-          className="flex-1 bg-transparent outline-none text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+          className="flex-1 min-w-0 bg-transparent outline-none text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
         />
+        {query && (
+          <button
+            type="button"
+            aria-label="Clear logo search"
+            onClick={() => setQuery("")}
+            className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
+          >
+            <X size={12} />
+          </button>
+        )}
       </div>
       <div className="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto p-1.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-md">
         {failed && <span className="col-span-5 text-[11px] text-[var(--status-warning)] p-2">Could not load the logos.</span>}

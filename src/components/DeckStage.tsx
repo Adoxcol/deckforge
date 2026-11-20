@@ -164,9 +164,17 @@ export const DeckStage = React.memo(function DeckStage({
                     ? "ring-2 ring-[var(--status-success)] ring-offset-2 ring-offset-[var(--bg-panel)] scale-95"
                     : isSelected
                     ? "ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-panel)] shadow-[0_0_18px_rgba(124,131,247,0.24)]"
+                    : lit
+                    ? "ring-2 ring-[var(--status-success)]/85 ring-offset-2 ring-offset-[var(--bg-panel)]"
                     : "hover:border-[var(--border-strong)] hover:-translate-y-[1px]"
-                } ${lit ? "outline outline-2 outline-[var(--status-success)]" : ""}`}
+                }`}
               >
+                {(k.doublePress || k.hold) && (
+                  <span aria-hidden className="absolute top-1.5 right-1.5 z-10 flex items-center gap-0.5">
+                    {k.doublePress && <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-text)]/85 shadow-xs" />}
+                    {k.hold && <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-warning)]/85 shadow-xs" />}
+                  </span>
+                )}
                 {clip ? (
                   <ScreenFace
                     clip={clip}
@@ -395,7 +403,7 @@ export const DeckStage = React.memo(function DeckStage({
                   </span>
                 )}
                 {dropZone === `enc-${enc.index}` && (
-                  <div className="absolute inset-0 z-10 grid grid-cols-3 gap-px rounded-xl overflow-hidden bg-[var(--border-subtle)]">
+                  <div className="absolute inset-0 z-10 grid grid-cols-3 gap-px rounded-xl overflow-hidden bg-[var(--border-subtle)] backdrop-blur-[2px] animate-fade-in">
                     {(
                       [
                         ["ccw", "Turn left"],
@@ -420,8 +428,8 @@ export const DeckStage = React.memo(function DeckStage({
                           setSurface("encoder");
                           setSurfaceIndex(enc.index);
                         }}
-                        className={`flex items-center justify-center text-[11px] font-medium ${
-                          dropPart === part ? "bg-[var(--accent-primary)] text-white" : "bg-[var(--bg-elevated)] text-[var(--text-secondary)]"
+                        className={`flex items-center justify-center text-[11px] font-medium transition-colors ${
+                          dropPart === part ? "bg-[var(--accent-primary)] text-white" : "bg-[var(--bg-elevated)]/95 text-[var(--text-secondary)]"
                         }`}
                       >
                         {label}
@@ -438,14 +446,14 @@ export const DeckStage = React.memo(function DeckStage({
                           boxShadow: `0 0 10px ${ledColor}66, inset 0 0 4px ${ledColor}44`,
                         }
                   }
-                  className="w-6 h-6 rounded-full bg-gradient-to-br from-[var(--border-strong)] to-[var(--bg-sidebar)] border-2 shrink-0 flex items-center justify-center"
+                  className="w-7 h-7 rounded-full bg-gradient-to-br from-[var(--border-strong)] to-[var(--bg-sidebar)] border-2 shrink-0 flex items-center justify-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
                 >
                   <span
                     style={{ backgroundColor: ledOff ? "var(--text-muted)" : ledColor }}
                     className="w-1.5 h-1.5 rounded-full"
                   />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <div className="text-[11px] font-semibold text-[var(--text-primary)] truncate">
                     {enc.label}
                   </div>
@@ -463,13 +471,13 @@ export const DeckStage = React.memo(function DeckStage({
         )}
       </div>
 
-      <div className="text-[11px] text-[var(--text-muted)]">
+      <div className="text-[11px] tabular-nums text-[var(--text-muted)] text-center">
         {activeDevice.keys.count} LCD screens · {activeDevice.keys.pixelWidth}×{activeDevice.keys.pixelHeight}px
         {activeDevice.keys.rotation ? ` · ${activeDevice.keys.rotation}°` : ""}
         {activeDevice.touchStrip
           ? ` · strip ${activeDevice.touchStrip.pixelWidth}×${activeDevice.touchStrip.pixelHeight}`
           : ""}
-        . Drop a GIF onto any screen.
+        {" · Drop a GIF onto any screen"}
       </div>
 
       {/* Page Switcher Bar below the Deck Bezel. While a key is dragged, it offers the other pages as drop targets. */}

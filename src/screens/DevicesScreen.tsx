@@ -60,8 +60,8 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
   const [deviceDetailTab, setDeviceDetailTab] = useState<DetailTab>("Overview");
   const [restarting, setRestarting] = useState(false);
 
-  return (    <div className="flex-1 grid grid-cols-[264px_1fr] lg:grid-cols-[300px_1fr] overflow-hidden">
-      <aside className="bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
+  return (    <div className="flex-1 min-h-0 grid grid-cols-[264px_1fr] lg:grid-cols-[300px_1fr] overflow-hidden">
+      <aside className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
         <div className="flex items-center justify-between">
           <h2 className="text-[13px] font-bold text-[var(--text-primary)]">Connected</h2>
           <button
@@ -245,13 +245,14 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {onKnobLedEffectChange && (
-                  <div className="flex items-center gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
+                  <div role="group" aria-label="LED animation" className="flex items-center gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
                     {(["static", "breathe", "rainbow"] as const).map((mode) => (
                       <button
                         key={mode}
                         type="button"
+                        aria-pressed={knobLedEffect === mode}
                         onClick={() => onKnobLedEffectChange(mode)}
-                        className={`h-7 px-2 rounded text-[11px] font-medium capitalize cursor-pointer ${
+                        className={`h-7 px-2 rounded text-[11px] font-medium capitalize cursor-pointer transition-colors ${
                           knobLedEffect === mode
                             ? "bg-[var(--accent-soft)] text-white font-semibold"
                             : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -323,10 +324,11 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                           type="button"
                           title={hex}
                           aria-label={`Set knob ${enc.index + 1} LED to ${hex}`}
+                          aria-pressed={ledColor === hex}
                           onClick={() => onKnobLedChange(enc.index, hex)}
                           style={{ backgroundColor: hex }}
-                          className={`w-5 h-5 rounded cursor-pointer ${
-                            ledColor === hex ? "ring-2 ring-white scale-110" : "border border-white/15"
+                          className={`w-5 h-5 rounded cursor-pointer transition-transform ${
+                            ledColor === hex ? "ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-sidebar)] scale-110" : "border border-white/15 hover:scale-105"
                           }`}
                         />
                       ))}
@@ -369,11 +371,12 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                         {ledFollowSleep ? "Turns LEDs off with PC sleep" : "Keeps LEDs on continuously"}
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md shrink-0">
+                    <div role="group" aria-label="LED sleep behavior" className="flex items-center gap-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md shrink-0">
                       <button
                         type="button"
+                        aria-pressed={ledFollowSleep}
                         onClick={() => onLedSleepMode(true)}
-                        className={`h-7 px-2.5 rounded text-[11px] font-medium cursor-pointer ${
+                        className={`h-7 px-2.5 rounded text-[11px] font-medium cursor-pointer transition-colors ${
                           ledFollowSleep
                             ? "bg-[var(--accent-soft)] text-white font-semibold"
                             : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
@@ -383,8 +386,9 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                       </button>
                       <button
                         type="button"
+                        aria-pressed={!ledFollowSleep}
                         onClick={() => onLedSleepMode(false)}
-                        className={`h-7 px-2.5 rounded text-[11px] font-medium cursor-pointer ${
+                        className={`h-7 px-2.5 rounded text-[11px] font-medium cursor-pointer transition-colors ${
                           !ledFollowSleep
                             ? "bg-[var(--accent-soft)] text-white font-semibold"
                             : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"

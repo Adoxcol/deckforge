@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Download, ExternalLink, Puzzle, RefreshCw, Search, Star, TriangleAlert, Upload } from "lucide-react";
+import { Download, ExternalLink, Puzzle, RefreshCw, Search, Star, TriangleAlert, Upload, X } from "lucide-react";
 import { deckforgeApi } from "../bridge/tauriBridge";
 import type { ActionTemplate } from "../data/actionCatalog";
 import { errorText } from "../lib/format";
@@ -202,7 +202,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               {legacySummary && legacySummary.namedRootProfilesCount > 0 && (
                 <>
                   {" "}
-                  <button onClick={onImportLegacy} className="underline text-[var(--accent-primary)] cursor-pointer">
+                  <button type="button" onClick={onImportLegacy} className="underline text-[var(--accent-primary)] hover:text-[var(--accent-hover)] cursor-pointer transition-colors">
                     Import Stream Dock profiles
                   </button>
                 </>
@@ -248,7 +248,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               const status = statusOf(plug);
               const runnable = plug.runtime !== "unknown";
               return (
-                <div key={plug.uuid} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors flex flex-col gap-3">
+                <div key={plug.uuid} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:-translate-y-[1px] hover:shadow-md transition-all flex flex-col gap-3">
                   <div className="flex items-start gap-3">
                     {plug.icon ? (
                       <img src={plug.icon} alt="" className="w-9 h-9 rounded-md shrink-0 object-contain bg-black/20" />
@@ -281,11 +281,12 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
                   <div className="mt-auto pt-2 border-t border-[var(--border-subtle)] flex items-center justify-end">
                     {runnable ? (
                       <button
+                        type="button"
                         disabled={busy === plug.uuid}
                         onClick={() => (plug.enabled ? setEnabled(plug, false) : setConfirming(plug))}
-                        className={`h-8 px-3 rounded-md text-xs font-semibold cursor-pointer disabled:opacity-50 ${
+                        className={`h-8 px-3 rounded-md text-xs font-semibold cursor-pointer disabled:opacity-50 transition-colors ${
                           plug.enabled
-                            ? "border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[var(--border-strong)]"
+                            ? "border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]"
                             : "bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white"
                         }`}
                       >
@@ -315,7 +316,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               void search();
             }}
           >
-            <div className="flex-1 flex items-center gap-2 h-9 px-3 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] transition-colors">
+            <div className="flex-1 flex items-center gap-2 h-9 px-3 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 transition-all">
               <Search size={14} className="text-[var(--text-muted)] shrink-0" />
               <input
                 aria-label="Search open-source plugins on GitHub"
@@ -324,6 +325,16 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
                 placeholder="Search open-source plugins on GitHub (obs, spotify, timer…)"
                 className="flex-1 bg-transparent outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
               />
+              {query && (
+                <button
+                  type="button"
+                  aria-label="Clear plugin search"
+                  onClick={() => setQuery("")}
+                  className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
             <button type="submit" disabled={searching} className="h-9 px-4 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer disabled:opacity-50">
               {searching ? "Searching…" : "Search"}
@@ -338,7 +349,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(results ?? []).map((r) => (
-              <div key={r.repo} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors flex flex-col gap-2">
+              <div key={r.repo} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:-translate-y-[1px] hover:shadow-md transition-all flex flex-col gap-2">
                 <div className="flex items-start gap-3">
                   {r.ownerAvatar ? (
                     <img src={r.ownerAvatar} alt="" className="w-8 h-8 rounded-md shrink-0" />
@@ -347,7 +358,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="font-bold text-sm truncate">{r.name}</div>
-                    <div className="text-[11px] text-[var(--text-muted)] truncate flex items-center gap-1">
+                    <div className="text-[11px] text-[var(--text-muted)] truncate flex items-center gap-1 tabular-nums">
                       {r.repo} • <Star size={10} /> {r.stars}
                     </div>
                   </div>
@@ -355,15 +366,17 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
                 {r.description && <p className="text-xs text-[var(--text-secondary)] leading-relaxed line-clamp-2">{r.description}</p>}
                 <div className="mt-auto pt-2 border-t border-[var(--border-subtle)] flex items-center justify-end gap-2">
                   <button
+                    type="button"
                     onClick={() => deckforgeApi.pluginOpenPage(r.url).catch((e) => notify(errorText(e), "warning"))}
-                    className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-xs flex items-center gap-1.5 cursor-pointer"
+                    className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] text-xs flex items-center gap-1.5 cursor-pointer transition-colors"
                   >
                     <ExternalLink size={12} /> Open page
                   </button>
                   <button
+                    type="button"
                     disabled={installing !== null}
                     onClick={() => void installRepo(r.repo)}
-                    className="h-8 px-3 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                    className="h-8 px-3 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
                   >
                     <Download size={12} /> {installing === r.repo ? "Downloading…" : "Install"}
                   </button>

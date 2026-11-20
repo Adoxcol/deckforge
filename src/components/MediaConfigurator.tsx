@@ -73,11 +73,12 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
             {` · ${clip.frameCount} frame${clip.frameCount === 1 ? "" : "s"}`}
             {clip.sourceFrameCount > clip.frameCount ? ` (from ${clip.sourceFrameCount})` : ""}
           </div>
-          <div className="grid grid-cols-3 gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
+          <div role="group" aria-label="Image fit" className="grid grid-cols-3 gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
             {(["cover", "contain", "stretch"] as const).map((fit) => (
               <button
                 key={fit}
                 type="button"
+                aria-pressed={config.fit === fit}
                 onClick={() => onChange({ fit })}
                 className={`h-7 rounded text-[11px] capitalize cursor-pointer transition-all border ${
                   config.fit === fit
@@ -92,9 +93,10 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
           <div>
             <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)] mb-1">
               <span>Playback speed</span>
-              <span className="font-mono text-[var(--text-primary)]">{config.speed.toFixed(2)}×</span>
+              <span className="font-mono tabular-nums text-[var(--text-primary)]">{config.speed.toFixed(2)}×</span>
             </div>
             <input
+              aria-label="Playback speed"
               type="range"
               min={0.25}
               max={3}
@@ -112,13 +114,13 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
               aria-label="Loop animation"
               aria-checked={config.loopPlayback}
               onClick={() => onChange({ loopPlayback: !config.loopPlayback })}
-              className={`w-10 h-5 rounded-full p-0.5 cursor-pointer transition-colors ${
+              className={`w-9 h-5 rounded-full p-0.5 cursor-pointer transition-colors shrink-0 ${
                 config.loopPlayback ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"
               }`}
             >
               <div
                 className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${
-                  config.loopPlayback ? "translate-x-5" : "translate-x-0"
+                  config.loopPlayback ? "translate-x-4" : "translate-x-0"
                 }`}
               />
             </button>

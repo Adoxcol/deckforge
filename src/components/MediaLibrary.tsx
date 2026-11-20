@@ -1,5 +1,5 @@
 import React from "react";
-import { Search, Star, Upload, X } from "lucide-react";
+import { RefreshCw, Search, Star, Upload, X } from "lucide-react";
 import type { CommonsGif, MediaPreview } from "../types/deckforge";
 import { deckforgeApi } from "../bridge/tauriBridge";
 import { bytesToBase64, errorText } from "../lib/format";
@@ -79,12 +79,15 @@ export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
     className="m-auto w-[760px] max-w-[95vw] max-h-[90vh] rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] text-[var(--text-primary)] p-0 shadow-2xl backdrop:bg-black/65 backdrop:backdrop-blur-[2px] animate-pop-in">
     <div className="p-5 flex flex-col gap-4">
       <div className="flex items-center justify-between"><div><h2 id="media-library-title" className="text-lg font-bold">Media library</h2><p className="text-xs text-[var(--text-secondary)]">Animated icons and images, ready for your deck.</p></div><button type="button" className={button} disabled={busy} onClick={onClose} aria-label="Close media library"><X size={16}/></button></div>
-      <div className="flex gap-2 flex-wrap">{["Starter pack", "My media", "Favorites", "Recent", "Find GIFs"].map(name => <button type="button" key={name} className={button} aria-pressed={tab === name} style={tab === name ? { borderColor: "var(--accent-primary)", backgroundColor: "var(--accent-soft)", color: "var(--accent-text)" } : undefined} onClick={() => setTab(name)}>{name}</button>)}</div>
+      <div role="tablist" aria-label="Media library tabs" className="flex gap-1 flex-wrap bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] p-1 rounded-lg w-fit">{["Starter pack", "My media", "Favorites", "Recent", "Find GIFs"].map(name => <button type="button" role="tab" key={name} className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-all border ${tab === name ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-white font-semibold shadow-xs" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"}`} aria-selected={tab === name} onClick={() => setTab(name)}>{name}</button>)}</div>
       {tab === "Find GIFs" ? <form className="flex items-center gap-2" onSubmit={event => { event.preventDefault(); void run(async () => { const term = gifQuery.trim(); setGifResults([]); setGifSelected(null); setGifSearched(term); setGifResults(await deckforgeApi.searchCommonsGifs(term)); }); }}>
-        <Search size={16} className="text-[var(--text-muted)] shrink-0"/>
-        <input aria-label="Search Wikimedia Commons GIFs" placeholder="Search GIFs on Wikimedia Commons..." value={gifQuery} onChange={e => setGifQuery(e.target.value)} className="min-w-0 flex-1 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] outline-none px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"/>
+        <div className="min-w-0 flex-1 flex items-center gap-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] px-3 h-9 transition-colors">
+          <Search size={15} className="text-[var(--text-muted)] shrink-0"/>
+          <input aria-label="Search Wikimedia Commons GIFs" placeholder="Search GIFs on Wikimedia Commons..." value={gifQuery} onChange={e => setGifQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"/>
+          {gifQuery && <button type="button" aria-label="Clear GIF search" onClick={() => setGifQuery("")} className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"><X size={13}/></button>}
+        </div>
         <button type="submit" className={button} disabled={busy || gifQuery.trim().length < 2}>Search</button>
-      </form> : <div className="flex items-center gap-2"><Search size={16} className="text-[var(--text-muted)] shrink-0"/><input autoFocus aria-label="Search media library" placeholder="Search your library..." value={query} onChange={e => setQuery(e.target.value)} className="min-w-0 flex-1 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] outline-none px-3 py-2 text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"/><button type="button" className={button} disabled={busy} onClick={() => upload.current?.click()}><Upload size={14} className="inline mr-1"/>Upload</button></div>}
+      </form> : <div className="flex items-center gap-2"><div className="min-w-0 flex-1 flex items-center gap-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] px-3 h-9 transition-colors"><Search size={15} className="text-[var(--text-muted)] shrink-0"/><input autoFocus aria-label="Search media library" placeholder="Search your library..." value={query} onChange={e => setQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"/>{query && <button type="button" aria-label="Clear media search" onClick={() => setQuery("")} className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"><X size={13}/></button>}</div><button type="button" className={button} disabled={busy} onClick={() => upload.current?.click()}><Upload size={14} className="inline mr-1"/>Upload</button></div>}
       <input ref={upload} type="file" hidden accept="image/png,image/jpeg,image/gif,image/webp,image/bmp" onChange={event => {
         const file = event.target.files?.[0]; event.target.value = "";
         if (file) void run(async () => {
@@ -98,7 +101,7 @@ export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
       </form>
       <p className="text-[11px] text-[var(--text-muted)]">Import files you own or have permission to use. Up to 8 MB. Webpage links are not image files.</p>
       {error && <p role="alert" className="text-xs text-[var(--status-warning)]">{error}</p>}
-      {busy && <p role="status" className="text-xs">Preparing media...</p>}
+      {busy && <p role="status" className="text-xs text-[var(--accent-text)] flex items-center gap-1.5"><RefreshCw size={12} className="animate-spin"/>Preparing media...</p>}
       {tab === "Find GIFs" ? <>
         <p className="text-[11px] text-[var(--text-muted)]">Search Wikimedia Commons. Each GIF has its own license; check its file page before sharing or publishing it.</p>
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-[35vh] overflow-y-auto p-1">

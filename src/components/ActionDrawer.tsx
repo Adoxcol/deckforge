@@ -108,7 +108,7 @@ export const ActionDrawer = React.memo(function ActionDrawer({
   return (
     <div className="h-[214px] bg-[var(--bg-sidebar)] border-t border-[var(--border-subtle)] grid grid-cols-[172px_1fr] p-3 gap-4 shrink-0">
       {/* Left Category Filter Rail */}
-      <div className="border-r border-[var(--border-subtle)] pr-3 flex flex-col gap-0.5 overflow-y-auto">
+      <div className="min-h-0 border-r border-[var(--border-subtle)] pr-3 flex flex-col gap-0.5 overflow-y-auto">
         <div className="text-[11px] font-semibold tracking-wide text-[var(--text-muted)] px-2 mb-1">Actions</div>
         {["All", "Custom", "Shortcuts", "Macro", "OBS", "Media", "System", "Navigation"].map(
           (cat) => {
@@ -137,7 +137,7 @@ export const ActionDrawer = React.memo(function ActionDrawer({
       </div>
 
       {/* Right Search + Action Cards Grid */}
-      <div className="flex flex-col gap-2.5 overflow-hidden">
+      <div className="min-h-0 flex flex-col gap-2.5 overflow-hidden">
         <div className="relative">
           <Search
             size={14}

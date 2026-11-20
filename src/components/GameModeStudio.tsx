@@ -98,7 +98,7 @@ const Checkbox: React.FC<{ checked: boolean }> = ({ checked }) => (
 const Stat: React.FC<{ label: string; value: string; hint?: string; tone?: "good" | "warn" }> = ({ label, value, hint, tone }) => (
   <div className="bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] rounded-xl px-3.5 py-3 min-w-0">
     <div className="text-[11px] font-medium text-[var(--text-muted)]">{label}</div>
-    <div className={`mt-1 text-[15px] font-semibold truncate ${tone === "good" ? "text-[var(--status-success)]" : tone === "warn" ? "text-[var(--status-warning)]" : "text-[var(--text-primary)]"}`}>
+    <div className={`mt-1 text-[15px] font-semibold tabular-nums truncate ${tone === "good" ? "text-[var(--status-success)]" : tone === "warn" ? "text-[var(--status-warning)]" : "text-[var(--text-primary)]"}`}>
       {value}
     </div>
     {hint && <div className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">{hint}</div>}
@@ -107,6 +107,7 @@ const Stat: React.FC<{ label: string; value: string; hint?: string; tone?: "good
 
 const Toggle: React.FC<{ on: boolean; onClick: () => void; title: string; hint: string; label: string }> = ({ on, onClick, title, hint, label }) => (
   <button
+    type="button"
     onClick={onClick}
     aria-label={`${label}${on ? ", on" : ", off"}`}
     className={`text-left flex items-start gap-3 px-3.5 py-2.5 rounded-lg border cursor-pointer transition-colors ${
@@ -141,6 +142,7 @@ const PickRow: React.FC<{ on: boolean; title: string; sub: string; label: string
   onClick,
 }) => (
   <button
+    type="button"
     onClick={onClick}
     aria-pressed={on}
     aria-label={label}
@@ -447,8 +449,8 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
   const tab = PICK_TABS.find((t) => t.id === pickTab) ?? PICK_TABS[0];
 
   return (
-    <div className="flex-1 grid grid-cols-[1fr_340px] overflow-hidden">
-      <div className="overflow-y-auto p-6 flex flex-col gap-5">
+    <div className="flex-1 min-h-0 grid grid-cols-[1fr_340px] overflow-hidden">
+      <div className="min-h-0 overflow-y-auto p-6 flex flex-col gap-5">
         {/* Header and master switch */}
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
@@ -464,6 +466,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             </div>
           </div>
           <button
+            type="button"
             onClick={() => void toggleGameMode()}
             disabled={Boolean(busy)}
             className={`h-11 px-5 rounded-lg text-sm font-semibold flex items-center gap-2 shrink-0 transition-colors cursor-pointer disabled:cursor-wait ${
@@ -714,14 +717,24 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                 </button>
               ))}
               <div className="relative ml-auto">
-                <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search"
                   aria-label="Search what is running"
-                  className="h-7 w-48 pl-7 pr-2 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)]"
+                  className="h-7 w-48 pl-7 pr-6 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] transition-colors"
                 />
+                {query && (
+                  <button
+                    type="button"
+                    aria-label="Clear running apps search"
+                    onClick={() => setQuery("")}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
+                  >
+                    <X size={11} />
+                  </button>
+                )}
               </div>
             </div>
             <p className="text-[11.5px] text-[var(--text-muted)] -mt-1">{tab.blurb}</p>
@@ -1014,10 +1027,11 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
       </div>
 
       {/* Report column */}
-      <aside className="border-l border-[var(--border-subtle)] bg-[var(--bg-sidebar)] overflow-y-auto p-4 flex flex-col gap-4">
+      <aside className="min-h-0 border-l border-[var(--border-subtle)] bg-[var(--bg-sidebar)] overflow-y-auto p-4 flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">{active ? `${status?.mode || "Game Mode"} is on` : "Last run"}</h2>
           <button
+            type="button"
             onClick={() => void refresh()}
             aria-label="Rescan this PC"
             title="Rescan this PC"

@@ -114,9 +114,15 @@ export const MacroStudio: React.FC<{
     onSelectStep(0);
   };
 
+  const blockNameId = React.useId();
+  const blockKindId = React.useId();
+  const blockParamId = React.useId();
+  const blockTimeoutId = React.useId();
+  const blockErrorId = React.useId();
+
   return (
-    <div className="flex-1 grid grid-cols-[250px_1fr_300px] overflow-hidden">
-      <aside className="bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-3 flex flex-col gap-2 overflow-y-auto">
+    <div className="flex-1 min-h-0 grid grid-cols-[250px_1fr_300px] overflow-hidden">
+      <aside className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-3 flex flex-col gap-2 overflow-y-auto">
         <button
           type="button"
           onClick={createMacro}
@@ -307,13 +313,14 @@ export const MacroStudio: React.FC<{
         )}
       </main>
 
-      <aside className="bg-[var(--bg-sidebar)] border-l border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
+      <aside className="min-h-0 bg-[var(--bg-sidebar)] border-l border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
         <div className="text-sm font-bold text-[var(--text-primary)]">Block</div>
         {macro && step ? (
           <>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--text-secondary)]">Name</label>
+              <label htmlFor={blockNameId} className="text-[11px] text-[var(--text-secondary)]">Name</label>
               <input
+                id={blockNameId}
                 value={step.label}
                 onChange={(event) => {
                   const label = event.target.value;
@@ -322,12 +329,13 @@ export const MacroStudio: React.FC<{
                     steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, label } : item)),
                   }));
                 }}
-                className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
+                className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--text-secondary)]">Kind</label>
+              <label htmlFor={blockKindId} className="text-[11px] text-[var(--text-secondary)]">Kind</label>
               <select
+                id={blockKindId}
                 value={step.stepType}
                 onChange={(event) => {
                   const stepType = event.target.value as StepType;
@@ -339,7 +347,7 @@ export const MacroStudio: React.FC<{
                     ),
                   }));
                 }}
-                className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer"
+                className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
               >
                 {BLOCKS.map((kind) => (
                   <option key={kind.type} value={kind.type}>
@@ -349,9 +357,10 @@ export const MacroStudio: React.FC<{
               </select>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--text-secondary)]">{blockFor(step.stepType).hint}</label>
+              <label htmlFor={blockParamId} className="text-[11px] text-[var(--text-secondary)]">{blockFor(step.stepType).hint}</label>
               {step.stepType === "SwitchProfile" ? (
                 <select
+                  id={blockParamId}
                   value={step.parameter}
                   onChange={(event) => {
                     const parameter = event.target.value;
@@ -360,7 +369,7 @@ export const MacroStudio: React.FC<{
                       steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, parameter } : item)),
                     }));
                   }}
-                  className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer"
+                  className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
                 >
                   {profiles.map((profile) => (
                     <option key={profile.id} value={profile.id}>
@@ -370,6 +379,7 @@ export const MacroStudio: React.FC<{
                 </select>
               ) : (
                 <input
+                  id={blockParamId}
                   value={step.parameter}
                   onChange={(event) => {
                     const parameter = event.target.value;
@@ -378,24 +388,25 @@ export const MacroStudio: React.FC<{
                       steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, parameter } : item)),
                     }));
                   }}
-                  className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none"
+                  className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none transition-colors"
                 />
               )}
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--text-secondary)]">Block timeout (ms, including retry)</label>
-              <input type="number" min={1} max={60000} value={step.timeoutMs}
+              <label htmlFor={blockTimeoutId} className="text-[11px] text-[var(--text-secondary)]">Block timeout (ms, including retry)</label>
+              <input id={blockTimeoutId} type="number" min={1} max={60000} value={step.timeoutMs}
                 onChange={(event) => {
                   const timeoutMs = Math.max(1, Math.min(60000, Number(event.target.value) || 1));
                   updateMacro(current => ({ ...current, steps: current.steps.map((item, index) =>
                     index === selectedStepIdx ? { ...item, timeoutMs } : item) }));
                 }}
-                className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none" />
+                className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono tabular-nums text-[var(--text-primary)] outline-none transition-colors" />
               <p className="text-[10px] text-[var(--text-muted)] leading-snug">Timeout or Stop ends the chain. An action already dispatched cannot be undone.</p>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--text-secondary)]">If this block fails</label>
+              <label htmlFor={blockErrorId} className="text-[11px] text-[var(--text-secondary)]">If this block fails</label>
               <select
+                id={blockErrorId}
                 value={step.onError}
                 onChange={(event) => {
                   const onError = event.target.value as MacroStep["onError"];

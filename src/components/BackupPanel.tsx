@@ -34,18 +34,18 @@ export function BackupPanel({ onBackup, onRestore }: {
     <p>Back up all editor profiles, all macros, and every image or animation those profiles use in one file.</p>
     <p className="text-xs leading-relaxed">Includes unsaved profile edits and media playback settings. Restore adds copies to the editor; Save keeps them locally and Apply sends a page to the deck. Existing profiles remain unchanged.</p>
     <div className="flex flex-wrap gap-2">
-      <button className={button} disabled={!desktop || busy || !!pending} onClick={() => run(async () => setMessage(`Backup saved to ${await onBackup()}`))}><Download size={14} />Create backup</button>
-      <button className={button} disabled={!desktop || busy} onClick={choose}><Upload size={14} />Restore backup…</button>
+      <button type="button" className={button} disabled={!desktop || busy || !!pending} onClick={() => run(async () => setMessage(`Backup saved to ${await onBackup()}`))}><Download size={14} />Create backup</button>
+      <button type="button" className={button} disabled={!desktop || busy} onClick={choose}><Upload size={14} />Restore backup…</button>
     </div>
     {!desktop && <p className="text-xs text-[var(--text-muted)]">Open the desktop app to back up or restore its media library.</p>}
     {busy && <p role="status" className="text-xs">Processing backup…</p>}
     {pending && <div className="rounded-lg border border-[var(--border-strong)] p-3 space-y-3">
       <p className="text-xs break-all">{pending.name} · {pending.count} profiles</p>
       <p className="text-xs">Media will be checked before import. Imported actions and macros may contain local paths or commands; review them before use.</p>
-      <div className="flex gap-2"><button className={button} disabled={busy} onClick={() => run(async () => {
+      <div className="flex gap-2"><button type="button" className={button} disabled={busy} onClick={() => run(async () => {
         const count = await onRestore(pending.text);
         setPending(null); setMessage(`Restored ${count} profiles as editor drafts. Open the workspace to review and save them. Macros have been queued for local save.`);
-      })}>Restore as copies</button><button className={button} disabled={busy} onClick={() => setPending(null)}>Cancel</button></div>
+      })}>Restore as copies</button><button type="button" className={button} disabled={busy} onClick={() => setPending(null)}>Cancel</button></div>
     </div>}
     {message && <p role="status" className="text-xs text-[var(--status-success)] break-all">{message}</p>}
     {error && <p role="alert" className="text-xs text-[var(--status-error)] break-all">{error}</p>}

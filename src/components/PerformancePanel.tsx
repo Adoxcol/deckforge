@@ -42,13 +42,13 @@ export function PerformancePanel() {
     {error && <p role="alert" className="text-xs text-[var(--status-warning)]">Could not refresh measurements: {error}. Any table below is the last successful reading.</p>}
     {snapshot && <>
       <p className="text-xs text-[var(--text-muted)]">Snapshot after {Math.floor(snapshot.elapsedSeconds)} seconds. Statistics use the latest {snapshot.windowSize} completions per stage; count includes all completions since clearing. In-flight work is counted when it finishes.</p>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-sidebar)]/50">
         <table className="w-full text-xs text-left whitespace-nowrap">
-          <thead className="text-[var(--text-muted)]"><tr>{["Stage", "Count", "Recent", "Last", "Median", "p95", "Worst"].map(label => <th key={label} scope="col" className="px-2 py-2 font-medium">{label}</th>)}</tr></thead>
-          <tbody>{snapshot.timings.map(row => <tr key={row.label} className="border-t border-[var(--border-subtle)]">
-            <th scope="row" className="px-2 py-2 font-medium">{row.label}</th>
-            <td className="px-2 py-2 tabular-nums">{row.count}</td><td className="px-2 py-2 tabular-nums">{row.samples}</td>
-            {[row.lastMs, row.medianMs, row.p95Ms, row.maxMs].map((value, index) => <td key={index} className="px-2 py-2 tabular-nums">{duration(value)}</td>)}
+          <thead className="text-[var(--text-muted)] bg-[var(--bg-sidebar)]"><tr>{["Stage", "Count", "Recent", "Last", "Median", "p95", "Worst"].map(label => <th key={label} scope="col" className="px-3 py-2 font-semibold">{label}</th>)}</tr></thead>
+          <tbody>{snapshot.timings.map(row => <tr key={row.label} className="border-t border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)]/50 transition-colors">
+            <th scope="row" className="px-3 py-2 font-medium text-[var(--text-primary)]">{row.label}</th>
+            <td className="px-3 py-2 font-mono tabular-nums text-[var(--text-secondary)]">{row.count}</td><td className="px-3 py-2 font-mono tabular-nums text-[var(--text-secondary)]">{row.samples}</td>
+            {[row.lastMs, row.medianMs, row.p95Ms, row.maxMs].map((value, index) => <td key={index} className="px-3 py-2 font-mono tabular-nums text-[var(--text-primary)]">{duration(value)}</td>)}
           </tr>)}</tbody>
         </table>
       </div>

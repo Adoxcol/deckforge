@@ -128,7 +128,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Page templates"
+        aria-labelledby="templates-title"
         className="w-[1040px] max-w-full h-[640px] max-h-full bg-[var(--bg-app)] border border-[var(--border-strong)] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-pop-in"
       >
         <div className="flex items-center gap-3 px-5 h-14 border-b border-[var(--border-subtle)] shrink-0">
@@ -136,7 +136,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
             <LayoutTemplate size={16} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-semibold text-[var(--text-primary)]">Page templates</div>
+            <div id="templates-title" className="text-sm font-semibold text-[var(--text-primary)]">Page templates</div>
             <div className="text-[11px] text-[var(--text-secondary)]">
               Start a page from a ready-made layout in {profileName}. Every key is a real action you can still edit.
             </div>
@@ -160,6 +160,8 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
               return (
                 <button
                   key={cat}
+                  type="button"
+                  aria-pressed={active}
                   onClick={() => setCategory(cat)}
                   className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-md text-[12px] cursor-pointer transition-colors ${
                     active
@@ -168,7 +170,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                   }`}
                 >
                   <span>{cat === "Mine" ? "My templates" : cat}</span>
-                  <span className={`text-[10px] ${active ? "text-[var(--accent-text)]" : "text-[var(--text-muted)]"}`}>{count}</span>
+                  <span className={`text-[10px] font-mono tabular-nums ${active ? "text-[var(--accent-text)]" : "text-[var(--text-muted)]"}`}>{count}</span>
                 </button>
               );
             })}
@@ -192,6 +194,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                     <button
                       key={tpl.id}
                       type="button"
+                      aria-pressed={active}
                       onClick={() => choose(tpl)}
                       onDoubleClick={() => onAdd(instantiateTemplate(tpl, tpl.name))}
                       className={`text-left rounded-xl border p-3 flex flex-col gap-2.5 cursor-pointer transition-all duration-150 ${

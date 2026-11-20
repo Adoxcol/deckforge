@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from "react";
+import { Power } from "lucide-react";
 
 export function QuitDialog({ open, busy, dirty, error, onCancel, onQuit }: {
   open: boolean; busy: boolean; dirty: boolean; error: string | null;
@@ -27,7 +28,12 @@ export function QuitDialog({ open, busy, dirty, error, onCancel, onQuit }: {
   return (
     <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-[2px] flex items-center justify-center p-6 animate-fade-in" onKeyDown={e => e.stopPropagation()}>
       <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="quit-title" className="rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-6 max-w-md w-full shadow-2xl text-[var(--text-primary)] space-y-4 animate-pop-in">
-        <h2 id="quit-title" className="text-lg font-bold">Quit DeckForge?</h2>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-[var(--status-error)]/12 border border-[var(--status-error)]/25 text-[var(--status-error)] flex items-center justify-center shrink-0">
+            <Power size={17} />
+          </div>
+          <h2 id="quit-title" className="text-lg font-bold">Quit DeckForge?</h2>
+        </div>
         <p className="text-xs leading-relaxed text-[var(--text-secondary)]">Quitting stops device control. Closing the window instead keeps DeckForge running in the system tray.</p>
         {dirty && (
           <p className="text-xs leading-relaxed text-[var(--status-warning)] bg-[var(--status-warning)]/10 border border-[var(--status-warning)]/30 rounded-lg px-3 py-2">

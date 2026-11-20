@@ -96,7 +96,13 @@ export const DeckStatusBadge: React.FC<Props> = ({ onNotify, status, onRefresh }
     <span className="flex min-w-0 items-center gap-2.5" title={view.detail || undefined}>
       <span className="flex min-w-0 items-center gap-2" style={{ color: view.color }}>
         <span
-          className={`w-2 h-2 shrink-0 rounded-full ${status?.state === "connected" && status.lastPushOk !== false ? "shadow-[0_0_6px_var(--status-success)]" : ""}`}
+          className={`w-2 h-2 shrink-0 rounded-full ${
+            status?.state === "connected" && status.lastPushOk !== false
+              ? "shadow-[0_0_6px_var(--status-success)]"
+              : status?.state === "searching" || status?.state === "reconnecting" || status?.state === "pausing"
+              ? "animate-pulse"
+              : ""
+          }`}
           style={{ backgroundColor: view.color }}
         />
         <span className="truncate font-medium" title={view.text}>{isTauriRuntime() ? view.text : `Browser preview · ${status?.state ?? "checking"}`}</span>

@@ -37,7 +37,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
           <DeckIcon name={activeProfile.icon} size={14} color="var(--accent-text)" />
         </span>
         <h1 className="text-[15px] font-bold tracking-tight text-[var(--text-primary)] truncate">{activeProfile.name}</h1>
-        <span className="text-[11px] px-2 py-0.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-muted)] shrink-0">
+        <span className="text-[11px] tabular-nums px-2 py-0.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-muted)] shrink-0">
           {activeProfile.pages.length} {activeProfile.pages.length === 1 ? "page" : "pages"}
         </span>
       </div>
@@ -45,7 +45,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
       <div className="flex flex-wrap items-center gap-2">
         {/* Device Selector Pill */}
         {connectedDevices.length > 1 && <div className="flex items-center gap-2 bg-[var(--bg-input)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 rounded-md px-2.5 h-9 transition-all">
-          <LayoutGrid size={14} className="text-[var(--text-secondary)]" />
+          <LayoutGrid size={14} className="text-[var(--text-secondary)] shrink-0" />
           <span className="text-xs text-[var(--text-secondary)]">Device:</span>
           <select
             aria-label="Active device"
@@ -74,7 +74,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
               type="button"
               aria-pressed={canvasZoom === z}
               onClick={() => setCanvasZoom(z)}
-              className={`px-2.5 h-7 rounded text-[11px] font-medium cursor-pointer transition-all duration-150 border ${
+              className={`px-2.5 h-7 rounded text-[11px] tabular-nums font-medium cursor-pointer transition-all duration-150 border ${
                 canvasZoom === z
                   ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
                   : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
@@ -85,6 +85,8 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
           ))}
         </div>
 
+        <span className="hidden sm:block w-px h-5 bg-[var(--border-subtle)] mx-0.5" aria-hidden />
+
         {/* Save Locally */}
         <button
           type="button"
@@ -92,7 +94,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
           title="Save profiles locally (Ctrl+S)"
           className="h-9 shrink-0 whitespace-nowrap px-3 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-xs font-medium text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer transition-all duration-150"
         >
-          <Save size={14} />
+          <Save size={14} className="text-[var(--text-secondary)]" />
           <span>Save</span>
         </button>
 
