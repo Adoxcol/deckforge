@@ -625,7 +625,7 @@ pub fn deck_write(steps: Vec<(Vec<u8>, u64)>) -> Result<(), String> {
     deck_write_steps(steps.into_iter().map(|(report, pause)| IoStep::command(report, pause)).collect())
 }
 
-pub(crate) fn deck_write_steps(steps: Vec<IoStep>) -> Result<(), String> {
+pub(in crate::drivers) fn deck_write_steps(steps: Vec<IoStep>) -> Result<(), String> {
     if steps.is_empty() { return Ok(()); }
     if !deck_control_available() { return Err("DeckForge is paused. Close AJAZZ, then choose Use DeckForge.".into()); }
     scheduler::validate_steps(&steps)?;
