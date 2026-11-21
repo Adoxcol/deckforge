@@ -6,30 +6,58 @@ use super::routing::LiveAction;
 pub(crate) fn sample_face(shared: &SharedState) -> bool {
     let (needs_apps, needs_foreground, face_needs) = {
         let guard = shared.lock_safe();
-        let uses = |page: &ProfilePage| {
-            page.keys.iter().any(|k| k.action_id.starts_with("audio.app_"))
-                || page.touch_zones.iter().any(|z| z.tap_action_id.starts_with("audio.app_"))
-                || page.encoders.iter().any(|e| [&e.cw_action, &e.ccw_action, &e.push_action].iter().any(|a| a.starts_with("audio.app_")))
-        };
-        let uses_foreground = |page: &ProfilePage| {
-            let is_target = |action: &str, param: &str| action.starts_with("audio.app_") && param.trim().eq_ignore_ascii_case(actions::app_audio::FOREGROUND_TARGET);
-            page.keys.iter().any(|k| is_target(&k.action_id, &k.action_param))
-                || page.touch_zones.iter().any(|z| is_target(&z.tap_action_id, &z.tap_action_param))
-                || page.encoders.iter().any(|e| is_target(&e.cw_action, &e.cw_param) || is_target(&e.ccw_action, &e.ccw_param) || is_target(&e.push_action, &e.push_param))
-        };
         let applied = guard.applied_layout.as_ref().map(|a| &a.page);
-        // Once a page is on the deck, only that page pays for media, volume, and stats.
-        // Before the first apply, the editor still samples whatever any page displays.
-        let face_needs = match applied {
-            Some(page) => page_face_needs(page),
-            None => guard.profiles.iter().flat_map(|profile| &profile.pages).fold(FaceNeeds::default(), |acc, page| acc.or(page_face_needs(page))),
-        };
-        let mut pages = guard.profiles.iter().flat_map(|p| &p.pages);
-        (pages.clone().any(uses) || applied.is_some_and(uses),
-         pages.any(uses_foreground) || applied.is_some_and(uses_foreground),
-         face_needs)
+        sampling_needs(&guard.profiles, applied)
     };
     sample_face_with(shared, |previous| read_face(previous, needs_apps, needs_foreground, face_needs))
+}
+
+fn sampling_needs(profiles: &[db::Profile], applied: Option<&ProfilePage>) -> (bool, bool, FaceNeeds) {
+    let uses_apps = |page: &ProfilePage| {
+        page.keys.iter().any(|k| k.action_id.starts_with("audio.app_"))
+            || page.touch_zones.iter().any(|z| z.tap_action_id.starts_with("audio.app_"))
+            || page.encoders.iter().any(|e| [&e.cw_action, &e.ccw_action, &e.push_action].iter().any(|a| a.starts_with("audio.app_")))
+    };
+    let uses_foreground = |page: &ProfilePage| {
+        let is_target = |action: &str, param: &str| action.starts_with("audio.app_") && param.trim().eq_ignore_ascii_case(actions::app_audio::FOREGROUND_TARGET);
+        page.keys.iter().any(|k| is_target(&k.action_id, &k.action_param))
+            || page.touch_zones.iter().any(|z| is_target(&z.tap_action_id, &z.tap_action_param))
+            || page.encoders.iter().any(|e| is_target(&e.cw_action, &e.cw_param) || is_target(&e.ccw_action, &e.ccw_param) || is_target(&e.push_action, &e.push_param))
+    };
+    // After apply, only the page on the deck needs live OS reads. Before apply,
+    // the editor can show any saved page, so include all of them.
+    if let Some(page) = applied {
+        return (uses_apps(page), uses_foreground(page), page_face_needs(page));
+    }
+    profiles.iter().flat_map(|profile| &profile.pages).fold(
+        (false, false, FaceNeeds::default()),
+        |(apps, foreground, face), page| {
+            (apps || uses_apps(page), foreground || uses_foreground(page), face.or(page_face_needs(page)))
+        },
+    )
+}
+
+#[cfg(test)]
+mod sampling_needs_tests {
+    use super::*;
+
+    #[test]
+    fn applied_page_does_not_sample_app_audio_from_other_pages() {
+        let mut profiles = db::default_profiles();
+        let applied = profiles[0].pages[0].clone();
+        let hidden = &mut profiles[0].pages[0].keys[0];
+        hidden.action_id = "audio.app_volume_up".into();
+        hidden.action_param = actions::app_audio::FOREGROUND_TARGET.into();
+
+        let (apps, foreground, _) = sampling_needs(&profiles, None);
+        assert!(apps && foreground, "unapplied editor pages still need app audio");
+
+        let (apps, foreground, _) = sampling_needs(&profiles, Some(&applied));
+        assert!(!apps && !foreground, "saved pages off the deck must not trigger OS reads");
+
+        let (apps, foreground, _) = sampling_needs(&profiles, Some(&profiles[0].pages[0]));
+        assert!(apps && foreground, "an applied app-audio page still needs both reads");
+    }
 }
 
 pub(crate) fn sample_face_with(
