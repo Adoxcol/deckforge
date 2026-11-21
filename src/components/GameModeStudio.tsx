@@ -2,12 +2,10 @@ import React from "react";
 import {
   Check,
   Download,
-  Gamepad2,
   Lock,
   Plus,
   Power,
   RefreshCw,
-  Rocket,
   RotateCcw,
   Search,
   ShieldCheck,
@@ -16,8 +14,8 @@ import {
   TriangleAlert,
   Upload,
   X,
-  Zap,
 } from "lucide-react";
+import { AppMark } from "./AppMark";
 import { deckforgeApi } from "../bridge/tauriBridge";
 import { errorText } from "../lib/format";
 import {
@@ -109,19 +107,32 @@ const Toggle: React.FC<{ on: boolean; onClick: () => void; title: string; hint: 
   <button
     type="button"
     onClick={onClick}
-    aria-label={`${label}${on ? ", on" : ", off"}`}
-    className={`text-left flex items-start gap-3 px-3.5 py-2.5 rounded-lg border cursor-pointer transition-colors ${
-      on ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/45" : "bg-[var(--bg-sidebar)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
-    }`}
+    aria-pressed={on}
+    aria-label={label}
+    className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:border-[var(--border-strong)] cursor-pointer transition-colors"
   >
-    <span className="mt-0.5">
-      <Checkbox checked={on} />
-    </span>
-    <span className="min-w-0">
+    <span className="min-w-0 flex-1">
       <span className="block text-[12.5px] font-semibold text-[var(--text-primary)]">{title}</span>
       <span className="block text-[11.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">{hint}</span>
     </span>
+    <span className={`w-9 h-5 rounded-full p-0.5 shrink-0 transition-colors ${on ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"}`}>
+      <span className={`block w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${on ? "translate-x-4" : "translate-x-0"}`} />
+    </span>
   </button>
+);
+
+const Step: React.FC<{ step: string; title: string; hint?: string; action?: React.ReactNode; children: React.ReactNode }> = ({ step, title, hint, action, children }) => (
+  <section aria-label={title} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)]/35">
+    <div className="flex items-start gap-3 px-4 py-3 border-b border-[var(--border-subtle)]">
+      <span className="mt-0.5 w-5 h-5 rounded-full bg-[var(--accent-soft)] text-[var(--accent-text)] text-[11px] font-semibold flex items-center justify-center shrink-0">{step}</span>
+      <div className="min-w-0 flex-1">
+        <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">{title}</h2>
+        {hint && <p className="text-[11.5px] text-[var(--text-muted)] mt-0.5 leading-snug">{hint}</p>}
+      </div>
+      {action}
+    </div>
+    <div className="p-4 flex flex-col gap-3">{children}</div>
+  </section>
 );
 
 const Radio: React.FC<{ checked: boolean }> = ({ checked }) => (
@@ -133,12 +144,14 @@ const Radio: React.FC<{ checked: boolean }> = ({ checked }) => (
   </span>
 );
 
-const PickRow: React.FC<{ on: boolean; title: string; sub: string; label: string; badge?: string; onClick: () => void }> = ({
+const PickRow: React.FC<{ on: boolean; title: string; sub: string; label: string; badge?: string; mark?: string; path?: string; onClick: () => void }> = ({
   on,
   title,
   sub,
   label,
   badge,
+  mark,
+  path,
   onClick,
 }) => (
   <button
@@ -151,6 +164,7 @@ const PickRow: React.FC<{ on: boolean; title: string; sub: string; label: string
     }`}
   >
     <Checkbox checked={on} />
+    {mark && <AppMark name={mark} path={path} />}
     <span className="min-w-0 flex-1">
       <span className="block text-[12px] text-[var(--text-primary)] truncate">{title}</span>
       <span className="block text-[10.5px] text-[var(--text-muted)] truncate">{sub}</span>
@@ -449,27 +463,27 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
   const tab = PICK_TABS.find((t) => t.id === pickTab) ?? PICK_TABS[0];
 
   return (
-    <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-[1fr_330px] overflow-hidden animate-screen-in">
-      <div className="min-h-0 overflow-y-auto p-6 flex flex-col gap-5">
-        {/* Header and master switch */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${active ? "bg-[var(--status-success)]/15 text-[var(--status-success)]" : "bg-[var(--accent-soft)] text-[var(--accent-text)]"}`}>
-              <Gamepad2 size={22} />
+    <div className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden lg:grid lg:grid-cols-[minmax(0,1fr)_280px] animate-screen-in">
+      <div className="min-h-0 lg:overflow-y-auto px-6 py-5 flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-semibold text-[var(--text-primary)]">Game Mode</h1>
+              <span className={`h-5 px-2 rounded-full text-[11px] font-medium inline-flex items-center ${active ? "bg-[var(--status-success)]/15 text-[var(--status-success)]" : "bg-[var(--bg-elevated)] text-[var(--text-muted)]"}`}>
+                {busy ? busy : active ? "On" : "Off"}
+              </span>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-[var(--text-primary)]">Game Mode</h1>
-              <p className="text-xs text-[var(--text-secondary)] mt-0.5 max-w-xl leading-relaxed">
-                Build your own modes: pick what to close and which services to stop. Press the Game Mode key on the deck, or let DeckForge start
-                one when a game goes full-screen. Everything is put back when you are done.
-              </p>
-            </div>
+            <p className="text-[12.5px] text-[var(--text-secondary)] mt-1 leading-snug">
+              {active
+                ? `${status?.mode || mode.name} has been on for ${formatElapsed(status?.startedAtMs ?? now, now)}${status?.game ? ` · ${status.game}` : ""}.`
+                : `${mode.name} ${selectedTargets.length === 0 ? "closes nothing" : `closes ${selectedTargets.length}`}${modePlan ? ` and switches to ${modePlan.name}` : ""}.`}
+            </p>
           </div>
           <button
             type="button"
             onClick={() => void toggleGameMode()}
             disabled={Boolean(busy)}
-            className={`h-11 px-5 rounded-lg text-sm font-semibold flex items-center gap-2 shrink-0 transition-colors cursor-pointer disabled:cursor-wait ${
+            className={`h-10 px-4 rounded-lg text-sm font-semibold flex items-center gap-2 shrink-0 transition-colors cursor-pointer disabled:cursor-wait ${
               busy
                 ? "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
                 : active
@@ -478,79 +492,11 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             }`}
           >
             {busy ? <RefreshCw size={16} className="animate-spin" /> : active ? <RotateCcw size={16} /> : <Power size={16} />}
-            {busy ?? (active ? "End Game Mode" : `Start ${mode.name}`)}
+            {busy ?? (active ? "End" : `Start ${mode.name}`)}
           </button>
         </div>
 
-        {/* Live numbers */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-          <Stat
-            label="Free memory"
-            value={`${formatMemory(scan.ramFreeMb)} of ${formatMemory(scan.ramTotalMb)}`}
-            hint={picked.memoryMb > 0 ? `About ${formatMemory(picked.memoryMb)} can be freed` : "Nothing selected is running"}
-          />
-          <Stat label="Processes" value={`${scan.processCount}`} hint={`${picked.count} selected items running`} />
-          <Stat
-            label="Power plan"
-            value={scan.powerPlan || "Unknown"}
-            hint={modePlan ? `${mode.name} switches to ${modePlan.name}` : planMissing ? "Chosen plan is not installed" : "Game Mode leaves it alone"}
-            tone={planMissing ? "warn" : undefined}
-          />
-          <Stat
-            label="Status"
-            value={busy ? busy : active ? `${status?.mode || "On"} for ${formatElapsed(status?.startedAtMs ?? now, now)}` : "Off"}
-            hint={active && status?.game ? `Game: ${status.game}` : active && status?.autoStarted ? "Started automatically" : "Ready"}
-            tone={active ? "good" : undefined}
-          />
-        </div>
-
-        {/* Admin helper */}
-        {config.elevate === "skip" ? (
-          <div className="flex items-start gap-3 px-3.5 py-3 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-sidebar)]">
-            <Lock size={15} className="mt-0.5 text-[var(--text-muted)]" />
-            <div className="text-[12px] text-[var(--text-secondary)] leading-snug">
-              <span className="font-semibold text-[var(--text-primary)]">Services are never stopped.</span> Game Mode only closes apps and applies tweaks. Change this under
-              "Admin rights for services" below.
-            </div>
-          </div>
-        ) : (
-          <div
-            className={`flex items-start gap-3 px-3.5 py-3 rounded-lg border ${
-              helper.armed && helper.covers ? "border-[var(--status-success)]/30 bg-[var(--status-success)]/5" : "border-[var(--status-warning)]/30 bg-[var(--status-warning)]/5"
-            }`}
-          >
-            <Lock size={15} className={`mt-0.5 ${helper.armed && helper.covers ? "text-[var(--status-success)]" : "text-[var(--status-warning)]"}`} />
-            <div className="flex-1 min-w-0 text-[12px] text-[var(--text-secondary)] leading-snug">
-              <div className="text-[12.5px] font-semibold text-[var(--text-primary)]">
-                {helper.armed && helper.covers ? "Admin helper is running" : helper.armed ? "Admin helper needs an update" : "Admin helper is off"}
-              </div>
-              {helper.armed && helper.covers ? (
-                <div className="mt-0.5">Services stop and come back without a Windows prompt, even when a game starts Game Mode for you.</div>
-              ) : (
-                <div className="mt-0.5">
-                  {helper.armed
-                    ? "You added services since it started. Restart it once (one Windows prompt)."
-                    : `Services stay running until you start it. Start it here while you are at the desktop${scan.isAdmin ? "" : ": Windows asks once, and never in the middle of a game"}.`}
-                  {selectedHasServices ? "" : " This mode does not stop any services right now."}
-                </div>
-              )}
-            </div>
-            {!(helper.armed && helper.covers) && (
-              <button
-                onClick={() => void armHelper()}
-                disabled={arming}
-                aria-label={helper.armed ? "Restart the admin helper" : "Start the admin helper"}
-                className="h-8 px-3 rounded-md text-[12px] font-semibold bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)] disabled:opacity-60 disabled:cursor-wait cursor-pointer shrink-0 flex items-center gap-1.5"
-              >
-                {arming && <RefreshCw size={12} className="animate-spin" />}
-                {arming ? "Waiting for approval" : helper.armed ? "Restart helper" : "Start helper"}
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Modes */}
-        <section aria-label="Modes" className="flex flex-col gap-2.5">
+        <section aria-label="Modes" className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)]/35 p-3 flex flex-col gap-3">
           <div className="flex items-center gap-2 flex-wrap">
             {config.modes.map((m) => (
               <button
@@ -560,10 +506,10 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                   setConfirmDelete(false);
                 }}
                 aria-pressed={m.id === mode.id}
-                className={`h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border cursor-pointer transition-colors ${
+                className={`h-8 px-3 rounded-lg text-[12.5px] font-medium flex items-center gap-1.5 border cursor-pointer transition-colors ${
                   m.id === mode.id
-                    ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/70 text-[var(--text-primary)]"
-                    : "bg-[var(--bg-sidebar)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
+                    ? "bg-[var(--accent-primary)] border-transparent text-white"
+                    : "bg-transparent border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 {m.name}
@@ -637,8 +583,8 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               </div>
             </div>
           )}
-          <div className="flex items-center gap-2 flex-wrap bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] rounded-lg px-3 py-2">
-            <label className="text-[11px] uppercase tracking-wider text-[var(--text-muted)]" htmlFor="game-mode-name">
+          <div className="flex items-center gap-2 flex-wrap pt-3 border-t border-[var(--border-subtle)]">
+            <label className="sr-only" htmlFor="game-mode-name">
               Mode name
             </label>
             <input
@@ -650,7 +596,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               onKeyDown={(event) => {
                 if (event.key === "Enter") event.currentTarget.blur();
               }}
-              className="h-7 w-44 px-2 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] text-[12.5px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)]"
+              className="h-8 w-48 px-2.5 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] text-[13px] font-medium text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)]"
             />
             <button
               onClick={() => void save({ ...config, activeMode: mode.id })}
@@ -689,19 +635,21 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
         </section>
 
         {/* What is running right now */}
-        <section aria-label="Pick what to close" className="flex flex-col gap-2.5">
-          <div className="flex items-center gap-2">
-            <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Pick what {mode.name} closes</h2>
-            <span className="text-[11px] text-[var(--text-muted)]">This is what is running on your PC right now. Tick anything you want out of the way.</span>
+        <Step
+          step="1"
+          title={`Close in ${mode.name}`}
+          hint="Tick what should get out of the way. Windows, anti-cheat, drivers and DeckForge can never be picked."
+          action={
             <button
+              type="button"
               onClick={() => void refresh()}
               aria-label="Refresh the list"
-              className="ml-auto h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer"
+              className="h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer"
             >
               <RefreshCw size={12} className={scanning ? "animate-spin" : ""} /> Refresh
             </button>
-          </div>
-          <div className="bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] rounded-lg p-3 flex flex-col gap-3">
+          }
+        >
             <div className="flex items-center gap-2 flex-wrap">
               {PICK_TABS.map((t) => (
                 <button
@@ -751,6 +699,8 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                       on={on}
                       title={prettyName(p.name)}
                       sub={sub}
+                      mark={p.name}
+                      path={p.path}
                       label={`${prettyName(p.name)}, ${on ? "closes in this mode" : "stays open"}`}
                       onClick={() => toggleProgram(p)}
                     />
@@ -790,20 +740,17 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                     title={t.note}
                     className="h-7 px-2.5 rounded-full text-[12px] border border-dashed border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1.5"
                   >
-                    <Plus size={11} /> {t.label}
+                    <Plus size={11} />
+                    <AppMark name={t.processes[0] || t.label} size={14} />
+                    {t.label}
                     {t.running && <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-success)]" aria-label="running" />}
                   </button>
                 ))}
               </div>
             )}
-          </div>
-        </section>
-
-        {/* What this mode will do */}
-        <section aria-label={`In ${mode.name}`} className="flex flex-col gap-2">
+          <div className="border-t border-[var(--border-subtle)] pt-3 flex flex-col gap-2">
           <div className="flex items-center gap-2">
-            <ShieldCheck size={14} />
-            <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">In {mode.name}</h2>
+            <h3 className="text-[12.5px] font-semibold text-[var(--text-primary)]">Chosen</h3>
             <span className="text-[11px] text-[var(--text-muted)]">
               {selectedTargets.length === 0 ? "Nothing yet" : `${selectedTargets.length} to close or stop`}
             </span>
@@ -827,8 +774,9 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                       .join(" · ")
                   : t.note;
                 return (
-                  <div key={t.id} className="relative bg-[var(--accent-soft)] border border-[var(--accent-primary)]/45 rounded-lg px-3.5 py-2.5 pr-10">
+                  <div key={t.id} className="relative bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] rounded-lg px-3 py-2 pr-9">
                     <div className="flex items-center gap-2 flex-wrap">
+                      <AppMark name={t.processes[0] || t.label} size={18} />
                       <span className="text-[12.5px] font-semibold text-[var(--text-primary)]">{t.label}</span>
                       {t.running ? (
                         <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[var(--status-success)]/12 text-[var(--status-success)] border border-[var(--status-success)]/30">
@@ -877,15 +825,19 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               })}
             </div>
           )}
-        </section>
-
-        {/* Power plan */}
-        <section aria-label="Power plan" className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <Zap size={14} />
-            <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Power plan</h2>
-            <span className="text-[11px] text-[var(--text-muted)]">The plans installed on this PC. Windows is using {scan.powerPlan || "an unknown plan"} now.</span>
           </div>
+        </Step>
+
+        <Step step="2" title="Open these" hint="Apps you want running while you play, like Outplayed or ExitLag.">
+          <StartAppsSection
+            apps={mode.startApps ?? []}
+            running={scan.processes}
+            onChange={(startApps) => updateMode({ startApps })}
+          />
+        </Step>
+
+        <Step step="3" title="While you play" hint={`Windows is using ${scan.powerPlan || "an unknown plan"} now.`}>
+          <div className="text-[12px] font-medium text-[var(--text-secondary)]">Power plan</div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
             {[{ guid: "", name: "Leave it as it is", active: false }, ...scan.powerPlans].map((plan) => {
               const on = mode.powerPlan === plan.guid || (plan.guid === "" && planMissing);
@@ -918,34 +870,17 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                 ? `Game Mode switches to ${modePlan.name} when it starts and puts your earlier plan back when it ends.`
                 : "Pick a plan if you want Game Mode to switch to it while you play."}
           </p>
-        </section>
-
-        <StartAppsSection
-          apps={mode.startApps ?? []}
-          running={scan.processes}
-          onChange={(startApps) => updateMode({ startApps })}
-        />
-
-        {/* Tweaks */}
-        <section aria-label="Tweaks" className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <Zap size={14} />
-            <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Tweaks while you play</h2>
+          <div className="border-t border-[var(--border-subtle)] pt-3 flex flex-col gap-2">
+            <div className="text-[12px] font-medium text-[var(--text-secondary)]">Tweaks</div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+              {scan.tweaks.map((tweak) => (
+                <Toggle key={tweak.id} on={mode.tweaks.includes(tweak.id)} onClick={() => toggleTweak(tweak.id)} title={tweak.label} hint={tweak.note} label={tweak.label} />
+              ))}
+            </div>
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-            {scan.tweaks.map((tweak) => (
-              <Toggle key={tweak.id} on={mode.tweaks.includes(tweak.id)} onClick={() => toggleTweak(tweak.id)} title={tweak.label} hint={tweak.note} label={tweak.label} />
-            ))}
-          </div>
-        </section>
+        </Step>
 
-        {/* Behaviour */}
-        <section aria-label="Behaviour" className="flex flex-col gap-3 pb-6">
-          <div className="flex items-center gap-2">
-            <ShieldCheck size={14} />
-            <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">How it starts and ends</h2>
-            <span className="text-[11px] text-[var(--text-muted)] ml-auto">{savedAt > 0 ? "Saved" : "Changes save automatically"}</span>
-          </div>
+        <Step step="4" title="When it starts and ends" hint={savedAt > 0 ? "Saved" : "Changes save automatically"}>
           <Toggle
             on={config.autoDetect}
             onClick={() => void save({ ...config, autoDetect: !config.autoDetect })}
@@ -1023,11 +958,61 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               </p>
             </div>
           </div>
-        </section>
+        </Step>
       </div>
 
       {/* Report column */}
-      <aside className="min-h-0 border-l border-[var(--border-subtle)] bg-[var(--bg-sidebar)] overflow-y-auto p-4 flex flex-col gap-4">
+      <aside className="min-h-0 border-t lg:border-t-0 lg:border-l border-[var(--border-subtle)] bg-[var(--bg-sidebar)] lg:overflow-y-auto p-4 flex flex-col gap-4">
+        <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)]/50 p-3 flex flex-col gap-2.5">
+          <div className="text-[11px] font-medium tracking-wide text-[var(--text-muted)]">This PC</div>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[12px] text-[var(--text-secondary)]">Free memory</span>
+            <span className="text-[12.5px] font-semibold tabular-nums text-[var(--text-primary)]">{formatMemory(scan.ramFreeMb)}</span>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[12px] text-[var(--text-secondary)]">Can be freed</span>
+            <span className="text-[12.5px] font-semibold tabular-nums text-[var(--text-primary)]">{picked.memoryMb > 0 ? formatMemory(picked.memoryMb) : "—"}</span>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[12px] text-[var(--text-secondary)]">Processes</span>
+            <span className="text-[12.5px] font-semibold tabular-nums text-[var(--text-primary)]">{scan.processCount}</span>
+          </div>
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="text-[12px] text-[var(--text-secondary)]">Power plan</span>
+            <span className={`text-[12.5px] font-semibold text-right truncate ${planMissing ? "text-[var(--status-warning)]" : "text-[var(--text-primary)]"}`}>{scan.powerPlan || "Unknown"}</span>
+          </div>
+        </div>
+
+        <div className={`rounded-xl border p-3 flex flex-col gap-2 ${config.elevate === "skip" ? "border-[var(--border-subtle)]" : helper.armed && helper.covers ? "border-[var(--status-success)]/30" : "border-[var(--status-warning)]/35"}`}>
+          <div className="flex items-center gap-2">
+            <Lock size={14} className={config.elevate === "skip" || (helper.armed && helper.covers) ? "text-[var(--text-muted)]" : "text-[var(--status-warning)]"} />
+            <h2 className="text-[12.5px] font-semibold text-[var(--text-primary)]">
+              {config.elevate === "skip" ? "Services stay running" : helper.armed && helper.covers ? "Admin helper is running" : helper.armed ? "Helper needs an update" : "Admin helper is off"}
+            </h2>
+          </div>
+          <p className="text-[11.5px] text-[var(--text-secondary)] leading-snug">
+            {config.elevate === "skip"
+              ? "This setup only closes apps and applies tweaks. Turn the helper on in step 4 to stop services."
+              : helper.armed && helper.covers
+                ? "Services stop and come back without another Windows prompt."
+                : helper.armed
+                  ? "You added services since it started. Restart it once."
+                  : `Start it at the desktop${scan.isAdmin ? "" : " — Windows asks once"}.${selectedHasServices ? "" : " This mode does not stop any services right now."}`}
+          </p>
+          {config.elevate !== "skip" && !(helper.armed && helper.covers) && (
+            <button
+              type="button"
+              onClick={() => void armHelper()}
+              disabled={arming}
+              aria-label={helper.armed ? "Restart the admin helper" : "Start the admin helper"}
+              className="h-8 px-3 rounded-md text-[12px] font-semibold bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)] disabled:opacity-60 disabled:cursor-wait cursor-pointer self-start flex items-center gap-1.5"
+            >
+              {arming && <RefreshCw size={12} className="animate-spin" />}
+              {arming ? "Waiting for approval" : helper.armed ? "Restart helper" : "Start helper"}
+            </button>
+          )}
+        </div>
+
         <div className="flex items-center justify-between">
           <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">{active ? `${status?.mode || "Game Mode"} is on` : "Last run"}</h2>
           <button
@@ -1145,12 +1130,7 @@ const StartAppsSection: React.FC<{
   const typedOk = /\.exe"?$/i.test(typed.trim());
 
   return (
-    <section aria-label="Start when Game Mode turns on" className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <Rocket size={14} />
-        <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">Start when Game Mode turns on</h2>
-        <span className="text-[11px] text-[var(--text-muted)]">Apps you want running while you play, like Outplayed or ExitLag.</span>
-      </div>
+    <div className="flex flex-col gap-3">
       {apps.length === 0 && (
         <div className="px-3.5 py-3 rounded-lg border border-dashed border-[var(--border-subtle)] text-[11.5px] text-[var(--text-muted)]">
           Nothing starts yet. Add an app that is running now, or paste the path to its .exe.
@@ -1159,6 +1139,7 @@ const StartAppsSection: React.FC<{
       {apps.map((app, i) => (
         <div key={app.path} className="flex flex-col gap-2 px-3.5 py-2.5 rounded-lg border bg-[var(--bg-sidebar)] border-[var(--border-subtle)]">
           <div className="flex items-center gap-2">
+            <AppMark name={app.label} path={app.path} size={22} />
             <input
               value={app.label}
               onChange={(e) => patch(i, { label: e.target.value.slice(0, 40) })}
@@ -1211,9 +1192,10 @@ const StartAppsSection: React.FC<{
                         setPicking(false);
                       }}
                       title={p.path}
-                      className="w-full text-left px-3 py-1.5 text-[12px] text-[var(--text-primary)] hover:bg-[var(--accent-soft)] cursor-pointer truncate"
+                      className="w-full text-left px-3 py-1.5 text-[12px] text-[var(--text-primary)] hover:bg-[var(--accent-soft)] cursor-pointer truncate flex items-center gap-2"
                     >
-                      {p.name}
+                      <AppMark name={p.name} path={p.path} size={16} />
+                      <span className="truncate">{p.name}</span>
                     </button>
                   ))}
                 </div>
@@ -1242,6 +1224,6 @@ const StartAppsSection: React.FC<{
         Apps already running are left alone. An app that needs admin rights, like ExitLag, shows one Windows prompt, and is skipped if a game is already full screen.
         Outplayed runs inside Overwolf: add Overwolf&apos;s launcher and use the arguments from its desktop shortcut.
       </p>
-    </section>
+    </div>
   );
 };
