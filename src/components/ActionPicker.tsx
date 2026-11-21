@@ -19,7 +19,8 @@ export const ActionPicker: React.FC<{
   value: string;
   choices: PickerChoice[];
   onChange: (id: string) => void;
-}> = ({ value, choices, onChange }) => {
+  onOpen?: () => void;
+}> = ({ value, choices, onChange, onOpen }) => {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
   const [cursor, setCursor] = React.useState(0);
@@ -51,6 +52,7 @@ export const ActionPicker: React.FC<{
     place();
     setQuery("");
     setOpen(true);
+    onOpen?.();
   };
 
   React.useEffect(() => {

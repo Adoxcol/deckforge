@@ -80,9 +80,9 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
                 type="button"
                 aria-pressed={config.fit === fit}
                 onClick={() => onChange({ fit })}
-                className={`h-7 rounded text-[11px] capitalize cursor-pointer transition-all border ${
+                className={`h-7 rounded-[4px] text-[11px] capitalize cursor-pointer transition-all border ${
                   config.fit === fit
-                    ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-white font-semibold shadow-xs"
+                    ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
                     : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
                 }`}
               >

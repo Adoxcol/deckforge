@@ -6,8 +6,9 @@ import { BrandIconPicker } from "./BrandIconPicker";
 import { LevelMeter, liveKeyLook } from "./LiveFace";
 import { MediaConfigurator } from "./MediaConfigurator";
 import { ActionBinding, ObsConnection, actionNeedsParam, splitStoredBinding } from "./ActionBinding";
+import { useCatalog } from "./ActionDrawer";
 import { ActionTemplate } from "../data/actionCatalog";
-import { Check, Copy, Play, Plus, Trash2 } from "lucide-react";
+import { Check, ClipboardPaste, Copy, Play, Star, Trash2 } from "lucide-react";
 import {
   DEFAULT_KNOB_LED_COLORS,
   type DeckFaceState,
@@ -137,6 +138,8 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
   const zoneValueId = React.useId();
   const encLabelId = React.useId();
   const paramInputId = React.useId();
+  const catalog = useCatalog();
+  const browseActions = () => catalog?.show();
   return (
     <aside className="min-h-0 bg-[var(--bg-sidebar)] border-l border-[var(--border-subtle)] p-4 flex flex-col justify-between gap-4 overflow-y-auto">
       {library && <MediaLibrary clips={mediaLibrary} onStored={onMediaStored} onUse={library.use} onClose={() => setLibrary(null)} />}
@@ -282,6 +285,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
             </div>
             <ActionBinding
               label="Tap"
+              onBrowse={browseActions}
               actionId={activeZone.tapActionId}
               actionParam={activeZone.tapActionParam ?? ""}
               choices={allActionTemplates}
@@ -396,14 +400,14 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   onClick={() => onKnobLedChange("all", ledColor)}
                   title="Apply this color to all four knob LEDs"
                   aria-label="Apply this color to all four knob LEDs"
-                  className="min-w-0 min-h-8 px-1 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                  className="min-w-0 min-h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
                 >
                   Apply to all
                 </button>
                 <button
                   type="button"
                   onClick={onResetKnobLeds}
-                  className="min-w-0 min-h-8 px-1 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--status-warning)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                  className="min-w-0 min-h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--status-warning)] hover:bg-[var(--bg-elevated)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
                 >
                   Reset LEDs
                 </button>
@@ -412,7 +416,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                     type="button"
                     onClick={() => onKnobLedChange("all", profileColorStrip)}
                     title={`Set all 4 knobs to profile accent (${profileColorStrip})`}
-                    className="min-w-0 min-h-8 px-1.5 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center justify-center gap-1.5"
+                    className="min-w-0 min-h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
                   >
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: profileColorStrip }} />
                     <span className="truncate">Match profile</span>
@@ -422,7 +426,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   type="button"
                   onClick={onApplyKnobLedsToAllPages}
                   title="Copy this page's 4 knob LED colors to every page in this profile"
-                  className="min-w-0 min-h-8 px-1 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                  className="min-w-0 min-h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
                 >
                   All pages
                 </button>
@@ -435,7 +439,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                       key={palette.name}
                       type="button"
                       onClick={() => onApplyKnobLedPalette(palette.colors, palette.name)}
-                      className="h-7 px-2 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] flex items-center justify-between gap-1.5 cursor-pointer"
+                      className="h-7 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] flex items-center justify-between gap-1.5 cursor-pointer transition-colors"
                     >
                       <span className="text-[10.5px] font-medium text-[var(--text-secondary)]">{palette.name}</span>
                       <span className="flex items-center gap-0.5">
@@ -479,10 +483,10 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                       key={mode}
                       type="button"
                       onClick={() => onKnobLedEffectChange(mode)}
-                      className={`h-6 rounded text-[10.5px] font-medium capitalize cursor-pointer ${
+                      className={`h-6 rounded-[4px] text-[10.5px] font-medium capitalize cursor-pointer border transition-all ${
                         knobLedEffect === mode
-                          ? "bg-[var(--accent-soft)] text-white font-semibold"
-                          : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                          ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
+                          : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
                       }`}
                     >
                       {mode}
@@ -498,6 +502,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
               return (
                 <ActionBinding
                   key={field}
+                  onBrowse={browseActions}
                   label={field === "cw" ? "Turn right" : field === "ccw" ? "Turn left" : "Press"}
                   actionId={split.actionId}
                   actionParam={split.actionParam}
@@ -528,6 +533,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
         <>
         <ActionBinding
           label="Tap"
+          onBrowse={browseActions}
           actionId={activeKey.actionId}
           actionParam={activeKey.actionParam}
           choices={allActionTemplates}
@@ -563,60 +569,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
           }}
           paramOptions={paramOptionsFor(activeKey.actionId)}
         />
-        <p className="text-[11px] leading-relaxed text-[var(--text-secondary)]">
-          A double-press waits a moment so it can be told apart from a tap. A hold runs when the key stays down.
-        </p>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-xs text-[var(--text-secondary)]">Stay lit</span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={activeKey.latch === true}
-            aria-label="Stay lit"
-            onClick={() => updateSelectedKey({ latch: !activeKey.latch })}
-            className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
-              activeKey.latch ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"
-            }`}
-          >
-            <div className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${activeKey.latch ? "translate-x-4" : "translate-x-0"}`} />
-          </button>
-        </div>
-        <p className="text-[11px] leading-relaxed text-[var(--text-muted)]">
-          After a press the key reads ON until you press it again. Apply to Device to show that on the deck.
-        </p>
-        {(["doublePress", "hold"] as const).map((which) => {
-          const label = which === "doublePress" ? "Double-press" : "Hold";
-          const target = which === "doublePress" ? "double" : "hold";
-          const gesture = activeKey[which];
-          const choices = [{ id: "none", actionLabel: "Not set", title: "Not set", category: "System", defaultParam: "" }, ...allActionTemplates];
-          return (
-            <ActionBinding
-              key={which}
-              label={label}
-              actionId={gesture?.actionId || "none"}
-              actionParam={gesture?.actionParam ?? ""}
-              choices={choices}
-              recording={hotkeyTarget === target}
-              onRecord={() => setHotkeyTarget(target)}
-              onChange={(actionId, actionParam) => {
-                if (!actionId || actionId === "none") {
-                  updateSelectedKey({ [which]: null });
-                  return;
-                }
-                const tpl = allActionTemplates.find((item) => item.id === actionId);
-                updateSelectedKey({
-                  [which]: {
-                    actionId,
-                    actionParam,
-                    actionLabel: tpl && actionId !== gesture?.actionId ? tpl.actionLabel : gesture?.actionLabel || tpl?.actionLabel || actionId,
-                  },
-                });
-              }}
-              paramOptions={paramOptionsFor(gesture?.actionId || "none")}
-            />
-          );
-        })}
-        {[activeKey.actionId, activeKey.doublePress?.actionId, activeKey.hold?.actionId].some((action) => action?.startsWith("obs.")) && (
+        {activeKey.actionId.startsWith("obs.") && (
           <ObsConnection obsSettings={obsSettings} onSave={saveObs} />
         )}
 
@@ -642,6 +595,65 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
 
         {inspectorTab === "Action" && (
           <div className="flex flex-col gap-3">
+            <p className="text-[11px] leading-relaxed text-[var(--text-muted)] px-0.5">
+              A double-press waits a moment so it can be told apart from a tap. A hold runs when the key stays down.
+            </p>
+            <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-1.5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-[11.5px] font-semibold text-[var(--text-primary)]">Stay lit</span>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={activeKey.latch === true}
+                  aria-label="Stay lit"
+                  onClick={() => updateSelectedKey({ latch: !activeKey.latch })}
+                  className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
+                    activeKey.latch ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"
+                  }`}
+                >
+                  <div className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${activeKey.latch ? "translate-x-4" : "translate-x-0"}`} />
+                </button>
+              </div>
+              <p className="text-[10.5px] leading-relaxed text-[var(--text-muted)]">
+                After a press the key reads ON until you press it again. Apply to Device to show that on the deck.
+              </p>
+            </div>
+            {(["doublePress", "hold"] as const).map((which) => {
+              const label = which === "doublePress" ? "Double-press" : "Hold";
+              const target = which === "doublePress" ? "double" : "hold";
+              const gesture = activeKey[which];
+              const choices = [{ id: "none", actionLabel: "Not set", title: "Not set", category: "System", defaultParam: "" }, ...allActionTemplates];
+              return (
+                <ActionBinding
+                  key={which}
+                  onBrowse={browseActions}
+                  label={label}
+                  actionId={gesture?.actionId || "none"}
+                  actionParam={gesture?.actionParam ?? ""}
+                  choices={choices}
+                  recording={hotkeyTarget === target}
+                  onRecord={() => setHotkeyTarget(target)}
+                  onChange={(actionId, actionParam) => {
+                    if (!actionId || actionId === "none") {
+                      updateSelectedKey({ [which]: null });
+                      return;
+                    }
+                    const tpl = allActionTemplates.find((item) => item.id === actionId);
+                    updateSelectedKey({
+                      [which]: {
+                        actionId,
+                        actionParam,
+                        actionLabel: tpl && actionId !== gesture?.actionId ? tpl.actionLabel : gesture?.actionLabel || tpl?.actionLabel || actionId,
+                      },
+                    });
+                  }}
+                  paramOptions={paramOptionsFor(gesture?.actionId || "none")}
+                />
+              );
+            })}
+            {!activeKey.actionId.startsWith("obs.") && [activeKey.doublePress?.actionId, activeKey.hold?.actionId].some((action) => action?.startsWith("obs.")) && (
+              <ObsConnection obsSettings={obsSettings} onSave={saveObs} />
+            )}
             {/* Show Title Toggle */}
             <div className="flex items-center justify-between">
               <span className="text-xs text-[var(--text-secondary)]">Show Title</span>
@@ -811,10 +823,10 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 setActionCategoryFilter("Custom");
                 triggerToast(`Saved "${activeKey.title}" to ★ Custom Actions catalog!`, "success");
               }}
-              className="w-full h-8 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/60 hover:bg-[var(--accent-primary)] text-xs font-semibold text-[var(--accent-text)] hover:text-white flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+              className="w-full h-8 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/50 hover:bg-[var(--accent-primary)] text-xs font-semibold text-[var(--accent-text)] hover:text-white flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
             >
-              <Plus size={13} />
-              <span>Save to ★ Custom Actions Library</span>
+              <Star size={13} />
+              <span>Save to Custom Actions Library</span>
             </button>
             <div className="flex gap-2">
               <button
@@ -823,7 +835,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   setClipboardKey(JSON.parse(JSON.stringify(activeKey)));
                   triggerToast(`Copied Key #${activeKey.index + 1}`, "info");
                 }}
-                className="flex-1 h-8 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs font-medium text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 h-8 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs font-medium text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
               >
                 <Copy size={12} />
                 <span>Copy</span>
@@ -839,8 +851,9 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   });
                   triggerToast(`Pasted to Key #${activeKey.index + 1}`, "success");
                 }}
-                className="flex-1 h-8 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] disabled:opacity-40 disabled:hover:bg-[var(--bg-panel)] disabled:hover:border-[var(--border-subtle)] disabled:cursor-default text-xs font-medium text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer"
+                className="flex-1 h-8 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] disabled:opacity-40 disabled:hover:bg-[var(--bg-panel)] disabled:hover:border-[var(--border-subtle)] disabled:cursor-default text-xs font-medium text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
               >
+                <ClipboardPaste size={12} />
                 <span>Paste</span>
               </button>
             </div>

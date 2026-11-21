@@ -60,7 +60,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
   const [deviceDetailTab, setDeviceDetailTab] = useState<DetailTab>("Overview");
   const [restarting, setRestarting] = useState(false);
 
-  return (    <div className="flex-1 min-h-0 grid grid-cols-[264px_1fr] lg:grid-cols-[300px_1fr] overflow-hidden">
+  return (    <div className="flex-1 min-h-0 grid grid-cols-[264px_1fr] lg:grid-cols-[300px_1fr] overflow-hidden animate-screen-in">
       <aside className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
         <div className="flex items-center justify-between">
           <h2 className="text-[13px] font-bold text-[var(--text-primary)]">Connected</h2>
@@ -98,10 +98,11 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                   : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]"
               }`}
             >
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-xs">{dev.modelName}</span>
-                <span className="text-[10.5px] px-2 py-0.5 rounded font-medium bg-[var(--status-success)]/15 text-[var(--status-success)]">
-                  ● Connected
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-bold text-xs truncate">{dev.modelName}</span>
+                <span className="inline-flex items-center gap-1.5 text-[10.5px] px-2 py-0.5 rounded-full font-medium bg-[var(--status-success)]/15 text-[var(--status-success)] shrink-0">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-success)] shadow-[0_0_6px_var(--status-success)]" />
+                  Connected
                 </span>
               </div>
               <div className="text-[11px] font-mono text-[var(--text-secondary)] mt-1">
@@ -118,11 +119,13 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
       </aside>
 
       <main className="p-6 overflow-y-auto flex flex-col gap-5">
-        {(deviceDetailTab === "Diagnostics" || connectedDevices.length === 0) && <PerformancePanel />}
         {connectedDevices.length === 0 ? (
-          <p className="text-sm text-[var(--text-secondary)]">
-            Plug in a deck to see its driver, brightness, and diagnostics.
-          </p>
+          <>
+            <PerformancePanel />
+            <div className="p-6 rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--bg-panel)]/40 text-center text-sm text-[var(--text-secondary)]">
+              Plug in a deck to see its driver, brightness, and diagnostics.
+            </div>
+          </>
         ) : (
         <>
         <div className="flex items-center justify-between flex-wrap gap-3 border-b border-[var(--border-subtle)] pb-4">
@@ -252,10 +255,10 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                         type="button"
                         aria-pressed={knobLedEffect === mode}
                         onClick={() => onKnobLedEffectChange(mode)}
-                        className={`h-7 px-2 rounded text-[11px] font-medium capitalize cursor-pointer transition-colors ${
+                        className={`h-7 px-2.5 rounded-[4px] text-[11px] font-medium capitalize cursor-pointer border transition-all ${
                           knobLedEffect === mode
-                            ? "bg-[var(--accent-soft)] text-white font-semibold"
-                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                            ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
+                            : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
                         }`}
                       >
                         {mode}
@@ -266,25 +269,20 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => onKnobLedChange("all", "#000000")}
-                  className="h-8 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] text-xs font-medium cursor-pointer"
+                  className="h-8 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] text-xs font-medium cursor-pointer transition-colors"
                 >
                   All Off
                 </button>
                 <button
                   type="button"
                   onClick={onResetKnobLeds}
-                  className="h-8 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--status-warning)] text-xs font-medium cursor-pointer"
+                  className="h-8 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--status-warning)] hover:bg-[var(--bg-elevated)] text-xs font-medium cursor-pointer transition-colors"
                 >
                   Factory Reset
                 </button>
               </div>
             </div>
-            <div
-              className="grid gap-3"
-              style={{
-                gridTemplateColumns: `repeat(${Math.min(activeDevice.encoders.count, 4)}, minmax(0, 1fr))`,
-              }}
-            >
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
               {encoders.slice(0, activeDevice.encoders.count).map((enc) => {
                 const ledColor = (enc.ledColor || DEFAULT_KNOB_LED_COLORS[enc.index] || "#35C98B").toUpperCase();
                 const ledOff = ledColor === "#000000";
@@ -405,33 +403,36 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
         )}
 
         {deviceDetailTab === "Diagnostics" && (
-          <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-4 flex flex-col gap-2">
-            <div className="text-xs font-bold text-[var(--text-secondary)] mb-1">
-              USB HID & Driver Event Log
-            </div>
-            <div className="flex flex-col gap-1.5 max-h-80 overflow-y-auto font-mono text-xs">
-              {diagnostics.length === 0 ? (
-                <div className="py-6 text-center text-[var(--text-muted)] font-sans">
-                  No USB HID or driver events recorded yet.
-                </div>
-              ) : (
-                diagnostics.map((d) => (
-                  <div
-                    key={d.id}
-                    className="p-2 rounded bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] flex items-center justify-between gap-4"
-                  >
-                    <div>
-                      <span className="text-[var(--accent-primary)] mr-2">[{d.stage}]</span>
-                      <span className="text-[var(--text-primary)]">{d.message}</span>
-                    </div>
-                    {d.packetHex && (
-                      <span className="text-[10.5px] text-[var(--status-success)] bg-[var(--bg-panel)] px-2 py-0.5 rounded shrink-0">
-                        {d.packetHex}
-                      </span>
-                    )}
+          <div className="flex flex-col gap-5">
+            <PerformancePanel />
+            <div className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-4 flex flex-col gap-2">
+              <div className="text-xs font-bold text-[var(--text-secondary)] mb-1">
+                USB HID & Driver Event Log
+              </div>
+              <div className="flex flex-col gap-1.5 max-h-80 overflow-y-auto font-mono text-xs">
+                {diagnostics.length === 0 ? (
+                  <div className="py-6 text-center text-[var(--text-muted)] font-sans">
+                    No USB HID or driver events recorded yet.
                   </div>
-                ))
-              )}
+                ) : (
+                  diagnostics.map((d) => (
+                    <div
+                      key={d.id}
+                      className="p-2 rounded bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] flex items-center justify-between gap-4"
+                    >
+                      <div>
+                        <span className="text-[var(--accent-primary)] mr-2">[{d.stage}]</span>
+                        <span className="text-[var(--text-primary)]">{d.message}</span>
+                      </div>
+                      {d.packetHex && (
+                        <span className="text-[10.5px] text-[var(--status-success)] bg-[var(--bg-panel)] px-2 py-0.5 rounded shrink-0">
+                          {d.packetHex}
+                        </span>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -439,21 +440,46 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
         {(deviceDetailTab === "Controls" ||
           deviceDetailTab === "Display" ||
           deviceDetailTab === "Advanced") && (
-          <div className="p-4 rounded-[var(--radius-md)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2">
-            <div className="text-sm font-bold">
-              {deviceDetailTab} Configuration ({activeDevice.vidPidHex})
+          <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-3">
+            <div className="flex items-center justify-between gap-3">
+              <div className="text-sm font-bold text-[var(--text-primary)]">
+                {deviceDetailTab} Configuration
+              </div>
+              <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
+                VID:PID {activeDevice.vidPidHex}
+              </span>
             </div>
-            <div className="text-xs text-[var(--text-secondary)] font-mono">
-              HID Path: {activeDevice.hidPath || "Virtual Simulator Bus"}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5 text-xs">
+              <div className="p-3 rounded-lg bg-[var(--bg-sidebar)] border border-[var(--border-subtle)]">
+                <div className="text-[11px] text-[var(--text-muted)]">HID Path</div>
+                <div className="font-mono text-[var(--text-primary)] mt-1 break-all">{activeDevice.hidPath || "Virtual Simulator Bus"}</div>
+              </div>
+              <div className="p-3 rounded-lg bg-[var(--bg-sidebar)] border border-[var(--border-subtle)]">
+                <div className="text-[11px] text-[var(--text-muted)]">Key Matrix</div>
+                <div className="font-mono text-[var(--text-primary)] mt-1">
+                  {activeDevice.keys.count} keys ({activeDevice.keys.rows}×{activeDevice.keys.cols}) · {activeDevice.keys.pixelWidth}×{activeDevice.keys.pixelHeight}px @ {activeDevice.keys.rotation}°
+                </div>
+              </div>
+              {activeDevice.touchStrip && (
+                <div className="p-3 rounded-lg bg-[var(--bg-sidebar)] border border-[var(--border-subtle)]">
+                  <div className="text-[11px] text-[var(--text-muted)]">Touch Strip</div>
+                  <div className="font-mono text-[var(--text-primary)] mt-1">
+                    {activeDevice.touchStrip.zones} zones · {activeDevice.touchStrip.pixelWidth}×{activeDevice.touchStrip.pixelHeight}px
+                  </div>
+                </div>
+              )}
+              {activeDevice.encoders && (
+                <div className="p-3 rounded-lg bg-[var(--bg-sidebar)] border border-[var(--border-subtle)]">
+                  <div className="text-[11px] text-[var(--text-muted)]">Rotary Encoders</div>
+                  <div className="font-mono text-[var(--text-primary)] mt-1">
+                    {activeDevice.encoders.count} dials with RGB LED rings
+                  </div>
+                </div>
+              )}
             </div>
-            <div className="text-xs text-[var(--text-secondary)]">
-              Key screens: {activeDevice.keys.count} × {activeDevice.keys.pixelWidth}×{activeDevice.keys.pixelHeight}px @{" "}
-              {activeDevice.keys.rotation}°
-              {activeDevice.touchStrip
-                ? ` • Touch strip ${activeDevice.touchStrip.pixelWidth}×${activeDevice.touchStrip.pixelHeight}px`
-                : ""}
-              . PNG, JPEG, WebP, and GIF uploads are fitted to those pixels. GIF playback is paced at 80ms or slower.
-            </div>
+            <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+              PNG, JPEG, WebP, and GIF uploads are fitted to those pixels. GIF playback is paced at 80ms or slower.
+            </p>
           </div>
         )}
         </>

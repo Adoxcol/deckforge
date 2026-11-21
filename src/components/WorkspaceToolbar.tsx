@@ -44,7 +44,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
 
       <div className="flex flex-wrap items-center gap-2">
         {/* Device Selector Pill */}
-        {connectedDevices.length > 1 && <div className="flex items-center gap-2 bg-[var(--bg-input)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 rounded-md px-2.5 h-9 transition-all">
+        {connectedDevices.length > 1 && <div className="flex items-center gap-2 bg-[var(--bg-input)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 rounded-md px-2.5 h-8 transition-all">
           <LayoutGrid size={14} className="text-[var(--text-secondary)] shrink-0" />
           <span className="text-xs text-[var(--text-secondary)]">Device:</span>
           <select
@@ -67,16 +67,16 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
         </div>}
 
         {/* Zoom / Fit Controls */}
-        <div role="group" aria-label="Canvas zoom" className="flex items-center bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-md p-0.5 h-9 gap-0.5">
+        <div role="group" aria-label="Canvas zoom" className="flex items-center bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-md p-0.5 h-8 gap-0.5">
           {[90, 100, 110].map((z) => (
             <button
               key={z}
               type="button"
               aria-pressed={canvasZoom === z}
               onClick={() => setCanvasZoom(z)}
-              className={`px-2.5 h-7 rounded text-[11px] tabular-nums font-medium cursor-pointer transition-all duration-150 border ${
+              className={`px-2.5 h-[26px] rounded-[4px] text-[11px] tabular-nums font-medium cursor-pointer transition-all duration-150 border ${
                 canvasZoom === z
-                  ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
+                  ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/45 text-[var(--text-primary)] font-semibold shadow-xs"
                   : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
               }`}
             >
@@ -92,9 +92,9 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
           type="button"
           onClick={handleSaveLocally}
           title="Save profiles locally (Ctrl+S)"
-          className="h-9 shrink-0 whitespace-nowrap px-3 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-xs font-medium text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer transition-all duration-150"
+          className="h-8 shrink-0 whitespace-nowrap px-3 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-xs font-medium text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer transition-all duration-150"
         >
-          <Save size={14} className="text-[var(--text-secondary)]" />
+          <Save size={13} className="text-[var(--text-secondary)]" />
           <span>Save</span>
         </button>
 
@@ -103,9 +103,9 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
           type="button"
           onClick={handleApplyToDevice}
           title="Send this page to the deck (Ctrl+Enter)"
-          className="h-9 shrink-0 whitespace-nowrap px-4 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center gap-2 cursor-pointer shadow-xs hover:shadow-[0_2px_14px_rgba(124,131,247,0.4)] active:scale-[0.98] transition-all duration-150"
+          className="h-8 shrink-0 whitespace-nowrap px-3.5 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer shadow-[0_2px_10px_rgba(124,131,247,0.28)] hover:shadow-[0_3px_14px_rgba(124,131,247,0.42)] active:scale-[0.98] transition-all duration-150"
         >
-          <Play size={13} fill="currentColor" />
+          <Play size={12} fill="currentColor" />
           <span>Apply to Device</span>
         </button>
       </div>
