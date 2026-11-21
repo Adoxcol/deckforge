@@ -14,7 +14,7 @@ const sections = [
 ] as const;
 type Section = typeof sections[number]["id"];
 const card = "rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-5 space-y-3";
-const action = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-sidebar)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]";
+const action = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-sidebar)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] cursor-pointer transition-colors";
 
 export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: string | null; onStartupProfileChange: (id: string | null) => Promise<void>; onNavigate: (screen: NavScreenId) => void; onOpenGuide: () => void; onBackup: () => Promise<string>; onRestore: (contents: string) => Promise<number> }> = ({ profiles, startupProfileId, onStartupProfileChange, onNavigate, onOpenGuide, onBackup, onRestore }) => {
   const [section, setSection] = useState<Section>("general");
@@ -39,12 +39,12 @@ export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: s
   const link = (label: string, screen: NavScreenId) => <button type="button" className={action} onClick={() => onNavigate(screen)}>{label}<ArrowUpRight size={14} /></button>;
   const selected = sections.find(item => item.id === section)!;
 
-  return <div className="flex-1 min-h-0 grid grid-cols-[224px_1fr] overflow-hidden">
+  return <div className="flex-1 min-h-0 grid grid-cols-[224px_1fr] overflow-hidden animate-screen-in">
     <nav aria-label="Settings sections" className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 space-y-1.5 overflow-y-auto">
       <p className="px-3 py-1.5 text-[11px] font-semibold tracking-wide text-[var(--text-muted)]">Preferences</p>
       {sections.map(({ id, name, hint, icon: Icon }) => <button type="button" key={id} onClick={() => setSection(id)}
         aria-current={section === id ? "page" : undefined} aria-controls="settings-content"
-        className={`w-full flex items-start gap-3 text-left rounded-lg px-3 py-2.5 border cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)] ${section === id ? "border-[var(--accent-primary)]/45 bg-[var(--accent-soft)] text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"}`}>
+        className={`w-full flex items-start gap-3 text-left rounded-lg px-3 py-2.5 border cursor-pointer transition-colors ${section === id ? "border-[var(--accent-primary)]/45 bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"}`}>
         <Icon size={16} className="mt-0.5 shrink-0" /><span><span className="block text-xs font-semibold">{name}</span><span className="block text-[10.5px] text-[var(--text-secondary)] mt-0.5">{hint}</span></span>
       </button>)}
     </nav>

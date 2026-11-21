@@ -1,9 +1,36 @@
 import React from "react";
-import { Search, X } from "lucide-react";
+import { Plus, Search, Star, X } from "lucide-react";
 import { actionNeedsParam } from "./ActionBinding";
 import { DeckIcon } from "./DeckIcon";
 import type { ActionTemplate } from "../data/actionCatalog";
 import type { EncoderConfig, KeyConfig, TouchZoneConfig } from "../types/deckforge";
+
+const CATEGORIES = ["All", "Custom", "Shortcuts", "Macro", "OBS", "Media", "System", "Navigation"] as const;
+
+type CatalogApi = { open: boolean; show: () => void; hide: () => void };
+const CatalogContext = React.createContext<CatalogApi | null>(null);
+
+/** Shares whether the action grid under the deck is open. */
+export function CatalogProvider({ children }: { children: React.ReactNode }) {
+  const [open, setOpen] = React.useState(false);
+  React.useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+  const api = React.useMemo<CatalogApi>(
+    () => ({ open, show: () => setOpen(true), hide: () => setOpen(false) }),
+    [open],
+  );
+  return <CatalogContext.Provider value={api}>{children}</CatalogContext.Provider>;
+}
+
+export function useCatalog() {
+  return React.useContext(CatalogContext);
+}
 
 interface ActionDrawerProps {
   actionCategoryFilter: string;
@@ -82,6 +109,9 @@ export const ActionDrawer = React.memo(function ActionDrawer({
   updateSelectedKey,
   updateSelectedZone,
 }: ActionDrawerProps) {
+  const catalog = useCatalog();
+  const open = catalog?.open ?? false;
+  const show = catalog?.show ?? (() => {});
   const [actionSearch, setActionSearch] = React.useState("");
   const deferredSearch = React.useDeferredValue(actionSearch);
   const filteredActions = React.useMemo(
@@ -106,63 +136,66 @@ export const ActionDrawer = React.memo(function ActionDrawer({
     );
   };
   return (
-    <div className="h-[214px] bg-[var(--bg-sidebar)] border-t border-[var(--border-subtle)] grid grid-cols-[172px_1fr] p-3 gap-4 shrink-0">
-      {/* Left Category Filter Rail */}
-      <div className="min-h-0 border-r border-[var(--border-subtle)] pr-3 flex flex-col gap-0.5 overflow-y-auto">
-        <div className="text-[11px] font-semibold tracking-wide text-[var(--text-muted)] px-2 mb-1">Actions</div>
-        {["All", "Custom", "Shortcuts", "Macro", "OBS", "Media", "System", "Navigation"].map(
-          (cat) => {
-            const isAct = actionCategoryFilter === cat;
-            const count = cat === "All"
-              ? actions.length
-              : actions.filter((a) => a.category.toLowerCase() === cat.toLowerCase()).length;
-            return (
-              <button
-                key={cat}
-                type="button"
-                aria-pressed={isAct}
-                onClick={() => setActionCategoryFilter(cat)}
-                className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-md text-[11.5px] cursor-pointer transition-colors ${
-                  isAct
-                    ? "bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"
-                }`}
-              >
-                <span className="truncate">{cat === "All" ? "All Actions" : cat === "Custom" ? "★ Custom Actions" : cat}</span>
-                <span className={`text-[10px] font-mono tabular-nums ${isAct ? "text-[var(--accent-text)]" : "text-[var(--text-muted)]"}`}>{count}</span>
-              </button>
-            );
-          }
-        )}
-      </div>
-
-      {/* Right Search + Action Cards Grid */}
-      <div className="min-h-0 flex flex-col gap-2.5 overflow-hidden">
-        <div className="relative">
+    <div className={`bg-[var(--bg-sidebar)] border-t border-[var(--border-subtle)] shrink-0 flex flex-col ${open ? "h-[232px]" : ""}`}>
+      <div className="flex items-center gap-2 px-3 py-2 min-w-0">
+        <div className="relative w-44 shrink-0">
           <Search
             size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none"
           />
           <input
             aria-label="Search actions"
+            aria-expanded={open}
             value={actionSearch}
-            onChange={(e) => setActionSearch(e.target.value)}
+            onFocus={show}
+            onClick={show}
+            onChange={(e) => {
+              setActionSearch(e.target.value);
+              show();
+            }}
             placeholder="Search actions..."
-            className="w-full h-8 pl-8 pr-8 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] transition-colors"
+            className="w-full h-8 pl-8 pr-7 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] transition-colors"
           />
           {actionSearch && (
             <button
               type="button"
               aria-label="Clear search"
               onClick={() => setActionSearch("")}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
             >
               <X size={12} />
             </button>
           )}
         </div>
+        <div className="flex items-center gap-1 overflow-x-auto min-w-0" role="toolbar" aria-label="Action categories">
+          {CATEGORIES.map((cat) => {
+            const isAct = actionCategoryFilter === cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                aria-pressed={isAct}
+                onClick={() => {
+                  setActionCategoryFilter(cat);
+                  show();
+                }}
+                className={`shrink-0 h-7 px-2.5 rounded-md text-[11.5px] cursor-pointer transition-colors inline-flex items-center gap-1 ${
+                  isAct
+                    ? "bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold"
+                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"
+                }`}
+              >
+                {cat === "Custom" && <Star size={11} className="shrink-0 text-[var(--accent-text)]" />}
+                {cat === "All" ? "All" : cat === "Custom" ? "Custom" : cat}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(195px,1fr))] gap-1.5 overflow-y-auto pr-1 pt-0.5 content-start">
+      {open && (
+      <div className="min-h-0 flex-1 px-3 pb-3 overflow-hidden">
+        <div className="h-full grid grid-cols-[repeat(auto-fill,minmax(195px,1fr))] gap-2 overflow-y-auto pr-1 content-start">
           {filteredActions.length === 0 ? (
             <div className="col-span-full py-6 text-center text-xs text-[var(--text-muted)]">
               No actions match “{actionSearch.trim()}”{actionCategoryFilter !== "All" ? ` in ${actionCategoryFilter}` : ""}.
@@ -186,7 +219,7 @@ export const ActionDrawer = React.memo(function ActionDrawer({
                     assignAction(act);
                   }
                 }}
-                className="group p-2 rounded-[var(--radius-md)] bg-[var(--bg-panel)]/75 border border-[var(--border-subtle)]/80 hover:border-[var(--accent-primary)]/50 hover:bg-[var(--bg-elevated)] hover:-translate-y-[1px] hover:shadow-md flex items-center justify-between gap-2.5 cursor-grab active:cursor-grabbing transition-all duration-150"
+                className="group p-2 rounded-[var(--radius-md)] bg-[var(--bg-panel)]/75 border border-[var(--border-subtle)]/80 hover:border-[var(--accent-primary)]/50 hover:bg-[var(--bg-elevated)] hover:-translate-y-[1px] hover:shadow-md flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing transition-all duration-150"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div
@@ -207,11 +240,13 @@ export const ActionDrawer = React.memo(function ActionDrawer({
                     </div>
                   </div>
                 </div>
+                <Plus size={13} className="shrink-0 text-[var(--text-muted)] opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity" aria-hidden />
               </div>
             ))
           )}
         </div>
       </div>
+      )}
     </div>
   );
 });

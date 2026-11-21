@@ -166,7 +166,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
   const builtIns = (legacySummary?.discoveredPlugins ?? []).filter((p) => p.sourceKind === "BuiltIn");
 
   return (
-    <div className="flex-1 p-6 overflow-y-auto max-w-6xl mx-auto w-full flex flex-col gap-5">
+    <div className="flex-1 p-6 overflow-y-auto max-w-6xl mx-auto w-full flex flex-col gap-5 animate-screen-in">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-xl font-bold">Plugins</h1>
@@ -402,7 +402,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
       )}
 
       {confirming && (
-        <div className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-[2px] grid place-items-center p-4 animate-fade-in" onMouseDown={() => setConfirming(null)}>
+        <div className="fixed inset-0 z-[80] bg-black/65 backdrop-blur-[2px] grid place-items-center p-4 animate-fade-in" onMouseDown={() => setConfirming(null)}>
           <div
             role="dialog"
             aria-modal="true"
@@ -410,14 +410,19 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
             className="w-full max-w-md rounded-2xl bg-[var(--bg-panel)] border border-[var(--border-strong)] p-5 flex flex-col gap-3 shadow-2xl animate-pop-in"
             onMouseDown={(e) => e.stopPropagation()}
           >
-            <h2 className="text-sm font-bold">Turn on {confirming.name}?</h2>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-[var(--accent-soft)] border border-[var(--accent-primary)]/35 text-[var(--accent-text)] flex items-center justify-center shrink-0">
+                <Puzzle size={16} />
+              </div>
+              <h2 className="text-sm font-bold text-[var(--text-primary)]">Turn on {confirming.name}?</h2>
+            </div>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
               A plugin is its own program. It runs on this PC with your user rights, the same as any app you install, and
               DeckForge can't limit what it does. Only turn on plugins you trust.
             </p>
             <p className="text-[11px] font-mono text-[var(--text-muted)] break-all bg-[var(--bg-sidebar)] px-2.5 py-1.5 rounded-md border border-[var(--border-subtle)]">{confirming.dir}</p>
-            <div className="flex justify-end gap-2 pt-1">
-              <button type="button" onClick={() => setConfirming(null)} className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs cursor-pointer">
+            <div className="flex justify-end gap-2 pt-2 border-t border-[var(--border-subtle)]">
+              <button type="button" autoFocus onClick={() => setConfirming(null)} className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs font-medium cursor-pointer transition-colors">
                 Cancel
               </button>
               <button
@@ -427,7 +432,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
                   setConfirming(null);
                   void setEnabled(plug, true);
                 }}
-                className="h-8 px-3.5 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer"
+                className="h-8 px-3.5 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer transition-colors"
               >
                 Turn on
               </button>

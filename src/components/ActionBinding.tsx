@@ -152,7 +152,8 @@ export const ActionBinding: React.FC<{
   onRecord: () => void;
   onChange: (actionId: string, actionParam: string) => void;
   paramOptions?: { value: string; label: string }[];
-}> = ({ label, actionId, actionParam, choices, recording, onRecord, onChange, paramOptions }) => {
+  onBrowse?: () => void;
+}> = ({ label, actionId, actionParam, choices, recording, onRecord, onChange, paramOptions, onBrowse }) => {
   const showParam = actionNeedsParam(actionId);
   const showRecord = actionId === "custom.hotkey" || actionId === "sys.hotkey";
   const showPresets = showRecord;
@@ -162,6 +163,7 @@ export const ActionBinding: React.FC<{
       <ActionPicker
         value={choices.some((choice) => choice.id === actionId) ? actionId : actionId || "custom.hotkey"}
         choices={choices}
+        onOpen={onBrowse}
         onChange={(next) => {
           const choice = choices.find((item) => item.id === next);
           onChange(next, next.startsWith("audio.app_") && actionId.startsWith("audio.app_")
@@ -211,7 +213,7 @@ export const ActionBinding: React.FC<{
             value={actionParam}
             onChange={(event) => onChange(actionId, event.target.value)}
             placeholder="Ctrl+Shift+M, notepad.exe, https://..."
-            className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+            className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] transition-colors"
           />
           {showPresets && (
             <div className="flex flex-wrap gap-1">

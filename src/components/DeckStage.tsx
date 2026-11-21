@@ -4,7 +4,7 @@ import { LevelMeter, liveKeyLook, liveZoneValue } from "./LiveFace";
 import { ScreenFace } from "./ScreenFace";
 import { DeckIcon } from "./DeckIcon";
 import { deckforgeApi } from "../bridge/tauriBridge";
-import { ACTION_DRAG_TYPE, type KnobPart } from "./ActionDrawer";
+import { ACTION_DRAG_TYPE, useCatalog, type KnobPart } from "./ActionDrawer";
 import { PageApps } from "./AppRuleList";
 import type { AutoSwitchRule } from "../types/deckforge";
 import { ChevronLeft, ChevronRight, LayoutTemplate, Plus } from "lucide-react";
@@ -82,12 +82,23 @@ export const DeckStage = React.memo(function DeckStage({
   const [dropPart, setDropPart] = React.useState<KnobPart | null>(null);
   const [draggingKey, setDraggingKey] = React.useState<number | null>(null);
   const [dropPage, setDropPage] = React.useState<number | null>(null);
+  const catalog = useCatalog();
   return (
-    <div className="min-h-0 flex-1 flex flex-col items-center px-6 py-4 overflow-y-auto">
+    <div
+      className="min-h-0 flex-1 flex flex-col items-center px-6 py-4 overflow-y-auto"
+      onClick={(event) => {
+        const target = event.target as HTMLElement;
+        if (target.closest("button, a, input, select, textarea, [role=button]")) return;
+        catalog?.hide();
+      }}
+    >
       <div className="my-auto w-full flex flex-col items-center gap-3.5">
       <div
-        style={{ transform: `scale(${canvasZoom / 100})` }}
-        className="shrink-0 origin-top bg-gradient-to-b from-[var(--bg-elevated)]/85 to-[var(--bg-panel)] border border-[var(--border-strong)]/80 rounded-2xl p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_20px_48px_rgba(0,0,0,0.5)] transition-transform max-w-[650px] w-full flex flex-col gap-3.5"
+        style={{
+          transform: `scale(${canvasZoom / 100})`,
+          marginBlock: `${(canvasZoom - 100) * 1.8}px`,
+        }}
+        className="shrink-0 origin-center bg-gradient-to-b from-[var(--bg-elevated)]/85 to-[var(--bg-panel)] border border-[var(--border-strong)]/80 rounded-2xl p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_20px_48px_rgba(0,0,0,0.5)] transition-[transform,margin] duration-150 max-w-[650px] w-full flex flex-col gap-3.5"
       >
         {/* Dynamic Key Grid matching real hardware rows x cols */}
         <div
@@ -170,9 +181,13 @@ export const DeckStage = React.memo(function DeckStage({
                 }`}
               >
                 {(k.doublePress || k.hold) && (
-                  <span aria-hidden className="absolute top-1.5 right-1.5 z-10 flex items-center gap-0.5">
-                    {k.doublePress && <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-text)]/85 shadow-xs" />}
-                    {k.hold && <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-warning)]/85 shadow-xs" />}
+                  <span
+                    aria-hidden
+                    title={[k.doublePress && "Double-press set", k.hold && "Hold set"].filter(Boolean).join(" · ")}
+                    className="absolute top-1.5 right-1.5 z-10 flex items-center gap-0.5"
+                  >
+                    {k.doublePress && <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-text)]/90 shadow-xs" />}
+                    {k.hold && <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-warning)]/90 shadow-xs" />}
                   </span>
                 )}
                 {clip ? (
@@ -302,12 +317,12 @@ export const DeckStage = React.memo(function DeckStage({
                         className="absolute inset-0"
                       />
                     ) : (
-                      <div>
-                        <div className="text-[9.5px] font-bold text-[var(--text-muted)] tracking-wider">
+                      <div className="min-w-0">
+                        <div className="text-[10.5px] font-semibold text-[var(--text-muted)] truncate">
                           {tz.label}
                         </div>
                         <div
-                          className="text-[11px] font-mono font-semibold"
+                          className="text-[11px] font-mono font-semibold truncate"
                           style={{ color: tz.accentColor }}
                         >
                           {zoneValue}
@@ -446,8 +461,12 @@ export const DeckStage = React.memo(function DeckStage({
                           boxShadow: `0 0 10px ${ledColor}66, inset 0 0 4px ${ledColor}44`,
                         }
                   }
-                  className="w-7 h-7 rounded-full bg-gradient-to-br from-[var(--border-strong)] to-[var(--bg-sidebar)] border-2 shrink-0 flex items-center justify-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
+                  className="relative w-7 h-7 rounded-full bg-gradient-to-br from-[var(--border-strong)] to-[var(--bg-sidebar)] border-2 shrink-0 flex items-center justify-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
                 >
+                  <span
+                    aria-hidden
+                    className="absolute top-0.5 left-1/2 -translate-x-1/2 w-[2px] h-1.5 rounded-full bg-white/40"
+                  />
                   <span
                     style={{ backgroundColor: ledOff ? "var(--text-muted)" : ledColor }}
                     className="w-1.5 h-1.5 rounded-full"
@@ -457,7 +476,7 @@ export const DeckStage = React.memo(function DeckStage({
                   <div className="text-[11px] font-semibold text-[var(--text-primary)] truncate">
                     {enc.label}
                   </div>
-                  <div className="text-[9.5px] font-mono text-[var(--text-secondary)] truncate">
+                  <div className="text-[10.5px] font-mono text-[var(--text-secondary)] truncate">
                     {knobValue.title}
                   </div>
                   {knobValue.level != null && (
@@ -571,7 +590,7 @@ export const DeckStage = React.memo(function DeckStage({
           onClick={() => setTemplatesOpen(true)}
           title="Page templates"
           aria-label="Page templates"
-          className="h-8 px-2.5 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1.5 text-[11px] font-medium cursor-pointer transition-colors"
+          className="h-8 px-2.5 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1.5 text-xs font-medium cursor-pointer transition-colors"
         >
           <LayoutTemplate size={13} /> Templates
         </button>

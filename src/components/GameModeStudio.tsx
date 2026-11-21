@@ -449,7 +449,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
   const tab = PICK_TABS.find((t) => t.id === pickTab) ?? PICK_TABS[0];
 
   return (
-    <div className="flex-1 min-h-0 grid grid-cols-[1fr_340px] overflow-hidden">
+    <div className="flex-1 min-h-0 grid grid-cols-1 xl:grid-cols-[1fr_330px] overflow-hidden animate-screen-in">
       <div className="min-h-0 overflow-y-auto p-6 flex flex-col gap-5">
         {/* Header and master switch */}
         <div className="flex items-start justify-between gap-4">
@@ -980,7 +980,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               hint="One Windows prompt each time DeckForge starts, so automatic Game Mode can stop services later without any prompt."
             />
           )}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <div className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5">When Game Mode ends</div>
               <div className="flex flex-col gap-1.5">
@@ -1174,7 +1174,7 @@ const StartAppsSection: React.FC<{
               <Trash2 size={13} />
             </button>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center flex-wrap gap-3">
             <input
               value={app.args}
               onChange={(e) => patch(i, { args: e.target.value.slice(0, 300) })}
@@ -1190,7 +1190,7 @@ const StartAppsSection: React.FC<{
         </div>
       ))}
       {apps.length < 10 && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap gap-2">
           <div className="relative">
             <button
               onClick={() => setPicking((v) => !v)}

@@ -129,10 +129,10 @@ export const IconStudio: React.FC<{
   const timing = delays.reduce((sum, value) => sum + value, 0);
 
   return (
-    <div className="flex-1 min-h-0 grid grid-cols-[288px_1fr_300px] overflow-hidden">
+    <div className="flex-1 min-h-0 grid grid-cols-[288px_1fr_300px] overflow-hidden animate-screen-in">
       <aside className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
         <div className="text-[11px] font-semibold text-[var(--text-secondary)]">This page</div>
-        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(1, columns)}, 44px)` }}>
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(columns, 5))}, minmax(0, 1fr))` }}>
           {keys.map((item) => {
             const selected = item.index === face.index;
             return (
@@ -143,7 +143,7 @@ export const IconStudio: React.FC<{
                 aria-label={item.title || `Key ${item.index + 1}`}
                 aria-pressed={selected}
                 onClick={() => onSelectKey(item.index)}
-                className={`relative flex h-11 w-11 items-center justify-center rounded-lg border cursor-pointer transition-all hover:brightness-110 ${
+                className={`relative flex aspect-square w-full items-center justify-center rounded-lg border cursor-pointer transition-all hover:brightness-110 ${
                   selected ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)] shadow-sm" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
                 }`}
                 style={{
@@ -196,9 +196,9 @@ export const IconStudio: React.FC<{
                 {clip.frames.length} · {timing}ms
               </span>
             </div>
-            <div className="flex h-14 items-end gap-1">
+            <div className="flex h-14 items-end gap-1 overflow-x-auto pb-1">
               {clip.frames.map((src, index) => (
-                <div key={`${clip.id}-${index}`} className="flex h-full min-w-0 flex-col justify-end" style={{ flex: delays[index] || 1 }}>
+                <div key={`${clip.id}-${index}`} className="flex h-full min-w-[28px] flex-col justify-end" style={{ flex: delays[index] || 1 }}>
                   <img src={src} alt="" className="h-9 w-full rounded-md object-cover border border-[var(--border-subtle)]" />
                   <span className="mt-1 text-center text-[9px] font-mono text-[var(--text-muted)]">{delays[index]}</span>
                 </div>
@@ -222,11 +222,11 @@ export const IconStudio: React.FC<{
               type="button"
               aria-pressed={layer === item.id}
               onClick={() => setLayer(item.id)}
-              className={`relative mb-2 w-full rounded-2xl border p-3 text-left cursor-pointer transition-colors ${
-                layer === item.id ? "border-[var(--accent-primary)] bg-[var(--bg-elevated)]" : "border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:border-[var(--border-strong)]"
+              className={`relative mb-2 w-full rounded-2xl border p-3 text-left cursor-pointer transition-all ${
+                layer === item.id ? "border-[var(--accent-primary)] bg-[var(--bg-elevated)] shadow-md" : "border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:border-[var(--border-strong)] hover:-translate-y-[0.5px]"
               }`}
             >
-              <span className="absolute -left-8 top-4 h-4 w-4 rounded-full border-2 border-[var(--bg-app)]" style={{ background: item.color }} />
+              <span className={`absolute -left-8 top-4 h-4 w-4 rounded-full border-2 border-[var(--bg-app)] transition-transform ${layer === item.id ? "scale-110 ring-2 ring-[var(--accent-primary)]/40" : ""}`} style={{ background: item.color }} />
               <div className="text-sm font-semibold text-[var(--text-primary)]">{item.title}</div>
               <div className="text-[11px] font-mono text-[var(--text-secondary)] truncate">{item.detail}</div>
             </button>
@@ -353,7 +353,7 @@ export const IconStudio: React.FC<{
         )}
 
         {layer === "icon" && (
-          <div className="grid grid-cols-5 gap-1.5">
+          <div className="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto p-1.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-md">
             {AVAILABLE_ICON_NAMES.map((name) => (
               <button
                 key={name}
@@ -362,8 +362,8 @@ export const IconStudio: React.FC<{
                 aria-label={`Select ${name} icon`}
                 aria-pressed={face.iconName === name}
                 onClick={() => onChange({ iconName: name })}
-                className={`h-9 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
-                  face.iconName === name ? "bg-[var(--accent-soft)] border border-[var(--accent-primary)]" : "bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)]"
+                className={`h-9 rounded-md flex items-center justify-center cursor-pointer transition-colors border ${
+                  face.iconName === name ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]" : "border-transparent hover:bg-[var(--bg-elevated)] hover:border-[var(--border-subtle)]"
                 }`}
               >
                 <DeckIcon name={name} size={16} color={face.accentColor} />

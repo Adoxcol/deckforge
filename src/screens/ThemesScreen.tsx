@@ -163,7 +163,7 @@ export const ThemesScreen: React.FC<{
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 max-w-6xl mx-auto w-full flex flex-col gap-6">
+    <div className="flex-1 overflow-y-auto p-6 max-w-6xl mx-auto w-full flex flex-col gap-6 animate-screen-in">
       <div>
         <h1 className="text-xl font-bold flex items-center gap-2"><Sparkles size={18} className="text-[var(--accent-text)]" /> Themes</h1>
         <p className="text-xs text-[var(--text-secondary)] mt-1">

@@ -1,6 +1,6 @@
 import React from "react";
 import { deckforgeApi } from "../bridge/tauriBridge";
-import { Download, Plus, RefreshCw, Search, Upload, X } from "lucide-react";
+import { ChevronRight, Download, Plus, RefreshCw, Search, Upload, X } from "lucide-react";
 import { DeckIcon } from "./DeckIcon";
 import { AppRuleList } from "./AppRuleList";
 import { STARTER_PROFILES, type StarterProfile } from "../data/starterProfiles";
@@ -49,6 +49,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [rescanning, setRescanning] = React.useState(false);
   const [bindingQuery, setBindingQuery] = React.useState("");
+  const [appsOpen, setAppsOpen] = React.useState(false);
   const bindingHits = React.useMemo(
     () => searchBindings(profiles, bindingQuery, macros.map((macro) => ({ id: macro.id, name: macro.name }))),
     [profiles, bindingQuery, macros],
@@ -97,8 +98,11 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                 key={dev.id}
                 className="p-2.5 rounded-lg border flex items-center gap-2.5 bg-[var(--accent-soft)]/80 border-[var(--accent-primary)]/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
               >
-                <div className="w-8 h-6 rounded bg-[var(--bg-input)] border border-[var(--accent-primary)]/60 p-1 grid grid-cols-5 gap-0.5 shrink-0">
-                  {Array.from({ length: 10 }).map((_, idx) => (
+                <div
+                  className="w-8 h-6 rounded bg-[var(--bg-input)] border border-[var(--accent-primary)]/60 p-1 grid gap-0.5 shrink-0"
+                  style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(dev.keys.cols, 6))}, minmax(0, 1fr))` }}
+                >
+                  {Array.from({ length: Math.min(dev.keys.count, 18) }).map((_, idx) => (
                     <span key={idx} className="rounded-[1px] bg-[var(--accent-primary)]/90" />
                   ))}
                 </div>
@@ -157,7 +161,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                   <div
                     role="menu"
                     aria-label="Create profile from template"
-                    className="absolute left-0 right-0 top-11 z-50 p-1.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl flex flex-col gap-0.5 animate-pop-in"
+                    className="absolute left-0 right-0 top-11 z-50 max-h-[70vh] overflow-y-auto p-1.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl flex flex-col gap-0.5 animate-pop-in"
                   >
                     <div className="px-2 pt-1 pb-1.5 text-[11px] font-medium text-[var(--text-muted)]">Start a new profile from</div>
                     {STARTER_PROFILES.map((starter) => (
@@ -231,8 +235,11 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                   }}
                   className="px-2 py-1.5 rounded-md text-left hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
                 >
-                  <span className="block truncate text-[12px] font-medium text-[var(--text-primary)]">{hit.title}</span>
-                  <span className="block truncate text-[10.5px] text-[var(--text-muted)]">
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="truncate text-[12px] font-medium text-[var(--text-primary)]">{hit.title}</span>
+                    <span className="shrink-0 text-[9.5px] font-mono px-1.5 py-0.5 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] text-[var(--text-secondary)] capitalize">{hit.surface}</span>
+                  </span>
+                  <span className="block truncate text-[10.5px] text-[var(--text-muted)] mt-0.5">
                     {hit.profileName} · {hit.pageName} · {hit.where}
                   </span>
                 </button>
@@ -284,7 +291,20 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
       </div>
 
       <div className="pt-3.5 border-t border-[var(--border-subtle)]">
-        <AppRuleList rules={autoSwitchRules} profiles={profiles} showProfileId={activeProfile?.id} currentPageIndex={selectedPageIdx} saveRules={saveRules} />
+        <button
+          type="button"
+          aria-expanded={appsOpen}
+          onClick={() => setAppsOpen((open) => !open)}
+          className="w-full flex items-center justify-between gap-2 px-1 py-1 text-left cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+        >
+          <span className="text-[11.5px] font-semibold tracking-wide">When an app opens</span>
+          <ChevronRight size={14} className={`shrink-0 transition-transform ${appsOpen ? "rotate-90" : ""}`} />
+        </button>
+        {appsOpen && (
+          <div className="mt-2">
+            <AppRuleList embedded rules={autoSwitchRules} profiles={profiles} showProfileId={activeProfile?.id} currentPageIndex={selectedPageIdx} saveRules={saveRules} />
+          </div>
+        )}
       </div>
     </aside>
   );

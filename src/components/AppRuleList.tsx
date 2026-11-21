@@ -114,14 +114,14 @@ const Switch: React.FC<{ checked: boolean; onChange: (v: boolean) => void; label
     aria-checked={checked}
     aria-label={label}
     onClick={() => onChange(!checked)}
-    style={{ width: 30, height: 18, minWidth: 30, minHeight: 18, padding: 0, border: 0, borderRadius: 9 }}
-    className={`relative shrink-0 inline-block transition-colors cursor-pointer ${
+    className={`w-8 h-[18px] rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
       checked ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"
     }`}
   >
-    <span
-      style={{ position: "absolute", top: 2, left: checked ? 14 : 2, width: 14, height: 14, borderRadius: 7 }}
-      className="bg-white transition-[left] duration-150"
+    <div
+      className={`w-3.5 h-3.5 rounded-full bg-white shadow-xs transition-transform ${
+        checked ? "translate-x-3.5" : "translate-x-0"
+      }`}
     />
   </button>
 );
@@ -138,10 +138,12 @@ interface Props {
   /** Only list this profile's pages; the rest are still used to find rules with no home. */
   showProfileId?: string;
   currentPageIndex?: number;
+  /** Hide the section title when a parent already names this block. */
+  embedded?: boolean;
 }
 
 /** Pages listed with the apps that open them. Drag an app onto another page to move it. */
-export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showProfileId, currentPageIndex = 0 }) => {
+export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showProfileId, currentPageIndex = 0, embedded = false }) => {
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [addingAt, setAddingAt] = React.useState<string | null>(null);
   const [draft, setDraft] = React.useState("");
@@ -199,12 +201,18 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
 
   return (
     <div className="flex flex-col gap-2.5">
+      {embedded ? (
+        <p className="text-[11px] leading-snug text-[var(--text-muted)]">
+          Profile rules work anywhere. Page rules work only while that profile is active.
+        </p>
+      ) : (
       <div>
         <div className="text-[11.5px] font-semibold tracking-wide text-[var(--text-secondary)]">App switching</div>
         <p className="text-[11px] leading-snug text-[var(--text-muted)] mt-0.5">
           Profile rules work anywhere. Page rules work only while that profile is active.
         </p>
       </div>
+      )}
 
       <details className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)]/70 p-2 text-xs">
         <summary className="cursor-pointer select-none text-[11.5px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Preview a switch</summary>

@@ -13,7 +13,7 @@ import { OnboardingModal } from "./components/OnboardingModal";
 import { WorkspaceToolbar } from "./components/WorkspaceToolbar";
 import { DeckStage } from "./components/DeckStage";
 import { WorkspaceSidebar } from "./components/WorkspaceSidebar";
-import { ActionDrawer } from "./components/ActionDrawer";
+import { ActionDrawer, CatalogProvider } from "./components/ActionDrawer";
 import { KeyInspector } from "./components/KeyInspector";
 import { DevicesScreen } from "./screens/DevicesScreen";
 import { PluginsScreen } from "./screens/PluginsScreen";
@@ -237,7 +237,7 @@ export const App: React.FC = () => {
         <div role={draftStatus.error ? "alert" : "status"} className="px-4 py-1.5 text-[11.5px] bg-[var(--bg-panel)] border-b border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center gap-2.5 shrink-0">
           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${draftStatus.error ? "bg-[var(--status-warning)]" : draftStatus.pending ? "bg-[var(--accent-primary)] animate-pulse" : "bg-[var(--status-success)]"}`} />
           <span className="truncate">{draftStatus.error ? `Recovery copy could not update: ${draftStatus.error}. Retry recovery or save your profiles.` : draftStatus.pending ? "Updating recovery copy…" : "Recovery copy saved · Profile edits are still unsaved"}</span>
-          {draftStatus.error && <button type="button" className="ml-auto shrink-0 underline text-[var(--status-warning)] hover:text-[var(--text-primary)] cursor-pointer font-medium transition-colors" onClick={draftWriter.retry}>Retry recovery copy</button>}
+          {draftStatus.error && <button type="button" className="ml-auto shrink-0 px-2.5 py-0.5 rounded-md border border-[var(--status-warning)]/40 bg-[var(--status-warning)]/10 text-[var(--status-warning)] hover:bg-[var(--status-warning)]/20 hover:text-[var(--text-primary)] cursor-pointer font-medium transition-colors" onClick={draftWriter.retry}>Retry recovery copy</button>}
         </div>
       )}
       {Object.entries(saveQueues).map(([name, queue]) => {
@@ -245,8 +245,9 @@ export const App: React.FC = () => {
         if (!status.pending) return null;
         return (
           <div key={name} role={status.error ? "alert" : "status"} className="px-4 py-1.5 text-[11.5px] bg-[var(--accent-soft)] border-b border-[var(--accent-primary)]/30 text-[var(--status-warning)] flex items-center gap-2.5 shrink-0">
+            <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-current animate-pulse" />
             <span className="truncate">{status.error ? `${name} not saved: ${status.error}. Your edits remain in this session.` : `Saving ${name.toLowerCase()}…`}</span>
-            {status.error && <button type="button" className="ml-auto shrink-0 underline font-semibold cursor-pointer hover:text-white transition-colors" onClick={queue.retry}>Retry save</button>}
+            {status.error && <button type="button" className="ml-auto shrink-0 px-2.5 py-0.5 rounded-md border border-[var(--status-warning)]/40 bg-[var(--status-warning)]/10 text-[var(--status-warning)] hover:bg-[var(--status-warning)]/20 hover:text-white font-semibold cursor-pointer transition-colors" onClick={queue.retry}>Retry save</button>}
           </div>
         );
       })}
@@ -370,10 +371,12 @@ export const App: React.FC = () => {
       </nav>
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
       <header className="h-12 bg-[var(--bg-app)] border-b border-[var(--border-subtle)] px-4 flex items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <h1 className="text-[14px] font-semibold tracking-tight text-[var(--text-primary)] truncate">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-[12px] font-medium text-[var(--text-muted)] hidden sm:inline">DeckForge</span>
+          <span className="text-[var(--border-strong)] hidden sm:inline" aria-hidden>/</span>
+          <span className="text-[13.5px] font-semibold tracking-tight text-[var(--text-primary)] truncate">
             {[...NAV_ITEMS, { id: "settings", label: "Settings" }].find((n) => n.id === activeScreen)?.label ?? "DeckForge"}
-          </h1>
+          </span>
         </div>
         {/* Right Controls */}
         <div className="flex items-center gap-1.5">
@@ -430,7 +433,8 @@ export const App: React.FC = () => {
 
       {/* 2. SCREEN 01: WORKSPACE / KEY EDITOR (Matches Reference Screenshot + Spec Section 4) */}
       {activeScreen === "workspace" && (
-        <div className="flex-1 min-h-0 grid grid-cols-[232px_minmax(0,1fr)_292px] 2xl:grid-cols-[256px_minmax(0,1fr)_324px] overflow-hidden">
+        <CatalogProvider>
+        <div key="workspace" className="flex-1 min-h-0 grid grid-cols-[232px_minmax(0,1fr)_292px] 2xl:grid-cols-[256px_minmax(0,1fr)_324px] overflow-hidden animate-screen-in">
           {/* LEFT CONTEXTUAL SIDEBAR: Devices + Profiles */}
           <WorkspaceSidebar activeProfile={activeProfile} autoSwitchRules={autoSwitchRules} connectedDevices={connectedDevices} handleAddProfile={sidebarCallbacks.handleAddProfile} onExportProfile={sidebarCallbacks.onExportProfile} onImportProfile={sidebarCallbacks.onImportProfile} profiles={profiles} macros={macros} selectedPageIdx={selectedPageIdx} saveRules={sidebarCallbacks.saveRules} setDevices={setDevices} setSelectedKeyIdx={setSelectedKeyIdx} setSelectedPageIdx={setSelectedPageIdx} setSelectedProfileId={setSelectedProfileId} setSurface={setSurface} setSurfaceIndex={setSurfaceIndex} triggerToast={sidebarCallbacks.triggerToast} />
 
@@ -449,6 +453,7 @@ export const App: React.FC = () => {
           {/* RIGHT INSPECTOR PANE (320px — Button Properties matching Reference Screenshot) */}
           <KeyInspector mediaLibrary={mediaLibrary} onMediaStored={clip => setMediaLibrary(prev => ({ ...prev, [clip.id]: clip }))} activeDevice={activeDevice} activeEncoder={activeEncoder} activeKey={activeKey} activeZone={activeZone} allActionTemplates={allActionTemplates} assignMedia={assignMedia} clipFor={clipFor} clipboardKey={clipboardKey} currentMedia={currentMedia} face={face} fileRef={fileRef} handleClearSelectedKey={handleClearSelectedKey} handleTestSelectedAction={handleTestSelectedAction} hotkeyTarget={hotkeyTarget} ingestFile={ingestFile} inspectorTab={inspectorTab} macros={macros} obsSettings={obsSettings} paramOptionsFor={paramOptionsFor} patchCurrentMedia={patchCurrentMedia} saveObs={saveObs} setActionCategoryFilter={setActionCategoryFilter} setClipboardKey={setClipboardKey} setCustomActions={setCustomActions} setHotkeyTarget={setHotkeyTarget} setInspectorTab={setInspectorTab} surface={surface} surfaceIndex={surfaceIndex} triggerToast={triggerToast} updateSelectedEncoder={updateSelectedEncoder} onKnobLedChange={handleKnobLedChange} onResetKnobLeds={() => void handleResetKnobLeds()} profileColorStrip={activeProfile.colorStrip} onApplyKnobLedPalette={handleApplyKnobLedPalette} onApplyKnobLedsToAllPages={handleApplyKnobLedsToAllPages} knobLedEffect={activePage.knobLedEffect ?? "static"} onKnobLedEffectChange={(effect) => void handleKnobLedEffectChange(effect)} updateSelectedKey={updateSelectedKey} updateSelectedZone={updateSelectedZone} useSampleAnimation={useSampleAnimation} />
         </div>
+        </CatalogProvider>
       )}
 
       {/* 3. SCREEN 02: DEVICE MANAGER & DIAGNOSTICS (Spec Section 5) */}

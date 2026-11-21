@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Download, Upload } from "lucide-react";
+import { Archive, Download, Upload } from "lucide-react";
 import { isTauriRuntime } from "../bridge/tauriBridge";
 import { pickJsonFile } from "../lib/shareFiles";
 import { errorText } from "../lib/format";
@@ -29,9 +29,9 @@ export function BackupPanel({ onBackup, onRestore }: {
     setPending({ ...picked, count: file.profiles.length });
   });
   const button = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-sidebar)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[var(--border-strong)] disabled:hover:bg-[var(--bg-sidebar)] cursor-pointer transition-colors";
-  return <section className="rounded-xl border border-[var(--accent-primary)]/30 bg-[var(--bg-panel)] p-5 space-y-3">
-    <h2 className="font-semibold text-[var(--text-primary)]">Profiles & media backup</h2>
-    <p>Back up all editor profiles, all macros, and every image or animation those profiles use in one file.</p>
+  return <section className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-5 space-y-3">
+    <div className="flex items-center gap-2 text-[var(--text-primary)]"><Archive size={17} /><h2 className="font-semibold">Profiles & media backup</h2></div>
+    <p className="text-xs leading-relaxed">Back up all editor profiles, all macros, and every image or animation those profiles use in one file.</p>
     <p className="text-xs leading-relaxed">Includes unsaved profile edits and media playback settings. Restore adds copies to the editor; Save keeps them locally and Apply sends a page to the deck. Existing profiles remain unchanged.</p>
     <div className="flex flex-wrap gap-2">
       <button type="button" className={button} disabled={!desktop || busy || !!pending} onClick={() => run(async () => setMessage(`Backup saved to ${await onBackup()}`))}><Download size={14} />Create backup</button>

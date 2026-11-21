@@ -121,12 +121,12 @@ export const MacroStudio: React.FC<{
   const blockErrorId = React.useId();
 
   return (
-    <div className="flex-1 min-h-0 grid grid-cols-[250px_1fr_300px] overflow-hidden">
+    <div className="flex-1 min-h-0 grid grid-cols-[250px_1fr_300px] overflow-hidden animate-screen-in">
       <aside className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-3 flex flex-col gap-2 overflow-y-auto">
         <button
           type="button"
           onClick={createMacro}
-          className="h-9 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+          className="h-9 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98] transition-all"
         >
           <Plus size={14} />
           New chain
@@ -208,52 +208,60 @@ export const MacroStudio: React.FC<{
                 Stop running chain
               </button>
             </div>
-            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-sidebar)]/90 p-3">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-sidebar)]/90 p-3.5">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Timing</span>
-                <span className="text-[11px] font-mono text-[var(--text-primary)]">{formatMs(total)}</span>
+                <span className="text-[11px] font-mono tabular-nums text-[var(--text-primary)]">{formatMs(total)}</span>
               </div>
-              <svg viewBox="0 0 640 78" className="w-full h-[78px]">
-                {(() => {
-                  const gap = 8;
-                  const usable = 640 - gap * Math.max(0, weights.length - 1);
-                  const raw = weights.map((weight) => (weight / (total || 1)) * usable);
-                  const grown = raw.reduce((sum, value) => sum + Math.max(value, 28), 0) || 1;
-                  const widths = raw.map((value) => Math.max(28, value) * (usable / grown));
-                  let cursor = 0;
-                  return widths.map((width, index) => {
-                    const x = cursor;
-                    cursor += width + gap;
-                    const kind = blockFor(macro.steps[index].stepType);
-                    const selected = index === selectedStepIdx;
-                    const actual = runReport?.macroId === macro.id
-                      ? runReport.stepResults.find((result) => result.stepId === macro.steps[index].id)
-                      : undefined;
-                    const actualWidth = actual ? Math.max(8, Math.min(width, (actual.elapsedMs / (total || 1)) * usable)) : width * 0.35;
-                    return (
-                      <g key={macro.steps[index].id} onClick={() => onSelectStep(index)} className="cursor-pointer">
-                        <rect x={x} y={8} width={width} height={28} rx={6} fill={kind.color} fillOpacity={selected ? 0.3 : 0.14} stroke={kind.color} strokeOpacity={selected ? 0.9 : 0} />
-                        <rect x={x} y={8} width={3} height={28} rx={1.5} fill={kind.color} />
-                        <text x={x + 10} y={26} fill={kind.color} fontSize="11" fontWeight="600">
-                          {width > 64 ? kind.title : String(index + 1)}
-                        </text>
-                        <rect
-                          x={x}
-                          y={44}
-                          width={actualWidth}
-                          height={8}
-                          rx={4}
-                          fill={actual ? (actual.status === "Passed" ? "var(--status-success)" : "var(--status-error)") : "var(--border-subtle)"}
-                        />
-                        <text x={x} y={70} fill="var(--text-muted)" fontSize="10">
-                          {formatMs(actual?.elapsedMs ?? weights[index])}
-                        </text>
-                      </g>
-                    );
-                  });
-                })()}
-              </svg>
-              <div className="text-[10.5px] text-[var(--text-muted)]">Top bars are the plan. Bottom bars are the last run.</div>
+              {macro.steps.length === 0 ? (
+                <div className="py-3 text-center text-[11.5px] text-[var(--text-muted)]">
+                  Add blocks below to preview the execution timeline.
+                </div>
+              ) : (
+                <>
+                  <svg viewBox="0 0 640 78" className="w-full h-[78px]" aria-label="Macro execution timeline">
+                    {(() => {
+                      const gap = 8;
+                      const usable = 640 - gap * Math.max(0, weights.length - 1);
+                      const raw = weights.map((weight) => (weight / (total || 1)) * usable);
+                      const grown = raw.reduce((sum, value) => sum + Math.max(value, 28), 0) || 1;
+                      const widths = raw.map((value) => Math.max(28, value) * (usable / grown));
+                      let cursor = 0;
+                      return widths.map((width, index) => {
+                        const x = cursor;
+                        cursor += width + gap;
+                        const kind = blockFor(macro.steps[index].stepType);
+                        const selected = index === selectedStepIdx;
+                        const actual = runReport?.macroId === macro.id
+                          ? runReport.stepResults.find((result) => result.stepId === macro.steps[index].id)
+                          : undefined;
+                        const actualWidth = actual ? Math.max(8, Math.min(width, (actual.elapsedMs / (total || 1)) * usable)) : width * 0.35;
+                        return (
+                          <g key={macro.steps[index].id} onClick={() => onSelectStep(index)} className="cursor-pointer hover:opacity-90 transition-opacity">
+                            <rect x={x} y={8} width={width} height={28} rx={6} fill={kind.color} fillOpacity={selected ? 0.3 : 0.14} stroke={kind.color} strokeOpacity={selected ? 0.9 : 0} />
+                            <rect x={x} y={8} width={3} height={28} rx={1.5} fill={kind.color} />
+                            <text x={x + 10} y={26} fill={kind.color} fontSize="11" fontWeight="600">
+                              {width > 64 ? kind.title : String(index + 1)}
+                            </text>
+                            <rect
+                              x={x}
+                              y={44}
+                              width={actualWidth}
+                              height={8}
+                              rx={4}
+                              fill={actual ? (actual.status === "Passed" ? "var(--status-success)" : "var(--status-error)") : "var(--border-subtle)"}
+                            />
+                            <text x={x} y={70} fill="var(--text-muted)" fontSize="10">
+                              {formatMs(actual?.elapsedMs ?? weights[index])}
+                            </text>
+                          </g>
+                        );
+                      });
+                    })()}
+                  </svg>
+                  <div className="text-[10.5px] text-[var(--text-muted)]">Top bars are the plan. Bottom bars are the last run.</div>
+                </>
+              )}
             </div>
 
             <div className="relative pl-8 flex flex-col gap-0">
@@ -272,12 +280,12 @@ export const MacroStudio: React.FC<{
                     <button
                       type="button"
                       onClick={() => onSelectStep(index)}
-                      className={`w-full text-left rounded-2xl border p-3 mb-3 cursor-pointer transition-colors ${
-                        selected ? "bg-[var(--bg-elevated)] border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]" : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
+                      className={`w-full text-left rounded-2xl border p-3 mb-3 cursor-pointer transition-all ${
+                        selected ? "bg-[var(--bg-elevated)] border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)] shadow-md" : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:-translate-y-[0.5px]"
                       }`}
                     >
                       <span
-                        className="absolute -left-8 top-4 w-4 h-4 rounded-full border-2 border-[var(--bg-app)]"
+                        className={`absolute -left-8 top-4 w-4 h-4 rounded-full border-2 border-[var(--bg-app)] transition-transform ${selected ? "scale-110 ring-2 ring-[var(--accent-primary)]/40" : ""}`}
                         style={{ background: kind.color }}
                       />
                       <div className="flex items-center gap-3">
@@ -493,11 +501,19 @@ export const MacroStudio: React.FC<{
           </button>
         )}
         {runReport && runReport.macroId === macro?.id && (
-          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-app)] p-2.5 text-[11px] font-mono text-[var(--text-secondary)]">
+          <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-app)] p-2.5 text-[11px] font-mono text-[var(--text-secondary)] flex flex-col gap-1">
             {runReport.stepResults.map((result) => (
-              <div key={result.stepId} className="py-0.5">
-                <span className={result.status === "Passed" ? "text-[var(--status-success)]" : "text-[var(--status-error)]"}>{result.status}</span>{" "}
-                {result.detail}
+              <div key={result.stepId} className="flex items-start gap-2 py-0.5">
+                <span
+                  className={`shrink-0 px-1.5 py-0.5 rounded text-[9.5px] font-semibold ${
+                    result.status === "Passed"
+                      ? "bg-[var(--status-success)]/15 text-[var(--status-success)]"
+                      : "bg-[var(--status-error)]/15 text-[var(--status-error)]"
+                  }`}
+                >
+                  {result.status}
+                </span>
+                <span className="min-w-0 break-words leading-snug">{result.detail}</span>
               </div>
             ))}
           </div>
