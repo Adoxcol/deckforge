@@ -1,5 +1,6 @@
-// DeckForge website behaviour: the interactive deck, the editor screen tabs,
-// the copy button, and the latest-release lookup. Everything degrades to plain links.
+// DeckForge website behaviour: the interactive deck, the editor screen tabs, the copy button,
+// and the release lookup behind the Download buttons and the changelog. Everything degrades to
+// plain links.
 
 const REPO = "Adoxcol/deckforge";
 
@@ -322,41 +323,48 @@ function initCopy() {
 }
 
 /* ------------------------------------------------------------------ */
-/* Latest release: point Download straight at the installer            */
+/* Releases: one GitHub request feeds the version pill, the Download   */
+/* buttons and the changelog. Without it, the static links still work. */
 /* ------------------------------------------------------------------ */
 
-async function initRelease() {
-  const CACHE_KEY = "deckforge-release";
-  const CACHE_MS = 60 * 60 * 1000;
-  let release = null;
+const CHANGELOG_COUNT = 3;
 
+async function loadReleases() {
+  const CACHE_KEY = "deckforge-releases-v2";
+  const CACHE_MS = 60 * 60 * 1000;
   try {
     const cached = JSON.parse(sessionStorage.getItem(CACHE_KEY) ?? "null");
-    if (cached && Date.now() - cached.at < CACHE_MS) release = cached.release;
+    if (cached && Date.now() - cached.at < CACHE_MS && Array.isArray(cached.releases)) return cached.releases;
   } catch {}
 
-  if (!release) {
-    try {
-      const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, {
-        headers: { Accept: "application/vnd.github+json" },
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      const installer = data.assets?.find((a) => /-setup\.exe$/i.test(a.name));
-      release = {
-        tag: data.tag_name,
-        url: data.html_url,
+  // The html media type returns each release's notes as `body_html`, rendered by GitHub.
+  const res = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=6`, {
+    headers: { Accept: "application/vnd.github.html+json" },
+  });
+  if (!res.ok) throw new Error(`GitHub answered ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error("Unexpected releases response");
+  const releases = data
+    .filter((r) => !r.draft && r.tag_name)
+    .map((r) => {
+      const installer = r.assets?.find((a) => /-setup\.exe$/i.test(a.name));
+      return {
+        tag: r.tag_name,
+        url: r.html_url,
+        date: r.published_at,
+        prerelease: Boolean(r.prerelease),
+        notes: r.body_html ?? "",
         installer: installer ? { url: installer.browser_download_url, size: installer.size } : null,
       };
-      try {
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), release }));
-      } catch {}
-    } catch {
-      return; // Offline or rate-limited: the static links to the releases page still work.
-    }
-  }
+    });
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), releases }));
+  } catch {}
+  return releases;
+}
 
-  if (!release?.tag) return;
+function showLatest(release) {
+  if (!release) return;
   const link = $("[data-release-link]");
   if (link) {
     link.href = release.url;
@@ -369,7 +377,118 @@ async function initRelease() {
   }
 }
 
+// Release notes are HTML from the GitHub API. Rather than trusting it, rebuild it from an allowlist:
+// only these elements survive, links keep only an http(s) href, and every other attribute is
+// dropped. Unknown wrappers are unwrapped to their text; risky elements are removed with their content.
+const NOTE_TAGS = {
+  p: "p", ul: "ul", ol: "ol", li: "li", strong: "strong", b: "strong", em: "em", i: "em",
+  code: "code", pre: "pre", blockquote: "blockquote", br: "br", del: "del", a: "a",
+  // Each release is an h3, so headings inside its notes start at h4.
+  h1: "h4", h2: "h4", h3: "h4", h4: "h5", h5: "h5", h6: "h5",
+};
+const NOTE_DROP = new Set([
+  "script", "style", "iframe", "frame", "object", "embed", "img", "picture", "video", "audio", "source",
+  "svg", "math", "form", "input", "button", "select", "textarea", "template", "noscript", "link", "meta",
+]);
+
+function cleanNotes(html) {
+  const doc = new DOMParser().parseFromString(html, "text/html"); // inert: nothing in it runs or loads
+  const out = document.createDocumentFragment();
+  const copy = (from, to) => {
+    for (const node of from.childNodes) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        to.append(node.textContent);
+        continue;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) continue;
+      const name = node.localName;
+      if (NOTE_DROP.has(name)) continue;
+      const tag = NOTE_TAGS[name];
+      if (!tag) {
+        copy(node, to);
+        continue;
+      }
+      const el = document.createElement(tag);
+      if (tag === "a") {
+        let url = null;
+        try {
+          url = new URL(node.getAttribute("href") ?? "", `https://github.com/${REPO}/`);
+        } catch {}
+        if (!url || (url.protocol !== "https:" && url.protocol !== "http:")) {
+          copy(node, to);
+          continue;
+        }
+        el.href = url.href;
+        el.rel = "noopener nofollow";
+      }
+      copy(node, el);
+      to.append(el);
+    }
+  };
+  copy(doc.body, out);
+  return out;
+}
+
+const dateFormat = new Intl.DateTimeFormat("en", { day: "numeric", month: "short", year: "numeric" });
+
+function showChangelog(releases, latest) {
+  const box = $("[data-changelog]");
+  if (!box || !releases.length) return;
+  const list = document.createElement("ol");
+  list.className = "changelog-list";
+  for (const release of releases.slice(0, CHANGELOG_COUNT)) {
+    const item = document.createElement("li");
+    item.className = "release";
+
+    const meta = document.createElement("div");
+    meta.className = "release-meta";
+    const heading = document.createElement("h3");
+    heading.className = "release-tag";
+    const link = document.createElement("a");
+    link.href = release.url;
+    link.textContent = release.tag;
+    heading.append(link);
+    meta.append(heading);
+    if (release === latest || release.prerelease) {
+      const badge = document.createElement("span");
+      badge.className = release.prerelease ? "release-badge is-pre" : "release-badge";
+      badge.textContent = release.prerelease ? "Pre-release" : "Latest";
+      meta.append(badge);
+    }
+    const when = new Date(release.date);
+    if (!Number.isNaN(when.getTime())) {
+      const time = document.createElement("time");
+      time.dateTime = release.date;
+      time.textContent = dateFormat.format(when);
+      meta.append(time);
+    }
+
+    const notes = document.createElement("div");
+    notes.className = "release-notes";
+    notes.append(cleanNotes(release.notes));
+    if (!notes.textContent.trim()) notes.textContent = "No notes for this release.";
+
+    item.append(meta, notes);
+    list.append(item);
+  }
+  box.replaceChildren(list);
+}
+
+async function initReleases() {
+  const box = $("[data-changelog]");
+  try {
+    const releases = await loadReleases();
+    const latest = releases.find((r) => !r.prerelease);
+    showLatest(latest);
+    showChangelog(releases, latest);
+  } catch {
+    // Offline or rate-limited: the static links to the releases page stay in place.
+  } finally {
+    box?.setAttribute("aria-busy", "false");
+  }
+}
+
 initDeck();
 initTabs();
 initCopy();
-initRelease();
+initReleases();

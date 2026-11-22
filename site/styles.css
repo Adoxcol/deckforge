@@ -478,6 +478,47 @@ p { margin: 0; }
 .terminal pre .c { color: var(--muted); }
 .terminal-note { padding: 12px 20px 16px; border-top: 1px solid var(--border); color: var(--muted); font-size: 13.5px; }
 
+/* Changelog (filled from GitHub releases) */
+.changelog-fallback { padding: 28px 0; border-top: 1px solid var(--border); color: var(--text-2); font-size: 16px; }
+.changelog-list { list-style: none; margin: 0; padding: 0; }
+.release { display: grid; gap: 14px; padding-block: 32px; border-top: 1px solid var(--border); }
+.release:first-child { padding-top: 28px; }
+@media (min-width: 900px) {
+  .release { grid-template-columns: 15rem minmax(0, 1fr); gap: 48px; }
+}
+.release-meta { display: flex; flex-wrap: wrap; align-items: center; align-content: start; gap: 8px 12px; }
+@media (min-width: 900px) {
+  .release-meta { flex-direction: column; align-items: flex-start; }
+}
+.release-tag { font: 600 22px/1.2 var(--mono); letter-spacing: -0.02em; }
+.release-tag a { color: var(--text); }
+.release-tag a:hover { color: var(--accent-text); }
+.release-badge {
+  font: 500 12px/1 var(--mono); padding: 5px 9px; border-radius: 999px;
+  color: var(--ok); background: rgb(63 200 138 / 0.1); border: 1px solid rgb(63 200 138 / 0.3);
+}
+.release-badge.is-pre { color: var(--warn); background: rgb(233 182 99 / 0.1); border-color: rgb(233 182 99 / 0.3); }
+.release-meta time { color: var(--muted); font-size: 14px; }
+.release-notes { min-width: 0; max-width: 46rem; color: var(--text-2); font-size: 15.5px; line-height: 1.65; overflow-wrap: anywhere; }
+.release-notes h4, .release-notes h5 { margin: 22px 0 10px; font: 500 13px/1.4 var(--mono); color: var(--accent-text); }
+.release-notes h5 { color: var(--text-2); }
+.release-notes > :first-child { margin-top: 0; }
+.release-notes p, .release-notes ul, .release-notes ol, .release-notes pre, .release-notes blockquote { margin: 0 0 12px; }
+.release-notes > :last-child { margin-bottom: 0; }
+.release-notes ul, .release-notes ol { padding-left: 1.25em; }
+.release-notes ul { list-style: disc; }
+.release-notes ol { list-style: decimal; }
+.release-notes li + li { margin-top: 6px; }
+.release-notes li::marker { color: var(--muted); }
+.release-notes strong { color: var(--text); font-weight: 600; }
+.release-notes a { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgb(180 184 252 / 0.4); }
+.release-notes pre { padding: 12px 14px; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-md); background: #0a0b0d; }
+.release-notes pre code { padding: 0; border: 0; background: none; }
+.release-notes blockquote { padding-left: 14px; border-left: 2px solid var(--border-strong); color: var(--muted); }
+.changelog-more { margin-top: 8px; padding-top: 24px; border-top: 1px solid var(--border); }
+.changelog-more a { display: inline-flex; align-items: center; gap: 8px; font-weight: 500; }
+.changelog-more .icon { font-size: 16px; }
+
 /* Final CTA */
 .final { padding-block: clamp(80px, 11vw, 140px); text-align: center; position: relative; isolation: isolate; overflow: hidden; }
 .final::before {

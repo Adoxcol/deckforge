@@ -32,9 +32,16 @@ Then open http://localhost:8080.
 
 ## Things that update themselves
 
-- **Download buttons** link to the releases page. On load, `main.js` asks the GitHub API for the
-  latest release and points them straight at the `*-setup.exe` installer, with its version and size.
-  If the API is unreachable or rate-limited, the releases-page link stays.
+On load, `main.js` makes one GitHub API request for the six most recent releases (cached for an
+hour per browser tab) and uses it for both of these. If the API is unreachable or rate-limited,
+the static links to the releases page stay.
+
+- **Download buttons and the version pill** point straight at the newest full release's
+  `*-setup.exe` installer, with its version and size. Pre-releases are never offered as the download.
+- **Changelog ("What's new")** shows the three newest releases with their notes, which GitHub
+  renders to HTML. `main.js` rebuilds those notes from an allowlist (paragraphs, lists, headings,
+  emphasis, code, quotes and http(s) links) and drops everything else, so release notes can't run
+  scripts, load anything, or restyle the page. Change `CHANGELOG_COUNT` to show more or fewer.
 
 ## Things to update by hand
 
