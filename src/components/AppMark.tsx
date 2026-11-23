@@ -53,15 +53,14 @@ export const AppMark: React.FC<{ name: string; path?: string; size?: number }> =
   const stem = stemOf(name, path);
   const exe = exeOf(stem);
   const slug = BRAND_SLUG[stem];
-  const [src, setSrc] = React.useState<string | null>(null);
-  const [brand, setBrand] = React.useState<Brand | null>(null);
+  const [src, setSrc] = React.useState<{ exe: string; url: string | null } | null>(null);
+  const [brand, setBrand] = React.useState<{ slug: string; icon: Brand | null } | null>(null);
 
   React.useEffect(() => {
     let alive = true;
-    setSrc(null);
     if (!exe) return;
     loadAppIcon(exe).then((url) => {
-      if (alive) setSrc(url);
+      if (alive) setSrc({ exe, url });
     }).catch(() => {});
     return () => {
       alive = false;
@@ -72,13 +71,15 @@ export const AppMark: React.FC<{ name: string; path?: string; size?: number }> =
     if (!slug) return;
     let alive = true;
     brandMap().then((map) => {
-      if (alive) setBrand(map.get(slug) ?? null);
+      if (alive) setBrand({ slug, icon: map.get(slug) ?? null });
     });
     return () => {
       alive = false;
     };
   }, [slug]);
 
+  const shownSrc = src?.exe === exe ? src.url : null;
+  const shownBrand = brand?.slug === slug ? brand.icon : null;
   const letter = (stem || name || "?").charAt(0).toUpperCase();
   const hue = [...stem].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 
@@ -88,16 +89,16 @@ export const AppMark: React.FC<{ name: string; path?: string; size?: number }> =
       style={{
         width: size,
         height: size,
-        background: src || brand ? "var(--bg-elevated)" : `hsl(${hue} 42% 24%)`,
+        background: shownSrc || shownBrand ? "var(--bg-elevated)" : `hsl(${hue} 42% 24%)`,
         color: `hsl(${hue} 75% 84%)`,
       }}
       aria-hidden
     >
-      {src ? (
-        <img src={src} alt="" className="w-full h-full object-contain" draggable={false} />
-      ) : brand ? (
+      {shownSrc ? (
+        <img src={shownSrc} alt="" className="w-full h-full object-contain" draggable={false} />
+      ) : shownBrand ? (
         <svg viewBox="0 0 24 24" width={Math.round(size * 0.68)} height={Math.round(size * 0.68)} aria-hidden>
-          <path d={brand.path} fill={`#${brand.hex}`} />
+          <path d={shownBrand.path} fill={`#${shownBrand.hex}`} />
         </svg>
       ) : (
         <span className="font-semibold leading-none" style={{ fontSize: Math.max(10, Math.round(size * 0.48)) }}>{letter}</span>
