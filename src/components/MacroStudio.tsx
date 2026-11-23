@@ -165,7 +165,7 @@ export const MacroStudio: React.FC<{
         })}
       </aside>
 
-      <main className="overflow-y-auto p-5 flex flex-col gap-4 df-dot-grid">
+      <main className="min-h-0 overflow-y-auto p-5 flex flex-col gap-4 df-dot-grid">
         {macro && (
           <>
             <div className="flex items-start justify-between gap-4">
@@ -230,7 +230,20 @@ export const MacroStudio: React.FC<{
                           : undefined;
                         const actualWidth = actual ? Math.max(8, Math.min(width, (actual.elapsedMs / (total || 1)) * usable)) : width * 0.35;
                         return (
-                          <g key={macro.steps[index].id} onClick={() => onSelectStep(index)} className="cursor-pointer hover:opacity-90 transition-opacity">
+                          <g
+                            key={macro.steps[index].id}
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`Block ${index + 1}: ${kind.title}`}
+                            onClick={() => onSelectStep(index)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                onSelectStep(index);
+                              }
+                            }}
+                            className="cursor-pointer hover:opacity-90 transition-opacity focus:outline-none"
+                          >
                             <rect x={x} y={8} width={width} height={28} rx={6} fill={kind.color} fillOpacity={selected ? 0.3 : 0.14} stroke={kind.color} strokeOpacity={selected ? 0.9 : 0} />
                             <rect x={x} y={8} width={3} height={28} rx={1.5} fill={kind.color} />
                             <text x={x + 10} y={26} fill={kind.color} fontSize="11" fontWeight="600">
@@ -272,6 +285,7 @@ export const MacroStudio: React.FC<{
                   <div key={item.id} className="relative">
                     <button
                       type="button"
+                      aria-pressed={selected}
                       onClick={() => onSelectStep(index)}
                       className={`w-full text-left rounded-2xl border p-3 mb-3 cursor-pointer transition-all ${
                         selected ? "bg-[var(--bg-elevated)] border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)] shadow-md" : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:-translate-y-[0.5px]"
@@ -300,7 +314,7 @@ export const MacroStudio: React.FC<{
               })}
             </div>
 
-            <div className="sticky bottom-0 rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-sidebar)]/95 backdrop-blur p-2 shadow-xl flex flex-wrap gap-1.5">
+            <div className="sticky bottom-0 mt-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-sidebar)]/95 backdrop-blur-md p-2 shadow-xl flex flex-wrap gap-1.5">
               {BLOCKS.map((kind) => (
                 <button
                   key={kind.type}

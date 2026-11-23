@@ -244,7 +244,15 @@ export const App: React.FC = () => {
         const status = saveStatuses[name] ?? savedStatus;
         if (!status.pending) return null;
         return (
-          <div key={name} role={status.error ? "alert" : "status"} className="px-4 py-1.5 text-[11.5px] bg-[var(--accent-soft)] border-b border-[var(--accent-primary)]/30 text-[var(--status-warning)] flex items-center gap-2.5 shrink-0">
+          <div
+            key={name}
+            role={status.error ? "alert" : "status"}
+            className={`px-4 py-1.5 text-[11.5px] border-b flex items-center gap-2.5 shrink-0 ${
+              status.error
+                ? "bg-[var(--status-warning)]/10 border-[var(--status-warning)]/30 text-[var(--status-warning)]"
+                : "bg-[var(--accent-soft)] border-[var(--accent-primary)]/30 text-[var(--accent-text)]"
+            }`}
+          >
             <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-current animate-pulse" />
             <span className="truncate">{status.error ? `${name} not saved: ${status.error}. Your edits remain in this session.` : `Saving ${name.toLowerCase()}…`}</span>
             {status.error && <button type="button" className="ml-auto shrink-0 px-2.5 py-0.5 rounded-md border border-[var(--status-warning)]/40 bg-[var(--status-warning)]/10 text-[var(--status-warning)] hover:bg-[var(--status-warning)]/20 hover:text-white font-semibold cursor-pointer transition-colors" onClick={queue.retry}>Retry save</button>}
@@ -274,7 +282,7 @@ export const App: React.FC = () => {
         <div
           role="status"
           aria-live="polite"
-          className={`fixed bottom-14 right-5 z-[95] flex items-center gap-2.5 pl-3 pr-2 py-2.5 rounded-xl bg-[var(--bg-elevated)]/95 backdrop-blur-md border shadow-[0_12px_32px_rgba(0,0,0,0.55)] text-[12.5px] font-medium text-[var(--text-primary)] max-w-md animate-slide-up ${
+          className={`fixed bottom-14 right-5 z-[95] flex items-center gap-2.5 pl-2.5 pr-2 py-2 rounded-xl bg-[var(--bg-elevated)]/95 backdrop-blur-md border shadow-[0_12px_32px_rgba(0,0,0,0.55)] text-[12.5px] font-medium text-[var(--text-primary)] max-w-md animate-slide-up ${
             toastMessage.kind === "warning"
               ? "border-[var(--status-warning)]/45"
               : toastMessage.kind === "info"
@@ -282,13 +290,23 @@ export const App: React.FC = () => {
               : "border-[var(--status-success)]/40"
           }`}
         >
-          {toastMessage.kind === "warning" ? (
-            <AlertTriangle size={15} className="shrink-0 text-[var(--status-warning)]" />
-          ) : toastMessage.kind === "info" ? (
-            <Info size={15} className="shrink-0 text-[var(--accent-text)]" />
-          ) : (
-            <CheckCircle2 size={15} className="shrink-0 text-[var(--status-success)]" />
-          )}
+          <span
+            className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+              toastMessage.kind === "warning"
+                ? "bg-[var(--status-warning)]/15 text-[var(--status-warning)]"
+                : toastMessage.kind === "info"
+                ? "bg-[var(--accent-soft)] text-[var(--accent-text)]"
+                : "bg-[var(--status-success)]/15 text-[var(--status-success)]"
+            }`}
+          >
+            {toastMessage.kind === "warning" ? (
+              <AlertTriangle size={14} />
+            ) : toastMessage.kind === "info" ? (
+              <Info size={14} />
+            ) : (
+              <CheckCircle2 size={14} />
+            )}
+          </span>
           <span className="leading-snug">{toastMessage.text}</span>
           {toastMessage.action && (
             <button
@@ -381,7 +399,7 @@ export const App: React.FC = () => {
           </span>
         </div>
         {/* Right Controls */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 shrink-0">
           {telemetry?.officialStreamdockRunning && (
             <span
               title="AJAZZ detected. Close it, then choose Use DeckForge in the status bar."
@@ -395,9 +413,9 @@ export const App: React.FC = () => {
             type="button"
             onClick={handleImportLegacyProfiles}
             title="Parse & Import Legacy .sdProfile Configurations from %APPDATA%\HotSpot\StreamDock\profiles"
-            className="h-8 px-2.5 rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-panel)]/70 hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] text-[12px] font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
+            className="h-8 px-2.5 shrink-0 whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-panel)]/70 hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] text-[12px] font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
           >
-            <Download size={13} />
+            <Download size={13} className="shrink-0" />
             <span>Import from Stream Dock</span>
           </button>
           <span className="w-px h-4 bg-[var(--border-subtle)] mx-0.5" aria-hidden />

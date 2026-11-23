@@ -44,8 +44,8 @@ export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: s
       <p className="px-3 py-1.5 text-[11px] font-semibold tracking-wide text-[var(--text-muted)]">Preferences</p>
       {sections.map(({ id, name, hint, icon: Icon }) => <button type="button" key={id} onClick={() => setSection(id)}
         aria-current={section === id ? "page" : undefined} aria-controls="settings-content"
-        className={`w-full flex items-start gap-3 text-left rounded-lg px-3 py-2.5 border cursor-pointer transition-colors ${section === id ? "border-[var(--accent-primary)]/45 bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"}`}>
-        <Icon size={16} className="mt-0.5 shrink-0" /><span><span className="block text-xs font-semibold">{name}</span><span className="block text-[10.5px] text-[var(--text-secondary)] mt-0.5">{hint}</span></span>
+        className={`w-full flex items-start gap-3 text-left rounded-lg px-3 py-2.5 border cursor-pointer transition-colors ${section === id ? "border-[var(--accent-primary)]/45 bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:border-[var(--border-subtle)] hover:text-[var(--text-primary)]"}`}>
+        <Icon size={16} className={`mt-0.5 shrink-0 ${section === id ? "text-[var(--accent-text)]" : ""}`} /><span><span className="block text-xs font-semibold">{name}</span><span className="block text-[10.5px] text-[var(--text-secondary)] mt-0.5">{hint}</span></span>
       </button>)}
     </nav>
     <main id="settings-content" aria-labelledby="settings-heading" className="min-h-0 overflow-y-auto p-6 lg:p-8">
@@ -67,7 +67,7 @@ export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: s
           </section>
           <section className={card} aria-labelledby="default-profile-heading">
             <h2 id="default-profile-heading" className="font-semibold text-[var(--text-primary)]">Default profile on launch</h2>
-            <select aria-label="Default profile on launch" className="w-full h-9 rounded-lg border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)] outline-none cursor-pointer transition-colors" value={startupProfileId ?? ""} onChange={async e => {
+            <select aria-label="Default profile on launch" className="w-full h-9 rounded-lg border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] bg-[var(--bg-input)] px-3 text-sm text-[var(--text-primary)] outline-none cursor-pointer transition-colors" value={startupProfileId ?? ""} onChange={async e => {
               const id = e.target.value || null;
               try { await onStartupProfileChange(id); setStartupProfileError(null); }
               catch (err) { setStartupProfileError(String(err)); }

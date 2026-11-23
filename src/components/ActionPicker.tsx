@@ -27,6 +27,7 @@ export const ActionPicker: React.FC<{
   const [rect, setRect] = React.useState<{ left: number; top: number; width: number } | null>(null);
   const buttonRef = React.useRef<HTMLButtonElement>(null);
   const listRef = React.useRef<HTMLDivElement>(null);
+  const pickerId = React.useId();
 
   const current = choices.find((choice) => choice.id === value);
   const filtered = React.useMemo(() => choices.filter((choice) => matchesQuery(choice, query)), [choices, query]);
@@ -128,7 +129,7 @@ export const ActionPicker: React.FC<{
             <div className="fixed inset-0 z-[90]" onMouseDown={() => setOpen(false)} />
             <div
               className="fixed z-[91] flex flex-col rounded-xl border border-[var(--border-strong)] bg-[var(--bg-panel)]/95 backdrop-blur-md shadow-2xl overflow-hidden animate-pop-in"
-              style={{ left: Math.min(rect.left, window.innerWidth - rect.width - 8), top: rect.top, width: rect.width, maxHeight: PANEL_HEIGHT }}
+              style={{ left: Math.max(8, Math.min(rect.left, window.innerWidth - rect.width - 8)), top: rect.top, width: rect.width, maxHeight: PANEL_HEIGHT }}
               onKeyDown={onKey}
             >
               <div className="flex items-center gap-2 px-2.5 h-9 border-b border-[var(--border-subtle)]">
@@ -136,6 +137,7 @@ export const ActionPicker: React.FC<{
                 <input
                   autoFocus
                   aria-label="Search actions"
+                  aria-activedescendant={flat[cursor] ? `${pickerId}-opt-${cursor}` : undefined}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search actions…"
@@ -167,6 +169,7 @@ export const ActionPicker: React.FC<{
                       const selected = choice.id === value;
                       return (
                         <button
+                          id={`${pickerId}-opt-${i}`}
                           key={choice.id}
                           type="button"
                           role="option"

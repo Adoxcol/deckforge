@@ -69,7 +69,7 @@
   }
 
   button:active:not(:disabled) {
-    transform: translateY(0.5px);
+    translate: 0 0.5px;
   }
 
   button:focus-visible,
@@ -88,7 +88,12 @@
   select.outline-none:focus-visible,
   textarea.outline-none:focus-visible {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(124, 131, 247, 0.25);
+    box-shadow: 0 0 0 2px rgba(124, 131, 247, 0.28);
+  }
+
+  select option {
+    background-color: var(--bg-panel);
+    color: var(--text-primary);
   }
 
   .focus-ring-none:focus-visible {
@@ -225,9 +230,11 @@
 }
 
 .df-dot-grid {
-  background-color: #0b0d14;
-  background-image: radial-gradient(rgba(255, 255, 255, 0.042) 1px, transparent 1px);
-  background-size: 18px 18px;
+  background-color: var(--bg-app);
+  background-image:
+    radial-gradient(ellipse 65% 45% at 50% 0%, rgba(124, 131, 247, 0.05), transparent 70%),
+    radial-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+  background-size: 100% 100%, 18px 18px;
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -100,14 +100,14 @@ export const BrandIconPicker: React.FC<{ onPick: (file: File, icon: BrandIcon) =
           ))}
         </div>
       </div>
-      <div className="flex items-center gap-2 h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 transition-all">
+      <div className="flex items-center gap-2 h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 transition-all">
         <Search size={13} className="text-[var(--text-muted)] shrink-0" />
         <input
           aria-label="Search app and brand logos"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search 3,000+ logos (Spotify, Discord…)"
-          className="flex-1 min-w-0 bg-transparent outline-none text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+          className="flex-1 min-w-0 bg-transparent outline-none focus-ring-none text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
         />
         {query && (
           <button

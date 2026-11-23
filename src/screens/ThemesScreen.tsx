@@ -30,18 +30,29 @@ const ThemePreview: React.FC<{ theme: ThemeId; icons: string[] }> = ({ theme, ic
     let raf = 0;
     const color = KEY_THEMES.find((t) => t.id === theme)?.iconColor ?? "#FFFFFF";
     const images: Array<HTMLImageElement | null> = icons.map(() => null);
+    const reducedMotion = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const drawAll = (progress: number) => {
+      refs.current.forEach((canvas, i) => {
+        const ctx = canvas?.getContext("2d");
+        if (ctx) drawThemeFrame(ctx, theme, progress, 112, i + 1, images[i]);
+      });
+    };
     icons.forEach((name, i) =>
       void iconImage({ iconName: name } as KeyConfig, color).then((img) => {
         images[i] = img;
+        if (reducedMotion && alive) drawAll(0.25);
       })
     );
+    if (reducedMotion) {
+      drawAll(0.25);
+      return () => {
+        alive = false;
+      };
+    }
     const loop = () => {
       if (!alive) return;
       frame += 1;
-      refs.current.forEach((canvas, i) => {
-        const ctx = canvas?.getContext("2d");
-        if (ctx) drawThemeFrame(ctx, theme, (frame / 60) % 1, 112, i + 1, images[i]);
-      });
+      drawAll((frame / 60) % 1);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -51,7 +62,7 @@ const ThemePreview: React.FC<{ theme: ThemeId; icons: string[] }> = ({ theme, ic
     };
   }, [theme, icons]);
   return (
-    <div className="flex gap-2 p-2 rounded-xl bg-[var(--bg-app)] border border-[var(--border-subtle)] w-fit">
+    <div className="flex justify-center gap-2.5 p-2.5 rounded-xl bg-[var(--bg-app)] border border-[var(--border-subtle)] w-full">
       {icons.map((name, i) => (
         <canvas key={name} ref={(el) => { refs.current[i] = el; }} width={112} height={112} className="w-16 h-16 rounded-lg border border-[var(--border-strong)]/60 bg-[#0B0D14]" />
       ))}
@@ -163,7 +174,8 @@ export const ThemesScreen: React.FC<{
   };
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 max-w-6xl mx-auto w-full flex flex-col gap-6 animate-screen-in">
+    <div className="flex-1 min-h-0 overflow-y-auto animate-screen-in">
+    <div className="p-6 max-w-6xl mx-auto w-full flex flex-col gap-6">
       <div className="pb-4 border-b border-[var(--border-subtle)]">
         <h1 className="text-xl font-bold flex items-center gap-2"><Sparkles size={18} className="text-[var(--accent-text)]" /> Themes</h1>
         <p className="text-xs text-[var(--text-secondary)] mt-1">
@@ -232,6 +244,7 @@ export const ThemesScreen: React.FC<{
           </div>
         ))}
       </div>
+    </div>
     </div>
   );
 };

@@ -170,7 +170,8 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
   const builtIns = (legacySummary?.discoveredPlugins ?? []).filter((p) => p.sourceKind === "BuiltIn");
 
   return (
-    <div className="flex-1 p-6 overflow-y-auto max-w-6xl mx-auto w-full flex flex-col gap-5 animate-screen-in">
+    <div className="flex-1 min-h-0 overflow-y-auto animate-screen-in">
+    <div className="p-6 max-w-6xl mx-auto w-full flex flex-col gap-5">
       <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-[var(--border-subtle)]">
         <div>
           <h1 className="text-xl font-bold">Plugins</h1>
@@ -321,14 +322,14 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               void search();
             }}
           >
-            <div className="flex-1 flex items-center gap-2 h-9 px-3 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 transition-all">
+            <div className="flex-1 flex items-center gap-2 h-9 px-3 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 transition-all">
               <Search size={14} className="text-[var(--text-muted)] shrink-0" />
               <input
                 aria-label="Search open-source plugins on GitHub"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search open-source plugins on GitHub (obs, spotify, timer…)"
-                className="flex-1 bg-transparent outline-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
+                className="flex-1 bg-transparent outline-none focus-ring-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"
               />
               {query && (
                 <button
@@ -411,7 +412,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
           <div
             role="dialog"
             aria-modal="true"
-            aria-label={`Turn on ${confirming.name}`}
+            aria-labelledby="plugin-confirm-title"
             className="w-full max-w-md rounded-2xl bg-[var(--bg-panel)] border border-[var(--border-strong)] p-5 flex flex-col gap-3 shadow-2xl animate-pop-in"
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -419,7 +420,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               <div className="w-8 h-8 rounded-lg bg-[var(--accent-soft)] border border-[var(--accent-primary)]/35 text-[var(--accent-text)] flex items-center justify-center shrink-0">
                 <Puzzle size={16} />
               </div>
-              <h2 className="text-sm font-bold text-[var(--text-primary)]">Turn on {confirming.name}?</h2>
+              <h2 id="plugin-confirm-title" className="text-sm font-bold text-[var(--text-primary)]">Turn on {confirming.name}?</h2>
             </div>
             <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
               A plugin is its own program. It runs on this PC with your user rights, the same as any app you install, and
@@ -445,6 +446,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };

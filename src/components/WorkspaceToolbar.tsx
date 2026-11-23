@@ -44,7 +44,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
 
       <div className="flex flex-wrap items-center gap-2">
         {/* Device Selector Pill */}
-        {connectedDevices.length > 1 && <div className="flex items-center gap-2 bg-[var(--bg-input)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 rounded-md px-2.5 h-8 transition-all">
+        {connectedDevices.length > 1 && <div className="flex items-center gap-2 bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 rounded-md px-2.5 h-8 transition-all">
           <LayoutGrid size={14} className="text-[var(--text-secondary)] shrink-0" />
           <span className="text-xs text-[var(--text-secondary)]">Device:</span>
           <select
@@ -76,7 +76,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
               onClick={() => setCanvasZoom(z)}
               className={`px-2.5 h-[26px] rounded-[4px] text-[11px] tabular-nums font-medium cursor-pointer transition-all duration-150 border ${
                 canvasZoom === z
-                  ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/45 text-[var(--text-primary)] font-semibold shadow-xs"
+                  ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
                   : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
               }`}
             >

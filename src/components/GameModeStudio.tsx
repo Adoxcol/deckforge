@@ -535,7 +535,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             </button>
           </div>
           {pendingImport && (
-            <div role="dialog" aria-label="Import a mode" className="bg-[var(--accent-soft)] border border-[var(--accent-primary)]/45 rounded-lg px-4 py-3 flex flex-col gap-2">
+            <div role="dialog" aria-label="Import a mode" className="bg-[var(--accent-soft)] border border-[var(--accent-primary)]/45 rounded-lg px-4 py-3 flex flex-col gap-2 animate-pop-in">
               <div className="text-[13px] font-semibold text-[var(--text-primary)]">Import "{pendingImport.mode.name}"?</div>
               <p className="text-[11.5px] text-[var(--text-secondary)] leading-snug">
                 A mode file decides what Game Mode closes and stops on this PC. Read this list first. System programs and your dev tools stay protected no matter what a file says.
@@ -788,7 +788,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                             : "Service running"}
                         </span>
                       ) : (
-                        <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[#1A1F2E] text-[var(--text-muted)] border border-[var(--border-subtle)]">Not running</span>
+                        <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[var(--bg-panel)] text-[var(--text-muted)] border border-[var(--border-subtle)]">Not running</span>
                       )}
                       {t.needsAdmin && (
                         <span className="text-[10.5px] px-1.5 py-0.5 rounded bg-[var(--status-warning)]/10 text-[var(--status-warning)] border border-[var(--status-warning)]/30 flex items-center gap-1">
@@ -1179,18 +1179,21 @@ const StartAppsSection: React.FC<{
         <div className="flex items-center flex-wrap gap-2">
           <div className="relative">
             <button
+              type="button"
+              aria-expanded={picking}
               onClick={() => setPicking((v) => !v)}
-              className="h-8 px-3 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:border-[var(--border-strong)] text-[12px] text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer"
+              className="h-8 px-3 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:border-[var(--border-strong)] text-[12px] text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer transition-colors"
             >
               <Plus size={13} /> Add a running app
             </button>
             {picking && (
               <>
                 <div className="fixed inset-0 z-[90]" onMouseDown={() => setPicking(false)} />
-                <div className="absolute z-[91] left-0 top-9 w-72 max-h-64 overflow-y-auto rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] shadow-2xl py-1">
+                <div className="absolute z-[91] left-0 top-9 w-72 max-h-64 overflow-y-auto rounded-lg border border-[var(--border-strong)] bg-[var(--bg-panel)] shadow-2xl py-1 animate-pop-in">
                   {choices.length === 0 && <div className="px-3 py-4 text-center text-[11.5px] text-[var(--text-muted)]">Open the app first, then pick it here.</div>}
                   {choices.map((p) => (
                     <button
+                      type="button"
                       key={p.path}
                       onClick={() => {
                         add(p.path);

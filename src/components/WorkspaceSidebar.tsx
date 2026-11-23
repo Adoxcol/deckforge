@@ -54,6 +54,10 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
     () => searchBindings(profiles, bindingQuery, macros.map((macro) => ({ id: macro.id, name: macro.name }))),
     [profiles, bindingQuery, macros],
   );
+  const enabledRuleCount = React.useMemo(
+    () => autoSwitchRules.filter((r) => r.enabled).length,
+    [autoSwitchRules],
+  );
 
   React.useEffect(() => {
     if (!pickerOpen) return;
@@ -124,7 +128,12 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
       {/* Profiles Section */}
       <div className="relative flex-1 flex flex-col pt-3.5 border-t border-[var(--border-subtle)]">
         <div className="relative flex items-center justify-between mb-2">
-          <span className="text-[11.5px] font-semibold tracking-wide text-[var(--text-secondary)]">Profiles</span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11.5px] font-semibold tracking-wide text-[var(--text-secondary)]">Profiles</span>
+            <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
+              {profiles.length}
+            </span>
+          </div>
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -161,7 +170,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                   <div
                     role="menu"
                     aria-label="Create profile from template"
-                    className="absolute left-0 right-0 top-full mt-1.5 z-50 max-h-[70vh] overflow-y-auto p-1.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl flex flex-col gap-0.5 animate-pop-in"
+                    className="absolute left-0 w-64 max-w-[calc(100vw-2rem)] top-full mt-1.5 z-50 max-h-[70vh] overflow-y-auto p-1.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl flex flex-col gap-0.5 animate-pop-in"
                   >
                     <div className="px-2 pt-1 pb-1.5 text-[11px] font-medium text-[var(--text-muted)]">Start a new profile from</div>
                     {STARTER_PROFILES.map((starter) => (
@@ -201,7 +210,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
             onChange={(event) => setBindingQuery(event.target.value)}
             placeholder="Find a key, app, or macro"
             aria-label="Find a binding"
-            className="w-full h-8 pl-8 pr-7 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] transition-colors"
+            className="w-full h-8 pl-8 pr-7 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] transition-colors"
           />
           {bindingQuery && (
             <button
@@ -302,7 +311,14 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
           onClick={() => setAppsOpen((open) => !open)}
           className="w-full flex items-center justify-between gap-2 px-1.5 py-1 rounded-md text-left cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]/60 transition-colors"
         >
-          <span className="text-[11.5px] font-semibold tracking-wide">When an app opens</span>
+          <span className="flex items-center gap-1.5">
+            <span className="text-[11.5px] font-semibold tracking-wide">When an app opens</span>
+            {enabledRuleCount > 0 && (
+              <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
+                {enabledRuleCount}
+              </span>
+            )}
+          </span>
           <ChevronRight size={14} className={`shrink-0 transition-transform ${appsOpen ? "rotate-90" : ""}`} />
         </button>
         {appsOpen && (

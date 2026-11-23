@@ -340,7 +340,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                         aria-label={`Custom color for knob ${enc.index + 1}`}
                         value={ledOff ? "#000000" : ledColor}
                         onChange={(e) => onKnobLedChange(enc.index, e.target.value.toUpperCase())}
-                        className="w-6 h-5 bg-transparent border border-[var(--border-subtle)] rounded p-0 cursor-pointer"
+                        className="w-6 h-5 bg-transparent border border-[var(--border-subtle)] hover:border-[var(--border-strong)] rounded p-0 cursor-pointer transition-colors"
                       />
                     </div>
                   </div>
@@ -374,15 +374,15 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                         {ledFollowSleep ? "Turns LEDs off with PC sleep" : "Keeps LEDs on continuously"}
                       </div>
                     </div>
-                    <div role="group" aria-label="LED sleep behavior" className="flex items-center gap-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md shrink-0">
+                    <div role="group" aria-label="LED sleep behavior" className="flex items-center gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md shrink-0">
                       <button
                         type="button"
                         aria-pressed={ledFollowSleep}
                         onClick={() => onLedSleepMode(true)}
-                        className={`h-7 px-2.5 rounded text-[11px] font-medium cursor-pointer transition-colors ${
+                        className={`h-7 px-2.5 rounded-[4px] text-[11px] font-medium cursor-pointer border transition-all ${
                           ledFollowSleep
-                            ? "bg-[var(--accent-soft)] text-white font-semibold"
-                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                            ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
+                            : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
                         }`}
                       >
                         Follow Sleep
@@ -391,10 +391,10 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                         type="button"
                         aria-pressed={!ledFollowSleep}
                         onClick={() => onLedSleepMode(false)}
-                        className={`h-7 px-2.5 rounded text-[11px] font-medium cursor-pointer transition-colors ${
+                        className={`h-7 px-2.5 rounded-[4px] text-[11px] font-medium cursor-pointer border transition-all ${
                           !ledFollowSleep
-                            ? "bg-[var(--accent-soft)] text-white font-semibold"
-                            : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                            ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
+                            : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
                         }`}
                       >
                         Always On
@@ -425,9 +425,9 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                       key={d.id}
                       className="p-2 rounded bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] flex items-center justify-between gap-4"
                     >
-                      <div>
+                      <div className="min-w-0">
                         <span className="text-[var(--accent-primary)] mr-2">[{d.stage}]</span>
-                        <span className="text-[var(--text-primary)]">{d.message}</span>
+                        <span className="text-[var(--text-primary)] break-words">{d.message}</span>
                       </div>
                       {d.packetHex && (
                         <span className="text-[10.5px] text-[var(--status-success)] bg-[var(--bg-panel)] px-2 py-0.5 rounded shrink-0">

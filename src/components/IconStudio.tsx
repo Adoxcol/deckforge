@@ -167,7 +167,7 @@ export const IconStudio: React.FC<{
       </aside>
 
       <main
-        className="overflow-y-auto p-5 flex flex-col items-center gap-5 df-dot-grid"
+        className="min-h-0 overflow-y-auto p-5 flex flex-col items-center gap-5 df-dot-grid"
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
@@ -219,7 +219,7 @@ export const IconStudio: React.FC<{
               type="button"
               aria-pressed={layer === item.id}
               onClick={() => setLayer(item.id)}
-              className={`relative mb-2 w-full rounded-2xl border p-3 text-left cursor-pointer transition-all ${
+              className={`relative mb-2 last:mb-0 w-full rounded-2xl border p-3 text-left cursor-pointer transition-all ${
                 layer === item.id ? "border-[var(--accent-primary)] bg-[var(--bg-elevated)] shadow-md" : "border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:border-[var(--border-strong)] hover:-translate-y-[0.5px]"
               }`}
             >
@@ -296,8 +296,13 @@ export const IconStudio: React.FC<{
                 </div>
                 <button
                   type="button"
+                  aria-pressed={face.media.loopPlayback}
                   onClick={() => onMediaPatch({ loopPlayback: !face.media?.loopPlayback })}
-                  className="h-8 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] cursor-pointer transition-colors"
+                  className={`h-8 rounded-lg border text-xs cursor-pointer transition-colors ${
+                    face.media.loopPlayback
+                      ? "border-[var(--accent-primary)]/45 bg-[var(--accent-soft)] text-[var(--text-primary)] font-medium"
+                      : "border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                  }`}
                 >
                   {face.media.loopPlayback ? "Looping" : "Play once"}
                 </button>

@@ -184,10 +184,10 @@ export const DeckStage = React.memo(function DeckStage({
                   <span
                     aria-hidden
                     title={[k.doublePress && "Double-press set", k.hold && "Hold set"].filter(Boolean).join(" · ")}
-                    className="absolute top-1.5 right-1.5 z-10 flex items-center gap-0.5"
+                    className="absolute top-1.5 right-1.5 z-10 flex items-center gap-1 px-1 py-0.5 rounded-full bg-black/55 backdrop-blur-[2px] border border-white/10"
                   >
-                    {k.doublePress && <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-text)]/90 shadow-xs" />}
-                    {k.hold && <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-warning)]/90 shadow-xs" />}
+                    {k.doublePress && <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-text)]" />}
+                    {k.hold && <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-warning)]" />}
                   </span>
                 )}
                 {clip ? (
@@ -204,7 +204,9 @@ export const DeckStage = React.memo(function DeckStage({
                 ) : (
                   <>
                     <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105"
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105 ${
+                        k.actionId === "none" ? "opacity-70 group-hover:opacity-100" : ""
+                      }`}
                       style={{
                         backgroundColor: `${k.accentColor}22`,
                         border: `1px solid ${k.accentColor}55`,
@@ -214,7 +216,9 @@ export const DeckStage = React.memo(function DeckStage({
                     </div>
                     {k.showTitle && (
                       <span
-                        className={`font-semibold text-[var(--text-primary)] truncate max-w-full leading-tight ${
+                        className={`font-semibold truncate max-w-full leading-tight ${
+                          k.actionId === "none" ? "text-[var(--text-secondary)]" : "text-[var(--text-primary)]"
+                        } ${
                           k.titleSize === "Small"
                             ? "text-[10px]"
                             : k.titleSize === "Large"
@@ -250,7 +254,7 @@ export const DeckStage = React.memo(function DeckStage({
               }}
               className={`h-7 rounded-md border text-[10.5px] font-semibold cursor-pointer transition-colors ${
                 surface === "strip"
-                  ? "border-[var(--accent-primary)] bg-[var(--accent-soft)] text-white"
+                  ? "border-[var(--accent-primary)]/60 bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[0_0_0_1px_rgba(124,131,247,0.2)]"
                   : "border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]"
               }`}
             >
@@ -519,9 +523,9 @@ export const DeckStage = React.memo(function DeckStage({
                   setDropPage(null);
                   if (!Number.isNaN(from)) onMoveKeyToPage(from, idx);
                 }}
-                className={`h-8 px-3 rounded-[var(--radius-sm)] border border-dashed flex items-center text-[12px] ${
+                className={`h-8 px-3 rounded-[var(--radius-sm)] border border-dashed flex items-center text-[12px] transition-all ${
                   dropPage === idx
-                    ? "border-[var(--accent-primary)] bg-[var(--accent-soft)] text-[var(--text-primary)]"
+                    ? "border-[var(--accent-primary)] bg-[var(--accent-soft)] text-[var(--text-primary)] scale-[1.03]"
                     : "border-[var(--border-strong)] text-[var(--text-secondary)]"
                 }`}
               >
@@ -532,7 +536,7 @@ export const DeckStage = React.memo(function DeckStage({
         </div>
       ) : (
       <div className="flex items-center flex-wrap justify-center gap-1.5">
-        <div className="flex items-center bg-[var(--bg-panel)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 rounded-[var(--radius-sm)] h-8 px-1 transition-all">
+        <div className="flex items-center bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 rounded-[var(--radius-sm)] h-8 px-1 transition-all">
           <button
             type="button"
             disabled={selectedPageIdx === 0}

@@ -177,7 +177,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   ? `radial-gradient(circle at 50% 30%, ${activeKey.accentColor}55, ${activeKey.bgColor})`
                   : activeKey.bgColor,
             }}
-            className="relative w-16 h-16 overflow-hidden border border-[var(--accent-primary)]/80 shadow-[0_4px_14px_rgba(0,0,0,0.35)] flex items-center justify-center shrink-0"
+            className="relative w-16 h-16 overflow-hidden border border-[var(--accent-primary)]/80 hover:border-[var(--accent-hover)] shadow-[0_4px_14px_rgba(0,0,0,0.35)] flex items-center justify-center shrink-0 transition-colors"
             onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault();
@@ -211,7 +211,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
               id={titleId}
               value={activeKey.title}
               onChange={(e) => updateSelectedKey({ title: e.target.value })}
-              className="w-full h-9 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
+              className="w-full h-9 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
             />
             {(() => {
               const look = liveKeyLook(activeKey.actionId, activeKey.title, activeKey.iconName, activeKey.media ? null : face, activeKey.actionParam);
@@ -383,14 +383,14 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 </button>
                 <label
                   title="Custom RGB color"
-                  className="col-span-2 h-7 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] flex items-center justify-center gap-1 cursor-pointer hover:border-[var(--accent-primary)] transition-colors"
+                  className="col-span-2 h-7 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 flex items-center justify-center gap-1 cursor-pointer transition-all"
                 >
                   <input
                     type="color"
                     aria-label="Custom knob LED color"
                     value={ledOff ? "#000000" : ledColor}
                     onChange={(e) => onKnobLedChange(activeEncoder.index, e.target.value.toUpperCase())}
-                    className="w-4 h-4 bg-transparent border-0 p-0 cursor-pointer"
+                    className="w-4 h-4 bg-transparent border-0 p-0 cursor-pointer focus-ring-none"
                   />
                   <span className="text-[10.5px] text-[var(--text-secondary)]">Pick</span>
                 </label>
@@ -689,11 +689,11 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                       titleSize: e.target.value as "Small" | "Medium" | "Large",
                     })
                   }
-                  className="w-36 h-8 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
+                  className="w-36 h-8 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
                 >
-                  <option value="Small">Small</option>
-                  <option value="Medium">Medium</option>
-                  <option value="Large">Large</option>
+                  <option value="Small" className="bg-[var(--bg-panel)]">Small</option>
+                  <option value="Medium" className="bg-[var(--bg-panel)]">Medium</option>
+                  <option value="Large" className="bg-[var(--bg-panel)]">Large</option>
                 </select>
               </div>
 
@@ -708,11 +708,11 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                       backgroundStyle: e.target.value as "Gradient" | "Solid" | "Image",
                     })
                   }
-                  className="w-36 h-8 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
+                  className="w-36 h-8 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
                 >
-                  <option value="Gradient">Gradient</option>
-                  <option value="Solid">Solid Surface</option>
-                  <option value="Image">Image / GIF</option>
+                  <option value="Gradient" className="bg-[var(--bg-panel)]">Gradient</option>
+                  <option value="Solid" className="bg-[var(--bg-panel)]">Solid Surface</option>
+                  <option value="Image" className="bg-[var(--bg-panel)]">Image / GIF</option>
                 </select>
               </div>
 

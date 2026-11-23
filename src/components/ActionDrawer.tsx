@@ -136,8 +136,14 @@ export const ActionDrawer = React.memo(function ActionDrawer({
       "info"
     );
   };
+  const assignTargetLabel =
+    surface === "zone" && activeZone
+      ? `Zone #${activeZone.index + 1}`
+      : surface === "encoder" && activeEncoder
+      ? `Knob #${activeEncoder.index + 1}`
+      : `Key #${activeKey.index + 1}`;
   return (
-    <div className={`bg-[var(--bg-sidebar)] border-t border-[var(--border-subtle)] shrink-0 flex flex-col ${open ? "h-[232px]" : ""}`}>
+    <div className={`bg-[var(--bg-sidebar)] border-t border-[var(--border-subtle)] shrink-0 flex flex-col ${open ? "h-[232px] shadow-[0_-8px_24px_rgba(0,0,0,0.28)]" : ""}`}>
       <div className="flex items-center gap-2 px-3 py-2 min-w-0">
         <div className="relative w-44 shrink-0">
           <Search
@@ -155,7 +161,7 @@ export const ActionDrawer = React.memo(function ActionDrawer({
               show();
             }}
             placeholder="Search actions..."
-            className="w-full h-8 pl-8 pr-7 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] transition-colors"
+            className="w-full h-8 pl-8 pr-7 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] transition-colors"
           />
           {actionSearch && (
             <button
@@ -180,10 +186,10 @@ export const ActionDrawer = React.memo(function ActionDrawer({
                   setActionCategoryFilter(cat);
                   show();
                 }}
-                className={`shrink-0 h-7 px-2.5 rounded-md text-[11.5px] cursor-pointer transition-colors inline-flex items-center gap-1 ${
+                className={`shrink-0 h-7 px-2.5 rounded-md text-[11.5px] cursor-pointer transition-all inline-flex items-center gap-1 border ${
                   isAct
-                    ? "bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold"
-                    : "text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"
+                    ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
+                    : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"
                 }`}
               >
                 {cat === "Custom" && <Star size={11} className="shrink-0 text-[var(--accent-text)]" />}
@@ -192,17 +198,22 @@ export const ActionDrawer = React.memo(function ActionDrawer({
             );
           })}
         </div>
-        <button
-          type="button"
-          onClick={() => (open ? hide() : show())}
-          aria-expanded={open}
-          aria-label={open ? "Collapse actions drawer" : "Browse actions"}
-          title={open ? "Collapse actions (Esc)" : "Browse all actions"}
-          className="ml-auto shrink-0 h-7 px-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)]/70 hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] inline-flex items-center gap-1 cursor-pointer transition-colors"
-        >
-          <span className="tabular-nums font-mono text-[10.5px] text-[var(--text-muted)]">{filteredActions.length}</span>
-          {open ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
-        </button>
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
+          <span className="hidden lg:inline-flex items-center px-2 h-6 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[10.5px] font-mono text-[var(--text-muted)]">
+            Target: <span className="ml-1 text-[var(--text-secondary)]">{assignTargetLabel}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => (open ? hide() : show())}
+            aria-expanded={open}
+            aria-label={open ? "Collapse actions drawer" : "Browse actions"}
+            title={open ? "Collapse actions (Esc)" : "Browse all actions"}
+            className="h-7 px-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)]/70 hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] inline-flex items-center gap-1 cursor-pointer transition-colors"
+          >
+            <span className="tabular-nums font-mono text-[10.5px] text-[var(--text-muted)]">{filteredActions.length}</span>
+            {open ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+          </button>
+        </div>
       </div>
 
       {open && (
