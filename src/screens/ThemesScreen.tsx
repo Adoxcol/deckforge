@@ -51,9 +51,9 @@ const ThemePreview: React.FC<{ theme: ThemeId; icons: string[] }> = ({ theme, ic
     };
   }, [theme, icons]);
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 p-2 rounded-xl bg-[var(--bg-app)] border border-[var(--border-subtle)] w-fit">
       {icons.map((name, i) => (
-        <canvas key={name} ref={(el) => { refs.current[i] = el; }} width={112} height={112} className="w-16 h-16 rounded-lg border border-[var(--border-subtle)] bg-[#0B0D14]" />
+        <canvas key={name} ref={(el) => { refs.current[i] = el; }} width={112} height={112} className="w-16 h-16 rounded-lg border border-[var(--border-strong)]/60 bg-[#0B0D14]" />
       ))}
     </div>
   );
@@ -164,7 +164,7 @@ export const ThemesScreen: React.FC<{
 
   return (
     <div className="flex-1 overflow-y-auto p-6 max-w-6xl mx-auto w-full flex flex-col gap-6 animate-screen-in">
-      <div>
+      <div className="pb-4 border-b border-[var(--border-subtle)]">
         <h1 className="text-xl font-bold flex items-center gap-2"><Sparkles size={18} className="text-[var(--accent-text)]" /> Themes</h1>
         <p className="text-xs text-[var(--text-secondary)] mt-1">
           Animated looks for the current page. Each key keeps its own icon on top. Press Apply to Device afterwards to see them on the deck.

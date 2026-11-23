@@ -1,5 +1,5 @@
 import React from "react";
-import { AlertTriangle, Download, HelpCircle, RefreshCw, RotateCcw, RotateCw, Settings, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Download, HelpCircle, Info, RefreshCw, RotateCcw, RotateCw, Settings, X } from "lucide-react";
 import { deckforgeApi } from "./bridge/tauriBridge";
 import { savedStatus } from "./lib/saveQueue";
 import { QuitDialog } from "./components/QuitDialog";
@@ -274,7 +274,7 @@ export const App: React.FC = () => {
         <div
           role="status"
           aria-live="polite"
-          className={`fixed bottom-14 right-5 z-50 flex items-center gap-2.5 pl-3.5 pr-2.5 py-2.5 rounded-xl bg-[var(--bg-elevated)]/95 backdrop-blur-md border shadow-2xl text-[12.5px] font-medium text-[var(--text-primary)] max-w-md animate-slide-up ${
+          className={`fixed bottom-14 right-5 z-[95] flex items-center gap-2.5 pl-3 pr-2 py-2.5 rounded-xl bg-[var(--bg-elevated)]/95 backdrop-blur-md border shadow-[0_12px_32px_rgba(0,0,0,0.55)] text-[12.5px] font-medium text-[var(--text-primary)] max-w-md animate-slide-up ${
             toastMessage.kind === "warning"
               ? "border-[var(--status-warning)]/45"
               : toastMessage.kind === "info"
@@ -282,11 +282,13 @@ export const App: React.FC = () => {
               : "border-[var(--status-success)]/40"
           }`}
         >
-          <span
-            className={`w-2 h-2 rounded-full shrink-0 ${
-              toastMessage.kind === "warning" ? "bg-[var(--status-warning)]" : toastMessage.kind === "info" ? "bg-[var(--accent-primary)]" : "bg-[var(--status-success)]"
-            }`}
-          />
+          {toastMessage.kind === "warning" ? (
+            <AlertTriangle size={15} className="shrink-0 text-[var(--status-warning)]" />
+          ) : toastMessage.kind === "info" ? (
+            <Info size={15} className="shrink-0 text-[var(--accent-text)]" />
+          ) : (
+            <CheckCircle2 size={15} className="shrink-0 text-[var(--status-success)]" />
+          )}
           <span className="leading-snug">{toastMessage.text}</span>
           {toastMessage.action && (
             <button
@@ -295,7 +297,7 @@ export const App: React.FC = () => {
                 toastMessage.action?.run();
                 setToastMessage(null);
               }}
-              className="ml-1 px-2.5 h-6 rounded-[var(--radius-sm)] bg-[var(--accent-soft)] text-[var(--accent-text)] hover:bg-[var(--accent-primary)] hover:text-white font-semibold cursor-pointer shrink-0"
+              className="ml-1 px-2.5 h-6 rounded-[var(--radius-sm)] bg-[var(--accent-soft)] text-[var(--accent-text)] hover:bg-[var(--accent-primary)] hover:text-white font-semibold cursor-pointer shrink-0 transition-colors"
             >
               {toastMessage.action.label}
             </button>
@@ -304,7 +306,7 @@ export const App: React.FC = () => {
             type="button"
             aria-label="Dismiss notification"
             onClick={() => setToastMessage(null)}
-            className="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] cursor-pointer shrink-0"
+            className="p-1 rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] cursor-pointer shrink-0 transition-colors"
           >
             <X size={13} />
           </button>
@@ -360,7 +362,7 @@ export const App: React.FC = () => {
                 <Icon size={18} strokeWidth={isActive ? 2.1 : 1.75} />
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute left-full ml-3 z-50 px-2.5 py-1 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-strong)] shadow-xl text-[11.5px] font-medium text-[var(--text-primary)] whitespace-nowrap opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0 transition-all duration-150"
+                  className="pointer-events-none absolute left-full ml-3 z-50 px-2.5 py-1 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-strong)] shadow-[0_8px_24px_rgba(0,0,0,0.45)] text-[11.5px] font-medium text-[var(--text-primary)] whitespace-nowrap opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0 transition-all duration-150"
                 >
                   {tab.label}
                 </span>
@@ -399,26 +401,28 @@ export const App: React.FC = () => {
             <span>Import from Stream Dock</span>
           </button>
           <span className="w-px h-4 bg-[var(--border-subtle)] mx-0.5" aria-hidden />
-          <button
-            type="button"
-            onClick={handleUndo}
-            disabled={undoStack.length === 0}
-            title="Undo (Ctrl+Z)"
-            aria-label="Undo"
-            className="w-8 h-8 rounded-[var(--radius-sm)] border border-transparent hover:border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] disabled:opacity-35 disabled:hover:border-transparent disabled:hover:bg-transparent disabled:cursor-default cursor-pointer transition-colors"
-          >
-            <RotateCcw size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={handleRedo}
-            disabled={redoStack.length === 0}
-            title="Redo (Ctrl+Y)"
-            aria-label="Redo"
-            className="w-8 h-8 rounded-[var(--radius-sm)] border border-transparent hover:border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] disabled:opacity-35 disabled:hover:border-transparent disabled:hover:bg-transparent disabled:cursor-default cursor-pointer transition-colors"
-          >
-            <RotateCw size={14} />
-          </button>
+          <div className="flex items-center bg-[var(--bg-panel)]/70 border border-[var(--border-subtle)] rounded-[var(--radius-sm)] p-0.5 gap-0.5">
+            <button
+              type="button"
+              onClick={handleUndo}
+              disabled={undoStack.length === 0}
+              title="Undo (Ctrl+Z)"
+              aria-label="Undo"
+              className="w-7 h-7 rounded-[4px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-default cursor-pointer transition-colors"
+            >
+              <RotateCcw size={13.5} />
+            </button>
+            <button
+              type="button"
+              onClick={handleRedo}
+              disabled={redoStack.length === 0}
+              title="Redo (Ctrl+Y)"
+              aria-label="Redo"
+              className="w-7 h-7 rounded-[4px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-default cursor-pointer transition-colors"
+            >
+              <RotateCw size={13.5} />
+            </button>
+          </div>
           <button
             type="button"
             onClick={() => setShowOnboarding(true)}

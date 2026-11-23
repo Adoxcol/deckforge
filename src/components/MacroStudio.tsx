@@ -121,7 +121,7 @@ export const MacroStudio: React.FC<{
   const blockErrorId = React.useId();
 
   return (
-    <div className="flex-1 min-h-0 grid grid-cols-[250px_1fr_300px] overflow-hidden animate-screen-in">
+    <div className="flex-1 min-h-0 grid grid-cols-[232px_minmax(0,1fr)_284px] 2xl:grid-cols-[256px_minmax(0,1fr)_312px] overflow-hidden animate-screen-in">
       <aside className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-3 flex flex-col gap-2 overflow-y-auto">
         <button
           type="button"
@@ -165,14 +165,7 @@ export const MacroStudio: React.FC<{
         })}
       </aside>
 
-      <main
-        className="overflow-y-auto p-5 flex flex-col gap-4"
-        style={{
-          backgroundImage: "radial-gradient(rgba(255,255,255,0.045) 1px, transparent 1px)",
-          backgroundSize: "18px 18px",
-          backgroundColor: "#0B0D14",
-        }}
-      >
+      <main className="overflow-y-auto p-5 flex flex-col gap-4 df-dot-grid">
         {macro && (
           <>
             <div className="flex items-start justify-between gap-4">
@@ -293,10 +286,13 @@ export const MacroStudio: React.FC<{
                           <Glyph size={16} color={kind.color} />
                         </span>
                         <div className="min-w-0 flex-1">
-                          <div className="text-sm font-semibold text-[var(--text-primary)]">{item.label || kind.title}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10.5px] font-mono tabular-nums text-[var(--text-muted)]">#{index + 1}</span>
+                            <span className="text-sm font-semibold text-[var(--text-primary)] truncate">{item.label || kind.title}</span>
+                          </div>
                           <div className="text-[11px] font-mono text-[var(--text-secondary)] truncate">{item.parameter || kind.hint}</div>
                         </div>
-                        <span className="text-[10.5px] font-mono text-[var(--text-muted)]">{formatMs(plannedMs(item))}</span>
+                        <span className="text-[10.5px] font-mono tabular-nums text-[var(--text-muted)]">{formatMs(plannedMs(item))}</span>
                       </div>
                     </button>
                   </div>
@@ -322,7 +318,14 @@ export const MacroStudio: React.FC<{
       </main>
 
       <aside className="min-h-0 bg-[var(--bg-sidebar)] border-l border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
-        <div className="text-sm font-bold text-[var(--text-primary)]">Block</div>
+        <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border-subtle)]">
+          <div className="text-sm font-bold text-[var(--text-primary)]">Block</div>
+          {macro && step && (
+            <span className="text-[10.5px] font-mono px-2 py-0.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
+              #{selectedStepIdx + 1} · {blockFor(step.stepType).title}
+            </span>
+          )}
+        </div>
         {macro && step ? (
           <>
             <div className="flex flex-col gap-1">

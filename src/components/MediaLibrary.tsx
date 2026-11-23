@@ -105,13 +105,17 @@ export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
       {tab === "Find GIFs" ? <>
         <p className="text-[11px] text-[var(--text-muted)]">Search Wikimedia Commons. Each GIF has its own license; check its file page before sharing or publishing it.</p>
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-[35vh] overflow-y-auto p-1">
-          {gifResults.map(gif => <button type="button" key={gif.sourceUrl} disabled={busy} aria-pressed={gifSelected?.sourceUrl === gif.sourceUrl}
-            className="rounded-lg border bg-[var(--bg-sidebar)] hover:bg-[var(--bg-elevated)] p-2 text-left disabled:opacity-50 cursor-pointer transition-colors"
-            style={{ borderColor: gifSelected?.sourceUrl === gif.sourceUrl ? "var(--accent-primary)" : "var(--border-subtle)" }} onClick={() => setGifSelected(gif)}>
-            <span className="block aspect-square overflow-hidden rounded bg-black/30"><img src={gif.thumbnailUrl} alt="" loading="lazy" className="w-full h-full object-cover"/></span>
-            <span className="block truncate text-[11px] mt-2" title={gif.title}>{gif.title}</span>
-            <span className="text-[10px] text-[var(--text-muted)]">{(gif.size / 1024 / 1024).toFixed(1)} MB</span>
-          </button>)}
+          {gifResults.map(gif => {
+            const isSel = gifSelected?.sourceUrl === gif.sourceUrl;
+            return (
+            <button type="button" key={gif.sourceUrl} disabled={busy} aria-pressed={isSel}
+              className={`rounded-lg border bg-[var(--bg-sidebar)] hover:bg-[var(--bg-elevated)] p-2 text-left disabled:opacity-50 cursor-pointer transition-all ${isSel ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/40" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)]"}`}
+              onClick={() => setGifSelected(gif)}>
+              <span className="block aspect-square overflow-hidden rounded bg-black/30"><img src={gif.thumbnailUrl} alt="" loading="lazy" className="w-full h-full object-cover"/></span>
+              <span className="block truncate text-[11px] mt-2" title={gif.title}>{gif.title}</span>
+              <span className="text-[10px] text-[var(--text-muted)] tabular-nums">{(gif.size / 1024 / 1024).toFixed(1)} MB</span>
+            </button>
+          ); })}
           {!gifResults.length && !error && <p className="col-span-full py-8 text-center text-sm text-[var(--text-secondary)]">{gifSearched ? `No usable GIFs found for “${gifSearched}”.` : "Search for an animated GIF to use on your deck."}</p>}
         </div>
         <div className="flex gap-3 items-center border-t border-[var(--border-subtle)] pt-3">
@@ -121,20 +125,24 @@ export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
         </div>
       </> : <>
       <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 max-h-[35vh] overflow-y-auto p-1">
-        {shown.slice(0, limit).map(clip => <div key={clip.id} className="relative group">
-          <button type="button" disabled={busy} aria-pressed={selected?.id === clip.id} className="w-full rounded-lg border bg-[var(--bg-sidebar)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] p-2 text-left disabled:opacity-50 cursor-pointer transition-all" style={{ borderColor: selected?.id === clip.id ? "var(--accent-primary)" : "var(--border-subtle)" }} onClick={() => setSelected(clip)} onMouseEnter={() => setHovered(clip.id)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(clip.id)} onBlur={() => setHovered(null)}>
-            <div className="aspect-square overflow-hidden rounded bg-black/30">{hovered === clip.id ? <ScreenFace clip={clip} iconName="Image" accent="#A78BFA"/> : <img src={clip.frames[0]} alt="" loading="lazy" className="w-full h-full object-cover"/>}</div>
-            <span className="block truncate text-[11px] mt-2" title={clip.fileName}>{clip.fileName}</span><span className="text-[10px] text-[var(--text-muted)]">{clip.frameCount > 1 ? "Animated" : "Image"}</span>
-          </button>
-          <button type="button" aria-label={`${prefs.favorites.includes(clip.id) ? "Unfavorite" : "Favorite"} ${clip.fileName}`} aria-pressed={prefs.favorites.includes(clip.id)} onClick={() => savePrefs({ ...prefs, favorites: prefs.favorites.includes(clip.id) ? prefs.favorites.filter(id => id !== clip.id) : [...prefs.favorites, clip.id] })} className={`absolute top-2 right-2 rounded bg-black/70 hover:bg-black/90 text-white p-1 cursor-pointer transition-all hover:scale-110 ${prefs.favorites.includes(clip.id) ? "opacity-100" : "opacity-60 group-hover:opacity-100 focus-visible:opacity-100"}`}><Star size={13} fill={prefs.favorites.includes(clip.id) ? "#FBBF24" : "none"}/></button>
-        </div>)}
+        {shown.slice(0, limit).map(clip => {
+          const isSel = selected?.id === clip.id;
+          return (
+          <div key={clip.id} className="relative group">
+            <button type="button" disabled={busy} aria-pressed={isSel} className={`w-full rounded-lg border bg-[var(--bg-sidebar)] hover:bg-[var(--bg-elevated)] p-2 text-left disabled:opacity-50 cursor-pointer transition-all ${isSel ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/40" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)]"}`} onClick={() => setSelected(clip)} onMouseEnter={() => setHovered(clip.id)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(clip.id)} onBlur={() => setHovered(null)}>
+              <div className="aspect-square overflow-hidden rounded bg-black/30">{hovered === clip.id ? <ScreenFace clip={clip} iconName="Image" accent="#A78BFA"/> : <img src={clip.frames[0]} alt="" loading="lazy" className="w-full h-full object-cover"/>}</div>
+              <span className="block truncate text-[11px] mt-2" title={clip.fileName}>{clip.fileName}</span><span className="text-[10px] text-[var(--text-muted)]">{clip.frameCount > 1 ? "Animated" : "Image"}</span>
+            </button>
+            <button type="button" aria-label={`${prefs.favorites.includes(clip.id) ? "Unfavorite" : "Favorite"} ${clip.fileName}`} aria-pressed={prefs.favorites.includes(clip.id)} onClick={() => savePrefs({ ...prefs, favorites: prefs.favorites.includes(clip.id) ? prefs.favorites.filter(id => id !== clip.id) : [...prefs.favorites, clip.id] })} className={`absolute top-2 right-2 rounded bg-black/70 hover:bg-black/90 text-white p-1 cursor-pointer transition-all hover:scale-110 ${prefs.favorites.includes(clip.id) ? "opacity-100" : "opacity-60 group-hover:opacity-100 focus-visible:opacity-100"}`}><Star size={13} fill={prefs.favorites.includes(clip.id) ? "#FBBF24" : "none"}/></button>
+          </div>
+        ); })}
         {!shown.length && <p className="col-span-full py-8 text-center text-sm text-[var(--text-secondary)]">{query ? "No matching media." : "Nothing here yet. Choose a starter animation or import an image or GIF."}</p>}
       </div>
       {shown.length > limit && <button type="button" className={button} onClick={() => setLimit(n => n + 24)}>Show more ({shown.length - limit} remaining)</button>}
       <div className="flex gap-3 items-center border-t border-[var(--border-subtle)] pt-3">
-        <div className="h-16 w-16 shrink-0 rounded bg-black/30 overflow-hidden">{selected && <ScreenFace clip={selected} iconName="Image" accent="#A78BFA"/>}</div>
+        <div className="h-16 w-16 shrink-0 rounded-lg bg-black/30 border border-[var(--border-subtle)] overflow-hidden">{selected && <ScreenFace clip={selected} iconName="Image" accent="#A78BFA"/>}</div>
         <div className="flex-1 min-w-0"><p className="text-sm truncate">{selected?.fileName ?? "Choose an image or animation"}</p><p className="text-[11px] text-[var(--text-muted)]">Adjust fit and speed in the editor. Apply to Device when ready.</p></div>
-        <button type="button" className="h-9 px-4 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer disabled:opacity-40 disabled:cursor-default" disabled={!selected || busy} onClick={() => void useSelected()}>Use on screen</button>
+        <button type="button" className="h-9 px-4 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer disabled:opacity-40 disabled:cursor-default transition-colors" disabled={!selected || busy} onClick={() => void useSelected()}>Use on screen</button>
       </div>
       </>}
       <p className="text-[10px] text-[var(--text-muted)]">Starter pack: original DeckForge animations, CC0. Imported media stays on this computer for offline use.</p>

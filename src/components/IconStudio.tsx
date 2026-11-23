@@ -129,7 +129,7 @@ export const IconStudio: React.FC<{
   const timing = delays.reduce((sum, value) => sum + value, 0);
 
   return (
-    <div className="flex-1 min-h-0 grid grid-cols-[288px_1fr_300px] overflow-hidden animate-screen-in">
+    <div className="flex-1 min-h-0 grid grid-cols-[248px_minmax(0,1fr)_292px] xl:grid-cols-[288px_minmax(0,1fr)_312px] overflow-hidden animate-screen-in">
       <aside className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
         <div className="text-[11px] font-semibold text-[var(--text-secondary)]">This page</div>
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(columns, 5))}, minmax(0, 1fr))` }}>
@@ -167,12 +167,7 @@ export const IconStudio: React.FC<{
       </aside>
 
       <main
-        className="overflow-y-auto p-5 flex flex-col items-center gap-5"
-        style={{
-          backgroundImage: "radial-gradient(rgba(255,255,255,0.045) 1px, transparent 1px)",
-          backgroundSize: "18px 18px",
-          backgroundColor: "#0B0D14",
-        }}
+        className="overflow-y-auto p-5 flex flex-col items-center gap-5 df-dot-grid"
         onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => {
           event.preventDefault();
@@ -180,9 +175,11 @@ export const IconStudio: React.FC<{
           if (file) onDropFile(file);
         }}
       >
-        <div className="flex items-end gap-3">
-          <KeyCap keyConfig={face} clip={clip} pixelWidth={pixelWidth} pixelHeight={pixelHeight} scale={2.4} />
-          <div className="pb-2 text-[11px] font-mono text-[var(--text-secondary)]">
+        <div className="flex items-end gap-3.5">
+          <div className="p-3.5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border-strong)]/80 ring-1 ring-black/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_20px_48px_rgba(0,0,0,0.5)]">
+            <KeyCap keyConfig={face} clip={clip} pixelWidth={pixelWidth} pixelHeight={pixelHeight} scale={2.4} />
+          </div>
+          <div className="pb-2 text-[11px] font-mono tabular-nums text-[var(--text-secondary)]">
             {pixelWidth}×{pixelHeight}
             <div className="text-[var(--text-muted)]">key {face.index + 1}</div>
           </div>
@@ -235,8 +232,13 @@ export const IconStudio: React.FC<{
       </main>
 
       <aside className="min-h-0 bg-[var(--bg-sidebar)] border-l border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
-        <div className="text-sm font-bold text-[var(--text-primary)]">
-          {layer === "picture" ? "Picture" : layer === "title" ? "Title" : layer === "icon" ? "Icon" : "Background"}
+        <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border-subtle)]">
+          <div className="text-sm font-bold text-[var(--text-primary)]">
+            {layer === "picture" ? "Picture" : layer === "title" ? "Title" : layer === "icon" ? "Icon" : "Background"}
+          </div>
+          <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
+            Key #{face.index + 1}
+          </span>
         </div>
 
         {layer === "picture" && (
@@ -390,30 +392,37 @@ export const IconStudio: React.FC<{
               ))}
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--text-secondary)]">Accent</label>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] text-[var(--text-secondary)]">Accent</label>
+                <span className="text-[10.5px] font-mono text-[var(--text-muted)]">{face.accentColor.toUpperCase()}</span>
+              </div>
               <input
                 aria-label="Accent color"
                 type="color"
                 value={face.accentColor}
                 onChange={(event) => onChange({ accentColor: event.target.value })}
-                className="h-8 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 cursor-pointer rounded-md"
+                className="h-8 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] p-0.5 cursor-pointer rounded-md transition-colors"
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-[11px] text-[var(--text-secondary)]">Surface</label>
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] text-[var(--text-secondary)]">Surface</label>
+                <span className="text-[10.5px] font-mono text-[var(--text-muted)]">{face.bgColor.toUpperCase()}</span>
+              </div>
               <input
                 aria-label="Surface color"
                 type="color"
                 value={face.bgColor}
                 onChange={(event) => onChange({ bgColor: event.target.value })}
-                className="h-8 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 cursor-pointer rounded-md"
+                className="h-8 w-full bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] p-0.5 cursor-pointer rounded-md transition-colors"
               />
             </div>
-            <div className="grid grid-cols-2 gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
+            <div role="group" aria-label="Background style" className="grid grid-cols-2 gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
               {(["Gradient", "Solid"] as const).map((style) => (
                 <button
                   key={style}
                   type="button"
+                  aria-pressed={face.backgroundStyle === style}
                   onClick={() => onChange({ backgroundStyle: style })}
                   className={`h-7 rounded text-[11px] cursor-pointer transition-all border ${
                     face.backgroundStyle === style

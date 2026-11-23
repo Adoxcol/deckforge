@@ -501,6 +501,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             {config.modes.map((m) => (
               <button
                 key={m.id}
+                type="button"
                 onClick={() => {
                   setEditingId(m.id);
                   setConfirmDelete(false);
@@ -517,16 +518,18 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               </button>
             ))}
             <button
+              type="button"
               onClick={addMode}
               aria-label="New mode"
-              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[var(--border-strong)] text-[var(--accent-text)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer"
+              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[var(--border-strong)] text-[var(--accent-text)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
             >
               <Plus size={13} /> New mode
             </button>
             <button
+              type="button"
               onClick={() => void startImport()}
               aria-label="Import mode from a file"
-              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer"
+              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
             >
               <Download size={13} /> Import
             </button>
@@ -917,11 +920,12 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
           )}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <div className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5">When Game Mode ends</div>
+              <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">When Game Mode ends</div>
               <div className="flex flex-col gap-1.5">
                 {RESTORE_OPTIONS.map((option) => (
                   <button
                     key={option.id}
+                    type="button"
                     onClick={() => void save({ ...config, restore: option.id })}
                     aria-pressed={config.restore === option.id}
                     className={`text-left px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
@@ -935,11 +939,12 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               </div>
             </div>
             <div>
-              <div className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5">Admin rights for services</div>
+              <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">Admin rights for services</div>
               <div className="flex flex-col gap-1.5">
                 {ELEVATE_OPTIONS.map((option) => (
                   <button
                     key={option.id}
+                    type="button"
                     onClick={() => void save({ ...config, elevate: option.id })}
                     aria-pressed={config.elevate === option.id}
                     className={`text-left px-3 py-2 rounded-lg border cursor-pointer transition-colors ${
@@ -1041,12 +1046,12 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             )}
             {status.closed.length > 0 && (
               <div>
-                <div className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5">Closed</div>
+                <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">Closed</div>
                 <ul className="flex flex-col gap-1">
                   {status.closed.map((app) => (
                     <li key={app.id} className="flex items-center justify-between text-[12px] bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-md px-2.5 py-1.5">
                       <span className="text-[var(--text-primary)]">{app.label}</span>
-                      <span className="text-[var(--text-secondary)]">{formatMemory(app.memoryMb)}</span>
+                      <span className="text-[var(--text-secondary)] tabular-nums">{formatMemory(app.memoryMb)}</span>
                     </li>
                   ))}
                 </ul>
@@ -1054,7 +1059,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             )}
             {status.stoppedServices.length > 0 && (
               <div>
-                <div className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5">Services stopped</div>
+                <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">Services stopped</div>
                 <div className="flex flex-wrap gap-1">
                   {status.stoppedServices.map((name) => (
                     <span key={name} className="text-[11px] px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">
@@ -1072,7 +1077,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             )}
             {status.notes.length > 0 && (
               <div>
-                <div className="text-[11px] uppercase tracking-wider text-[var(--text-muted)] mb-1.5">Notes</div>
+                <div className="text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">Notes</div>
                 <ul className="flex flex-col gap-1">
                   {status.notes.map((note, index) => (
                     <li key={`${index}-${note}`} className="text-[11.5px] text-[var(--text-secondary)] leading-snug">

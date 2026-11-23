@@ -91,6 +91,16 @@
     box-shadow: 0 0 0 2px rgba(124, 131, 247, 0.25);
   }
 
+  .focus-ring-none:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: var(--accent-primary);
+  }
+
   input[type="color"] {
     -webkit-appearance: none;
     appearance: none;
@@ -212,6 +222,12 @@
 
 .animate-screen-in {
   animation: df-screen-in 160ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.df-dot-grid {
+  background-color: #0b0d14;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.042) 1px, transparent 1px);
+  background-size: 18px 18px;
 }
 
 @media (prefers-reduced-motion: reduce) {

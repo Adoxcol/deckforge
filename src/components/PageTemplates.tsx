@@ -151,7 +151,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 grid grid-cols-[168px_1fr_316px]">
+        <div className="flex-1 min-h-0 grid grid-cols-[168px_minmax(0,1fr)_316px]">
           {/* Categories */}
           <div className="border-r border-[var(--border-subtle)] p-3 flex flex-col gap-0.5 overflow-y-auto">
             {TEMPLATE_CATEGORIES.map((cat) => {
@@ -226,7 +226,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
           {/* Detail */}
           <div className="border-l border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto bg-[var(--bg-sidebar)]">
             <div>
-              <div className="text-[11px] uppercase tracking-wide text-[var(--text-muted)]">{selected.category}</div>
+              <div className="text-[11px] font-semibold text-[var(--text-muted)]">{selected.category}</div>
               <div className="text-base font-semibold text-[var(--text-primary)]">{selected.name}</div>
               <div className="text-xs text-[var(--text-secondary)] mt-0.5">{selected.tagline}</div>
             </div>

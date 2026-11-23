@@ -85,7 +85,7 @@ export const DeckStage = React.memo(function DeckStage({
   const catalog = useCatalog();
   return (
     <div
-      className="min-h-0 flex-1 flex flex-col items-center px-6 py-4 overflow-y-auto"
+      className="min-h-0 flex-1 flex flex-col items-center px-6 py-4 overflow-y-auto df-dot-grid"
       onClick={(event) => {
         const target = event.target as HTMLElement;
         if (target.closest("button, a, input, select, textarea, [role=button]")) return;
@@ -98,7 +98,7 @@ export const DeckStage = React.memo(function DeckStage({
           transform: `scale(${canvasZoom / 100})`,
           marginBlock: `${(canvasZoom - 100) * 1.8}px`,
         }}
-        className="shrink-0 origin-center bg-gradient-to-b from-[var(--bg-elevated)]/85 to-[var(--bg-panel)] border border-[var(--border-strong)]/80 rounded-2xl p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_20px_48px_rgba(0,0,0,0.5)] transition-[transform,margin] duration-150 max-w-[650px] w-full flex flex-col gap-3.5"
+        className="shrink-0 origin-center bg-gradient-to-b from-[var(--bg-elevated)]/90 to-[var(--bg-panel)] border border-[var(--border-strong)]/80 rounded-2xl p-5 ring-1 ring-black/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_24px_56px_rgba(0,0,0,0.55)] transition-[transform,margin] duration-150 max-w-[650px] w-full flex flex-col gap-3.5"
       >
         {/* Dynamic Key Grid matching real hardware rows x cols */}
         <div
@@ -168,7 +168,7 @@ export const DeckStage = React.memo(function DeckStage({
                       ? `radial-gradient(circle at 50% 28%, ${k.accentColor}44, ${k.bgColor})`
                       : k.bgColor,
                 }}
-                className={`aspect-[1/0.9] border border-[var(--border-subtle)] p-2 flex flex-col items-center justify-center gap-1.5 relative overflow-hidden cursor-pointer active:cursor-grabbing active:scale-[0.97] transition-[box-shadow,border-color,filter,transform] duration-150 group hover:brightness-110 ${
+                className={`aspect-[1/0.9] border border-[var(--border-subtle)] p-2 flex flex-col items-center justify-center gap-1.5 relative overflow-hidden cursor-pointer active:cursor-grabbing active:scale-[0.97] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_2px_6px_rgba(0,0,0,0.35)] transition-[box-shadow,border-color,filter,transform] duration-150 group hover:brightness-110 ${
                   dropTarget === k.index
                     ? "ring-2 ring-[var(--accent-hover)] ring-offset-2 ring-offset-[var(--bg-panel)] scale-[1.03]"
                     : isLivePressed
@@ -298,12 +298,12 @@ export const DeckStage = React.memo(function DeckStage({
                       setSurface("zone");
                       setSurfaceIndex(tz.index);
                     }}
-                    className={`relative min-h-14 overflow-hidden px-2.5 py-1.5 rounded-lg bg-[var(--bg-panel)] border cursor-pointer flex items-center justify-between transition-all duration-150 ${
+                    className={`relative min-h-14 overflow-hidden px-2.5 py-1.5 rounded-lg bg-[var(--bg-panel)] border cursor-pointer flex items-center justify-between shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-150 ${
                       dropZone === `zone-${tz.index}`
                         ? "border-[var(--accent-hover)] bg-[var(--bg-elevated)]"
                         : liveTouchZoneIdx === tz.index
                         ? "border-[var(--status-success)] ring-1 ring-[var(--status-success)]/50 scale-[0.98]"
-                        : zoneSelected ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/40" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/60"
+                        : zoneSelected ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/40" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/60 hover:-translate-y-[0.5px]"
                     }`}
                   >
                     {zoneClip ? (
@@ -399,14 +399,14 @@ export const DeckStage = React.memo(function DeckStage({
                   setSurface("encoder");
                   setSurfaceIndex(enc.index);
                 }}
-                className={`relative px-2.5 py-2 rounded-xl bg-[var(--bg-input)] border flex items-center gap-2.5 cursor-pointer transition-all duration-150 ${
+                className={`relative px-2.5 py-2 rounded-xl bg-[var(--bg-input)] border flex items-center gap-2.5 cursor-pointer shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-150 ${
                   dropZone === `enc-${enc.index}`
                     ? "border-[var(--accent-hover)] bg-[var(--bg-elevated)]"
                     : liveEncoderEvent?.index === enc.index
                     ? `border-[var(--status-success)] ring-1 ring-[var(--status-success)]/50 ${liveEncoderEvent.kind === "push" ? "scale-[0.97]" : ""}`
                     : isEncSelected
                     ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/40"
-                    : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/60"
+                    : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/60 hover:-translate-y-[0.5px]"
                 }`}
               >
                 {liveEncoderEvent?.index === enc.index && (
@@ -532,7 +532,7 @@ export const DeckStage = React.memo(function DeckStage({
         </div>
       ) : (
       <div className="flex items-center flex-wrap justify-center gap-1.5">
-        <div className="flex items-center bg-[var(--bg-panel)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] rounded-[var(--radius-sm)] h-8 px-1 transition-colors">
+        <div className="flex items-center bg-[var(--bg-panel)] border border-[var(--border-subtle)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 rounded-[var(--radius-sm)] h-8 px-1 transition-all">
           <button
             type="button"
             disabled={selectedPageIdx === 0}
@@ -553,7 +553,7 @@ export const DeckStage = React.memo(function DeckStage({
               deckforgeApi.holdAutoSwitch().catch(() => {});
               setSelectedPageIdx(Number(e.target.value));
             }}
-            className="bg-transparent text-xs font-medium text-[var(--text-primary)] px-2 outline-none cursor-pointer"
+            className="bg-transparent text-xs font-medium text-[var(--text-primary)] px-2 outline-none focus-ring-none cursor-pointer"
           >
             {activeProfile.pages.map((pg, idx) => (
               <option key={pg.id} value={idx} className="bg-[var(--bg-panel)]">

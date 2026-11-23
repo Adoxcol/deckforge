@@ -123,7 +123,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
 
       {/* Profiles Section */}
       <div className="relative flex-1 flex flex-col pt-3.5 border-t border-[var(--border-subtle)]">
-        <div className="flex items-center justify-between mb-2">
+        <div className="relative flex items-center justify-between mb-2">
           <span className="text-[11.5px] font-semibold tracking-wide text-[var(--text-secondary)]">Profiles</span>
           <div className="flex items-center gap-1">
             <button
@@ -161,7 +161,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                   <div
                     role="menu"
                     aria-label="Create profile from template"
-                    className="absolute left-0 right-0 top-11 z-50 max-h-[70vh] overflow-y-auto p-1.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl flex flex-col gap-0.5 animate-pop-in"
+                    className="absolute left-0 right-0 top-full mt-1.5 z-50 max-h-[70vh] overflow-y-auto p-1.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl flex flex-col gap-0.5 animate-pop-in"
                   >
                     <div className="px-2 pt-1 pb-1.5 text-[11px] font-medium text-[var(--text-muted)]">Start a new profile from</div>
                     {STARTER_PROFILES.map((starter) => (
@@ -219,7 +219,11 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
             {bindingHits.length === 0 ? (
               <p className="px-2.5 py-2 text-[11px] text-[var(--text-muted)]">Nothing matches.</p>
             ) : (
-              bindingHits.map((hit) => (
+              <>
+                <div className="px-2 py-1 text-[10px] font-medium text-[var(--text-muted)] tabular-nums border-b border-[var(--border-subtle)]/60 mb-0.5">
+                  {bindingHits.length} {bindingHits.length === 1 ? "match" : "matches"}
+                </div>
+                {bindingHits.map((hit) => (
                 <button
                   key={`${hit.profileId}:${hit.pageIndex}:${hit.surface}:${hit.index}`}
                   type="button"
@@ -233,7 +237,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                     if (hit.surface === "key") setSelectedKeyIdx(hit.index);
                     setBindingQuery("");
                   }}
-                  className="px-2 py-1.5 rounded-md text-left hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
+                  className="px-2 py-1.5 rounded-md text-left hover:bg-[var(--bg-elevated)] focus-visible:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
                 >
                   <span className="flex items-center justify-between gap-2">
                     <span className="truncate text-[12px] font-medium text-[var(--text-primary)]">{hit.title}</span>
@@ -243,7 +247,8 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                     {hit.profileName} · {hit.pageName} · {hit.where}
                   </span>
                 </button>
-              ))
+              ))}
+              </>
             )}
           </div>
         )}
@@ -262,7 +267,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                 type="button"
                 aria-current={isSel ? "true" : undefined}
                 onClick={selectProfile}
-                className={`w-full text-left px-2.5 py-2 rounded-lg border flex items-center justify-between gap-2 cursor-pointer transition-all duration-150 ${
+                className={`w-full text-left px-2.5 py-2 rounded-lg border flex items-center justify-between gap-2 cursor-pointer transition-all duration-150 active:scale-[0.99] ${
                   isSel
                     ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/50 text-[var(--text-primary)] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                     : "bg-transparent border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:border-[var(--border-subtle)] hover:text-[var(--text-primary)]"
@@ -295,7 +300,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
           type="button"
           aria-expanded={appsOpen}
           onClick={() => setAppsOpen((open) => !open)}
-          className="w-full flex items-center justify-between gap-2 px-1 py-1 text-left cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+          className="w-full flex items-center justify-between gap-2 px-1.5 py-1 rounded-md text-left cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]/60 transition-colors"
         >
           <span className="text-[11.5px] font-semibold tracking-wide">When an app opens</span>
           <ChevronRight size={14} className={`shrink-0 transition-transform ${appsOpen ? "rotate-90" : ""}`} />

@@ -144,7 +144,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
     <aside className="min-h-0 bg-[var(--bg-sidebar)] border-l border-[var(--border-subtle)] p-4 flex flex-col justify-between gap-4 overflow-y-auto">
       {library && <MediaLibrary clips={mediaLibrary} onStored={onMediaStored} onUse={library.use} onClose={() => setLibrary(null)} />}
       <div className="flex flex-col gap-3.5">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between pb-2.5 border-b border-[var(--border-subtle)]">
           <h2 className="text-[13.5px] font-bold text-[var(--text-primary)] tracking-tight">
             {surface === "zone"
               ? "Touch Zone"
@@ -349,7 +349,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   {ledOff ? "OFF" : ledColor}
                 </span>
               </div>
-              <div className="grid grid-cols-6 gap-2">
+              <div className="grid grid-cols-6 items-center gap-2">
                 {KNOB_LED_PRESETS.map((hex) => {
                   const selected = ledColor === hex;
                   return (
@@ -371,18 +371,19 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 })}
                 <button
                   type="button"
+                  aria-pressed={ledOff}
                   onClick={() => onKnobLedChange(activeEncoder.index, "#000000")}
-                  className={`col-span-2 h-7 rounded-md text-[10.5px] font-medium border cursor-pointer ${
+                  className={`col-span-2 h-7 rounded-md text-[10.5px] font-medium border cursor-pointer transition-colors ${
                     ledOff
                       ? "bg-[var(--accent-soft)] border-[var(--accent-primary)] text-white"
-                      : "bg-[var(--bg-input)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                      : "bg-[var(--bg-input)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]"
                   }`}
                 >
                   Off
                 </button>
                 <label
                   title="Custom RGB color"
-                  className="col-span-2 h-7 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] flex items-center justify-center gap-1 cursor-pointer hover:border-[var(--accent-primary)]"
+                  className="col-span-2 h-7 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] flex items-center justify-center gap-1 cursor-pointer hover:border-[var(--accent-primary)] transition-colors"
                 >
                   <input
                     type="color"
@@ -477,11 +478,12 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
               </div>
               <div className="pt-1 border-t border-[var(--border-subtle)] flex flex-col gap-1.5">
                 <span className="text-[10.5px] text-[var(--text-muted)]">LED Animation</span>
-                <div className="grid grid-cols-3 gap-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
+                <div role="group" aria-label="LED animation" className="grid grid-cols-3 gap-1 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
                   {(["static", "breathe", "rainbow"] as const).map((mode) => (
                     <button
                       key={mode}
                       type="button"
+                      aria-pressed={knobLedEffect === mode}
                       onClick={() => onKnobLedEffectChange(mode)}
                       className={`h-6 rounded-[4px] text-[10.5px] font-medium capitalize cursor-pointer border transition-all ${
                         knobLedEffect === mode
@@ -654,108 +656,113 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
             {!activeKey.actionId.startsWith("obs.") && [activeKey.doublePress?.actionId, activeKey.hold?.actionId].some((action) => action?.startsWith("obs.")) && (
               <ObsConnection obsSettings={obsSettings} onSave={saveObs} />
             )}
-            {/* Show Title Toggle */}
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-[var(--text-secondary)]">Show Title</span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={activeKey.showTitle}
-                aria-label="Show Title"
-                onClick={() => updateSelectedKey({ showTitle: !activeKey.showTitle })}
-                className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
-                  activeKey.showTitle ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"
-                }`}
-              >
-                <div
-                  className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${
-                    activeKey.showTitle ? "translate-x-4" : "translate-x-0"
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Title Size */}
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-[var(--text-secondary)]">Title Size</span>
-              <select
-                aria-label="Title Size"
-                value={activeKey.titleSize}
-                onChange={(e) =>
-                  updateSelectedKey({
-                    titleSize: e.target.value as "Small" | "Medium" | "Large",
-                  })
-                }
-                className="w-40 h-8 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
-              >
-                <option value="Small">Small</option>
-                <option value="Medium">Medium</option>
-                <option value="Large">Large</option>
-              </select>
-            </div>
-
-            {/* Background */}
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-xs text-[var(--text-secondary)]">Background</span>
-              <select
-                aria-label="Background style"
-                value={activeKey.backgroundStyle}
-                onChange={(e) =>
-                  updateSelectedKey({
-                    backgroundStyle: e.target.value as "Gradient" | "Solid" | "Image",
-                  })
-                }
-                className="w-40 h-8 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
-              >
-                <option value="Gradient">Gradient</option>
-                <option value="Solid">Solid Surface</option>
-                <option value="Image">Image / GIF</option>
-              </select>
-            </div>
-
-            {/* Gradient Color Swatches */}
-            <div className="flex items-center justify-end gap-2">
-              {[
-                ["#F16B79", "#2A1521", "Rose"],
-                ["#8B5CF6", "#231B38", "Violet"],
-                ["#56B9F2", "#132235", "Sky"],
-                ["#35C98B", "#112822", "Mint"],
-                ["#F4B860", "#2A2215", "Gold"],
-              ].map(([acc, bg, label]) => (
+            <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2.5">
+              {/* Show Title Toggle */}
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[var(--text-secondary)]">Show Title</span>
                 <button
-                  key={acc}
                   type="button"
-                  title={label}
-                  aria-label={`Use ${label} color swatch`}
-                  aria-pressed={activeKey.accentColor === acc}
-                  onClick={() => updateSelectedKey({ accentColor: acc, bgColor: bg })}
-                  style={{ backgroundColor: acc }}
-                  className={`w-6 h-6 rounded-md border cursor-pointer transition-transform ${
-                    activeKey.accentColor === acc
-                      ? "border-white ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-sidebar)] scale-110 shadow-sm"
-                      : "border-white/15 hover:scale-105"
+                  role="switch"
+                  aria-checked={activeKey.showTitle}
+                  aria-label="Show Title"
+                  onClick={() => updateSelectedKey({ showTitle: !activeKey.showTitle })}
+                  className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
+                    activeKey.showTitle ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"
                   }`}
-                />
-              ))}
-            </div>
-
-            {/* Rounded Corners Slider */}
-            <div>
-              <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] mb-1.5">
-                <span>Rounded Corners</span>
-                <span className="font-mono tabular-nums text-[var(--text-primary)]">{activeKey.cornerRadius} px</span>
+                >
+                  <div
+                    className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${
+                      activeKey.showTitle ? "translate-x-4" : "translate-x-0"
+                    }`}
+                  />
+                </button>
               </div>
-              <input
-                aria-label="Rounded Corners"
-                type="range"
-                min={2}
-                max={18}
-                value={activeKey.cornerRadius}
-                onChange={(e) =>
-                  updateSelectedKey({ cornerRadius: Number(e.target.value) })
-                }
-                className="w-full accent-[var(--accent-primary)] cursor-pointer"
-              />
+
+              {/* Title Size */}
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-[var(--text-secondary)]">Title Size</span>
+                <select
+                  aria-label="Title Size"
+                  value={activeKey.titleSize}
+                  onChange={(e) =>
+                    updateSelectedKey({
+                      titleSize: e.target.value as "Small" | "Medium" | "Large",
+                    })
+                  }
+                  className="w-36 h-8 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
+                >
+                  <option value="Small">Small</option>
+                  <option value="Medium">Medium</option>
+                  <option value="Large">Large</option>
+                </select>
+              </div>
+
+              {/* Background */}
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-xs text-[var(--text-secondary)]">Background</span>
+                <select
+                  aria-label="Background style"
+                  value={activeKey.backgroundStyle}
+                  onChange={(e) =>
+                    updateSelectedKey({
+                      backgroundStyle: e.target.value as "Gradient" | "Solid" | "Image",
+                    })
+                  }
+                  className="w-36 h-8 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
+                >
+                  <option value="Gradient">Gradient</option>
+                  <option value="Solid">Solid Surface</option>
+                  <option value="Image">Image / GIF</option>
+                </select>
+              </div>
+
+              {/* Gradient Color Swatches */}
+              <div className="flex items-center justify-between gap-2 pt-0.5">
+                <span className="text-xs text-[var(--text-secondary)]">Accent</span>
+                <div className="flex items-center gap-1.5">
+                  {[
+                    ["#F16B79", "#2A1521", "Rose"],
+                    ["#8B5CF6", "#231B38", "Violet"],
+                    ["#56B9F2", "#132235", "Sky"],
+                    ["#35C98B", "#112822", "Mint"],
+                    ["#F4B860", "#2A2215", "Gold"],
+                  ].map(([acc, bg, label]) => (
+                    <button
+                      key={acc}
+                      type="button"
+                      title={label}
+                      aria-label={`Use ${label} color swatch`}
+                      aria-pressed={activeKey.accentColor === acc}
+                      onClick={() => updateSelectedKey({ accentColor: acc, bgColor: bg })}
+                      style={{ backgroundColor: acc }}
+                      className={`w-6 h-6 rounded-md border cursor-pointer transition-transform ${
+                        activeKey.accentColor === acc
+                          ? "border-white ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-panel)] scale-110 shadow-sm"
+                          : "border-white/15 hover:scale-105"
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Rounded Corners Slider */}
+              <div className="pt-0.5">
+                <div className="flex items-center justify-between text-xs text-[var(--text-secondary)] mb-1.5">
+                  <span>Rounded Corners</span>
+                  <span className="font-mono tabular-nums text-[var(--text-primary)]">{activeKey.cornerRadius} px</span>
+                </div>
+                <input
+                  aria-label="Rounded Corners"
+                  type="range"
+                  min={2}
+                  max={18}
+                  value={activeKey.cornerRadius}
+                  onChange={(e) =>
+                    updateSelectedKey({ cornerRadius: Number(e.target.value) })
+                  }
+                  className="w-full accent-[var(--accent-primary)] cursor-pointer"
+                />
+              </div>
             </div>
           </div>
         )}

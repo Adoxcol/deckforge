@@ -76,6 +76,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
   const [results, setResults] = useState<GithubPlugin[] | null>(null);
   const [searching, setSearching] = useState(false);
   const [installing, setInstalling] = useState<string | null>(null);
+  const [rescanning, setRescanning] = useState(false);
 
   const installed = (result: PluginInstalled) => {
     onPluginsChange(result.plugins);
@@ -147,10 +148,13 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
   };
 
   const rescan = async () => {
+    setRescanning(true);
     try {
       onPluginsChange(await deckforgeApi.pluginRescan());
     } catch (error) {
       notify(errorText(error), "warning");
+    } finally {
+      setRescanning(false);
     }
   };
 
@@ -167,7 +171,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
 
   return (
     <div className="flex-1 p-6 overflow-y-auto max-w-6xl mx-auto w-full flex flex-col gap-5 animate-screen-in">
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex items-center justify-between flex-wrap gap-4 pb-4 border-b border-[var(--border-subtle)]">
         <div>
           <h1 className="text-xl font-bold">Plugins</h1>
           <p className="text-xs text-[var(--text-secondary)] mt-0.5">
@@ -196,7 +200,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
 
       {tab === "Installed plugins" && (
         <>
-          <div className="flex items-center justify-between gap-3 text-xs text-[var(--text-secondary)]">
+          <div className="flex items-center justify-between flex-wrap gap-3 text-xs text-[var(--text-secondary)]">
             <span>
               {plugins.length} found in the Stream Dock, Stream Deck and DeckForge plugin folders.
               {legacySummary && legacySummary.namedRootProfilesCount > 0 && (
@@ -230,10 +234,11 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
             </button>
             <button
               type="button"
+              disabled={rescanning}
               onClick={rescan}
-              className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer"
+              className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer disabled:opacity-60 transition-colors"
             >
-              <RefreshCw size={13} /> Look again
+              <RefreshCw size={13} className={rescanning ? "animate-spin" : ""} /> {rescanning ? "Scanning…" : "Look again"}
             </button>
             </div>
           </div>

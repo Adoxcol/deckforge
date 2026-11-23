@@ -39,13 +39,16 @@ export function BackupPanel({ onBackup, onRestore }: {
     </div>
     {!desktop && <p className="text-xs text-[var(--text-muted)]">Open the desktop app to back up or restore its media library.</p>}
     {busy && <p role="status" className="text-xs">Processing backup…</p>}
-    {pending && <div className="rounded-lg border border-[var(--border-strong)] p-3 space-y-3">
-      <p className="text-xs break-all">{pending.name} · {pending.count} profiles</p>
-      <p className="text-xs">Media will be checked before import. Imported actions and macros may contain local paths or commands; review them before use.</p>
-      <div className="flex gap-2"><button type="button" className={button} disabled={busy} onClick={() => run(async () => {
-        const count = await onRestore(pending.text);
-        setPending(null); setMessage(`Restored ${count} profiles as editor drafts. Open the workspace to review and save them. Macros have been queued for local save.`);
-      })}>Restore as copies</button><button type="button" className={button} disabled={busy} onClick={() => setPending(null)}>Cancel</button></div>
+    {pending && <div className="rounded-lg border border-[var(--accent-primary)]/45 bg-[var(--bg-sidebar)] p-3.5 space-y-3 animate-pop-in">
+      <p className="text-xs font-medium text-[var(--text-primary)] break-all">{pending.name} · {pending.count} profiles</p>
+      <p className="text-xs text-[var(--text-secondary)]">Media will be checked before import. Imported actions and macros may contain local paths or commands; review them before use.</p>
+      <div className="flex gap-2">
+        <button type="button" className="inline-flex items-center gap-2 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] px-3.5 py-2 text-xs font-semibold text-white disabled:opacity-40 cursor-pointer transition-colors" disabled={busy} onClick={() => run(async () => {
+          const count = await onRestore(pending.text);
+          setPending(null); setMessage(`Restored ${count} profiles as editor drafts. Open the workspace to review and save them. Macros have been queued for local save.`);
+        })}>Restore as copies</button>
+        <button type="button" className={button} disabled={busy} onClick={() => setPending(null)}>Cancel</button>
+      </div>
     </div>}
     {message && <p role="status" className="text-xs text-[var(--status-success)] break-all">{message}</p>}
     {error && <p role="alert" className="text-xs text-[var(--status-error)] break-all">{error}</p>}

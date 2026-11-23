@@ -56,7 +56,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
               setSurface("key");
               setSurfaceIndex(0);
             }}
-            className="bg-transparent text-xs font-semibold text-[var(--text-primary)] outline-none cursor-pointer"
+            className="bg-transparent text-xs font-semibold text-[var(--text-primary)] outline-none focus-ring-none cursor-pointer"
           >
             {connectedDevices.map((d) => (
               <option key={d.id} value={d.id} className="bg-[var(--bg-panel)] text-[var(--text-primary)]">

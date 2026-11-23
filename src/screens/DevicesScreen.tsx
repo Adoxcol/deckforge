@@ -59,19 +59,24 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
 }) => {
   const [deviceDetailTab, setDeviceDetailTab] = useState<DetailTab>("Overview");
   const [restarting, setRestarting] = useState(false);
+  const [rescanning, setRescanning] = useState(false);
 
-  return (    <div className="flex-1 min-h-0 grid grid-cols-[264px_1fr] lg:grid-cols-[300px_1fr] overflow-hidden animate-screen-in">
+  return (    <div className="flex-1 min-h-0 grid grid-cols-[248px_minmax(0,1fr)] lg:grid-cols-[288px_minmax(0,1fr)] overflow-hidden animate-screen-in">
       <aside className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
         <div className="flex items-center justify-between">
           <h2 className="text-[13px] font-bold text-[var(--text-primary)]">Connected</h2>
           <button
             type="button"
-            onClick={onRescan}
+            onClick={() => {
+              setRescanning(true);
+              onRescan();
+              window.setTimeout(() => setRescanning(false), 600);
+            }}
             title="Rescan USB devices"
             aria-label="Rescan USB devices"
             className="w-7 h-7 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer transition-colors"
           >
-            <RefreshCw size={13} />
+            <RefreshCw size={13} className={rescanning ? "animate-spin" : ""} />
           </button>
         </div>
         {connectedDevices.length === 0 ? (
@@ -195,7 +200,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
 
         {deviceDetailTab === "Overview" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
+            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors">
               <div className="text-[12px] text-[var(--text-secondary)]">Driver</div>
               <div className={`text-[15px] font-semibold mt-1 ${activeDevice.verifiedDriver ? "text-[var(--status-success)]" : "text-[var(--text-primary)]"}`}>
                 {activeDevice.verifiedDriver ? "Tested with this deck" : "Preview only"}
@@ -206,17 +211,17 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                   : "No hardware is attached; changes show in the editor only."}
               </p>
             </div>
-            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
+            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors">
               <div className="text-[12px] text-[var(--text-secondary)]">Screen updates</div>
-              <div className="text-[15px] font-semibold mt-1 text-[var(--text-primary)]">
+              <div className="text-[15px] font-semibold tabular-nums mt-1 text-[var(--text-primary)]">
                 {frameStats.lastTransferLatencyMs} ms last update
               </div>
-              <p className="text-[12px] text-[var(--text-muted)] mt-1">
+              <p className="text-[12px] text-[var(--text-muted)] mt-1 tabular-nums">
                 {frameStats.framesDeduplicatedSkipped} unchanged images skipped, saving{" "}
                 {(frameStats.bytesSaved / 1024).toFixed(1)} KB of USB traffic.
               </p>
             </div>
-            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
+            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors">
               <div className="text-[12px] text-[var(--text-secondary)]">Brightness</div>
               <div className="flex items-center gap-3 mt-2">
                 <input
@@ -239,14 +244,14 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
 
         {deviceDetailTab === "Overview" && activeDevice.encoders && encoders && onKnobLedChange && onResetKnobLeds && (
           <div className="p-4 rounded-[var(--radius-md)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-3">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <div className="text-[13px] font-bold text-[var(--text-primary)]">Knob LED Ring Colors</div>
                 <p className="text-[11.5px] text-[var(--text-muted)] mt-0.5">
                   Click a swatch or custom picker to update the hardware knob LEDs live via CRT\0\0SETLB.
                 </p>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center flex-wrap gap-2 shrink-0">
                 {onKnobLedEffectChange && (
                   <div role="group" aria-label="LED animation" className="flex items-center gap-0.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] p-0.5 rounded-md">
                     {(["static", "breathe", "rainbow"] as const).map((mode) => (

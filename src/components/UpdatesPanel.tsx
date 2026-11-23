@@ -42,15 +42,15 @@ export const UpdatesPanel: React.FC<{ card: string }> = ({ card }) => {
       <p className="text-xs leading-relaxed">
         DeckForge looks for a new version on GitHub while it runs, downloads it in the background, and installs it when you quit from the tray. You can also install one now. Updates are signed, so only builds made from this project install.
       </p>
-      {state === "current" && <p className="text-xs text-[var(--status-success,#35C98B)]">You have the latest version.</p>}
+      {state === "current" && <p className="inline-flex w-fit items-center rounded-md border border-[var(--status-success)]/30 bg-[var(--status-success)]/10 px-2.5 py-1 text-xs font-medium text-[var(--status-success)]">You have the latest version.</p>}
       {state === "found" && update && (
-        <div className="text-xs space-y-1">
+        <div className="rounded-lg border border-[var(--accent-primary)]/40 bg-[var(--accent-soft)]/50 p-3 text-xs space-y-1">
           <p className="text-[var(--text-primary)] font-semibold">Version {update.version} is available.</p>
-          {update.notes && <p className="whitespace-pre-line">{update.notes}</p>}
+          {update.notes && <p className="whitespace-pre-line text-[var(--text-secondary)]">{update.notes}</p>}
         </div>
       )}
-      {state === "installing" && <p className="text-xs">Downloading… {percent}%. DeckForge restarts when it's done.</p>}
-      {state === "error" && <p className="text-xs text-[var(--status-error)]">Could not check for updates: {message}</p>}
+      {state === "installing" && <p className="text-xs tabular-nums text-[var(--accent-text)]">Downloading… {percent}%. DeckForge restarts when it's done.</p>}
+      {state === "error" && <p className="rounded-md border border-[var(--status-error)]/30 bg-[var(--status-error)]/10 px-2.5 py-1.5 text-xs text-[var(--status-error)]">Could not check for updates: {message}</p>}
       <div className="flex flex-wrap gap-2">
         {state === "found" ? (
           <button type="button" className={action} onClick={install}><Download size={14} />Install and restart</button>

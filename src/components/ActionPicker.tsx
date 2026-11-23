@@ -127,7 +127,7 @@ export const ActionPicker: React.FC<{
           <>
             <div className="fixed inset-0 z-[90]" onMouseDown={() => setOpen(false)} />
             <div
-              className="fixed z-[91] flex flex-col rounded-xl border border-[var(--border-strong)] bg-[var(--bg-panel)]/98 backdrop-blur-md shadow-2xl overflow-hidden animate-pop-in"
+              className="fixed z-[91] flex flex-col rounded-xl border border-[var(--border-strong)] bg-[var(--bg-panel)]/95 backdrop-blur-md shadow-2xl overflow-hidden animate-pop-in"
               style={{ left: Math.min(rect.left, window.innerWidth - rect.width - 8), top: rect.top, width: rect.width, maxHeight: PANEL_HEIGHT }}
               onKeyDown={onKey}
             >
@@ -135,10 +135,11 @@ export const ActionPicker: React.FC<{
                 <Search size={13} className="text-[var(--text-secondary)] shrink-0" />
                 <input
                   autoFocus
+                  aria-label="Search actions"
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search actions…"
-                  className="flex-1 bg-transparent text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-secondary)]"
+                  className="flex-1 bg-transparent text-xs text-[var(--text-primary)] outline-none focus-ring-none placeholder:text-[var(--text-secondary)]"
                 />
                 {query && (
                   <button

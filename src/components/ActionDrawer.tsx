@@ -1,5 +1,5 @@
 import React from "react";
-import { Plus, Search, Star, X } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Search, Star, X } from "lucide-react";
 import { actionNeedsParam } from "./ActionBinding";
 import { DeckIcon } from "./DeckIcon";
 import type { ActionTemplate } from "../data/actionCatalog";
@@ -112,6 +112,7 @@ export const ActionDrawer = React.memo(function ActionDrawer({
   const catalog = useCatalog();
   const open = catalog?.open ?? false;
   const show = catalog?.show ?? (() => {});
+  const hide = catalog?.hide ?? (() => {});
   const [actionSearch, setActionSearch] = React.useState("");
   const deferredSearch = React.useDeferredValue(actionSearch);
   const filteredActions = React.useMemo(
@@ -191,10 +192,21 @@ export const ActionDrawer = React.memo(function ActionDrawer({
             );
           })}
         </div>
+        <button
+          type="button"
+          onClick={() => (open ? hide() : show())}
+          aria-expanded={open}
+          aria-label={open ? "Collapse actions drawer" : "Browse actions"}
+          title={open ? "Collapse actions (Esc)" : "Browse all actions"}
+          className="ml-auto shrink-0 h-7 px-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)]/70 hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] inline-flex items-center gap-1 cursor-pointer transition-colors"
+        >
+          <span className="tabular-nums font-mono text-[10.5px] text-[var(--text-muted)]">{filteredActions.length}</span>
+          {open ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
+        </button>
       </div>
 
       {open && (
-      <div className="min-h-0 flex-1 px-3 pb-3 overflow-hidden">
+      <div className="min-h-0 flex-1 px-3 pb-3 overflow-hidden animate-fade-in">
         <div className="h-full grid grid-cols-[repeat(auto-fill,minmax(195px,1fr))] gap-2 overflow-y-auto pr-1 content-start">
           {filteredActions.length === 0 ? (
             <div className="col-span-full py-6 text-center text-xs text-[var(--text-muted)]">
@@ -219,7 +231,7 @@ export const ActionDrawer = React.memo(function ActionDrawer({
                     assignAction(act);
                   }
                 }}
-                className="group p-2 rounded-[var(--radius-md)] bg-[var(--bg-panel)]/75 border border-[var(--border-subtle)]/80 hover:border-[var(--accent-primary)]/50 hover:bg-[var(--bg-elevated)] hover:-translate-y-[1px] hover:shadow-md flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing transition-all duration-150"
+                className="group p-2 rounded-[var(--radius-md)] bg-[var(--bg-panel)]/75 border border-[var(--border-subtle)]/80 hover:border-[var(--accent-primary)]/50 hover:bg-[var(--bg-elevated)] focus-visible:border-[var(--accent-primary)] focus-visible:bg-[var(--bg-elevated)] hover:-translate-y-[1px] hover:shadow-md flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing transition-all duration-150"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div

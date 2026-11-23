@@ -39,7 +39,7 @@ export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: s
   const link = (label: string, screen: NavScreenId) => <button type="button" className={action} onClick={() => onNavigate(screen)}>{label}<ArrowUpRight size={14} /></button>;
   const selected = sections.find(item => item.id === section)!;
 
-  return <div className="flex-1 min-h-0 grid grid-cols-[224px_1fr] overflow-hidden animate-screen-in">
+  return <div className="flex-1 min-h-0 grid grid-cols-[228px_minmax(0,1fr)] overflow-hidden animate-screen-in">
     <nav aria-label="Settings sections" className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 space-y-1.5 overflow-y-auto">
       <p className="px-3 py-1.5 text-[11px] font-semibold tracking-wide text-[var(--text-muted)]">Preferences</p>
       {sections.map(({ id, name, hint, icon: Icon }) => <button type="button" key={id} onClick={() => setSection(id)}
