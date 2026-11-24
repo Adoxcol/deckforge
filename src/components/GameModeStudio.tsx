@@ -434,7 +434,10 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
 
   if (!scan || !config || !mode) {
     return (
-      <div className="flex-1 flex items-center justify-center text-sm text-[var(--text-secondary)]">Analysing your PC...</div>
+      <div className="flex-1 flex items-center justify-center gap-2.5 text-xs text-[var(--text-secondary)] animate-fade-in">
+        <RefreshCw size={15} className="animate-spin text-[var(--accent-primary)]" />
+        <span>Analysing your PC…</span>
+      </div>
     );
   }
 
@@ -572,14 +575,16 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               )}
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
                   onClick={() => void confirmImport()}
-                  className="h-8 px-3 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-[12.5px] font-semibold cursor-pointer"
+                  className="h-8 px-3 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-[12.5px] font-semibold cursor-pointer transition-colors"
                 >
                   Import mode
                 </button>
                 <button
+                  type="button"
                   onClick={() => setPendingImport(null)}
-                  className="h-8 px-3 rounded-md border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-[12.5px] cursor-pointer"
+                  className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-panel)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-[12.5px] cursor-pointer transition-colors"
                 >
                   Cancel
                 </button>
@@ -602,10 +607,11 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               className="h-8 w-48 px-2.5 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] text-[13px] font-medium text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)]"
             />
             <button
+              type="button"
               onClick={() => void save({ ...config, activeMode: mode.id })}
               disabled={config.activeMode === mode.id}
               aria-label="Use this mode for auto start and the deck key"
-              className={`h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border cursor-pointer disabled:cursor-default ${
+              className={`h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border cursor-pointer disabled:cursor-default transition-colors ${
                 config.activeMode === mode.id
                   ? "border-[var(--status-warning)]/40 text-[var(--status-warning)] bg-[var(--status-warning)]/8"
                   : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)]"
@@ -618,17 +624,19 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               Deck key parameter: <span className="text-[var(--text-secondary)] font-mono">{mode.id}</span>
             </span>
             <button
+              type="button"
               onClick={() => void exportMode()}
               aria-label="Export this mode to a file"
-              className="ml-auto h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer"
+              className="ml-auto h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
             >
               <Upload size={12} /> Export
             </button>
             <button
+              type="button"
               onClick={deleteMode}
               disabled={config.modes.length < 2}
               aria-label={confirmDelete ? "Confirm delete mode" : "Delete mode"}
-              className={`h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
+              className={`h-7 px-2.5 rounded-md text-[12px] flex items-center gap-1.5 border cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-colors ${
                 confirmDelete ? "border-[var(--status-error)]/60 text-[var(--status-error)] bg-[var(--status-error)]/10" : "border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--status-error)]/50 hover:text-[var(--status-error)]"
               }`}
             >
@@ -988,7 +996,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
           </div>
         </div>
 
-        <div className={`rounded-xl border p-3 flex flex-col gap-2 ${config.elevate === "skip" ? "border-[var(--border-subtle)]" : helper.armed && helper.covers ? "border-[var(--status-success)]/30" : "border-[var(--status-warning)]/35"}`}>
+        <div className={`rounded-xl border bg-[var(--bg-panel)]/50 p-3 flex flex-col gap-2 ${config.elevate === "skip" ? "border-[var(--border-subtle)]" : helper.armed && helper.covers ? "border-[var(--status-success)]/30" : "border-[var(--status-warning)]/35"}`}>
           <div className="flex items-center gap-2">
             <Lock size={14} className={config.elevate === "skip" || (helper.armed && helper.covers) ? "text-[var(--text-muted)]" : "text-[var(--status-warning)]"} />
             <h2 className="text-[12.5px] font-semibold text-[var(--text-primary)]">
@@ -1123,6 +1131,14 @@ const StartAppsSection: React.FC<{
 }> = ({ apps, running, onChange }) => {
   const [typed, setTyped] = React.useState("");
   const [picking, setPicking] = React.useState(false);
+  React.useEffect(() => {
+    if (!picking) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPicking(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [picking]);
   const has = (path: string) => apps.some((a) => a.path.toLowerCase() === path.toLowerCase());
   const add = (path: string) => {
     const clean = path.trim().replace(/^"|"$/g, "");
@@ -1220,9 +1236,10 @@ const StartAppsSection: React.FC<{
             className="flex-1 h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-[11.5px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] placeholder:text-[var(--text-muted)]"
           />
           <button
+            type="button"
             disabled={!typedOk}
             onClick={() => add(typed) && setTyped("")}
-            className="h-8 px-3 rounded-md border border-[var(--border-subtle)] text-[12px] text-[var(--text-primary)] enabled:hover:border-[var(--border-strong)] disabled:opacity-40 cursor-pointer disabled:cursor-default"
+            className="h-8 px-3 rounded-md border border-[var(--border-subtle)] text-[12px] text-[var(--text-primary)] enabled:hover:border-[var(--border-strong)] enabled:hover:bg-[var(--bg-elevated)] disabled:opacity-40 cursor-pointer disabled:cursor-default transition-colors"
           >
             Add
           </button>

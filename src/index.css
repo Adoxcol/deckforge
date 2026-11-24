@@ -79,16 +79,26 @@
   a:focus-visible,
   summary:focus-visible,
   [role="button"]:focus-visible,
+  [role="tab"]:focus-visible,
+  [role="switch"]:focus-visible,
   [tabindex]:focus-visible {
     outline: 2px solid var(--accent-primary);
     outline-offset: 1px;
   }
 
-  input.outline-none:focus-visible,
-  select.outline-none:focus-visible,
-  textarea.outline-none:focus-visible {
+  input.outline-none:not(.focus-ring-none):focus,
+  select.outline-none:not(.focus-ring-none):focus,
+  textarea.outline-none:not(.focus-ring-none):focus {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(124, 131, 247, 0.28);
+    box-shadow: 0 0 0 2px rgba(124, 131, 247, 0.24);
+  }
+
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 
   select option {

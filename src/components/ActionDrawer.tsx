@@ -174,7 +174,7 @@ export const ActionDrawer = React.memo(function ActionDrawer({
             </button>
           )}
         </div>
-        <div className="flex items-center gap-1 overflow-x-auto min-w-0" role="toolbar" aria-label="Action categories">
+        <div className="flex items-center gap-1 overflow-x-auto min-w-0 py-0.5 px-0.5 -mx-0.5 scrollbar-none" role="toolbar" aria-label="Action categories">
           {CATEGORIES.map((cat) => {
             const isAct = actionCategoryFilter === cat;
             return (
@@ -242,7 +242,7 @@ export const ActionDrawer = React.memo(function ActionDrawer({
                     assignAction(act);
                   }
                 }}
-                className="group p-2 rounded-[var(--radius-md)] bg-[var(--bg-panel)]/75 border border-[var(--border-subtle)]/80 hover:border-[var(--accent-primary)]/50 hover:bg-[var(--bg-elevated)] focus-visible:border-[var(--accent-primary)] focus-visible:bg-[var(--bg-elevated)] hover:-translate-y-[1px] hover:shadow-md flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing transition-all duration-150"
+                className="group p-2 rounded-[var(--radius-md)] bg-[var(--bg-panel)]/75 border border-[var(--border-subtle)]/80 hover:border-[var(--accent-primary)]/55 hover:bg-[var(--bg-elevated)] focus-visible:border-[var(--accent-primary)] focus-visible:bg-[var(--bg-elevated)] hover:-translate-y-[1px] active:scale-[0.985] hover:shadow-md flex items-center justify-between gap-2 cursor-grab active:cursor-grabbing transition-all duration-150"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div

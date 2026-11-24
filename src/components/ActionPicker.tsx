@@ -132,7 +132,7 @@ export const ActionPicker: React.FC<{
               style={{ left: Math.max(8, Math.min(rect.left, window.innerWidth - rect.width - 8)), top: rect.top, width: rect.width, maxHeight: PANEL_HEIGHT }}
               onKeyDown={onKey}
             >
-              <div className="flex items-center gap-2 px-2.5 h-9 border-b border-[var(--border-subtle)]">
+              <div className="flex items-center gap-2 px-2.5 h-9 border-b border-[var(--border-subtle)] bg-[var(--bg-sidebar)]/50">
                 <Search size={13} className="text-[var(--text-secondary)] shrink-0" />
                 <input
                   autoFocus

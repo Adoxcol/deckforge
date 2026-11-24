@@ -133,6 +133,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
   useSampleAnimation,
 }) => {
   const [library, setLibrary] = React.useState<{ use: (clip: MediaPreview) => void } | null>(null);
+  const [previewDrop, setPreviewDrop] = React.useState(false);
   const titleId = React.useId();
   const zoneLabelId = React.useId();
   const zoneValueId = React.useId();
@@ -177,10 +178,19 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   ? `radial-gradient(circle at 50% 30%, ${activeKey.accentColor}55, ${activeKey.bgColor})`
                   : activeKey.bgColor,
             }}
-            className="relative w-16 h-16 overflow-hidden border border-[var(--accent-primary)]/80 hover:border-[var(--accent-hover)] shadow-[0_4px_14px_rgba(0,0,0,0.35)] flex items-center justify-center shrink-0 transition-colors"
-            onDragOver={(event) => event.preventDefault()}
+            className={`relative w-16 h-16 overflow-hidden border shadow-[0_4px_14px_rgba(0,0,0,0.35)] flex items-center justify-center shrink-0 transition-all ${
+              previewDrop
+                ? "border-[var(--accent-hover)] ring-2 ring-[var(--accent-primary)]/50 scale-[1.03]"
+                : "border-[var(--accent-primary)]/80 hover:border-[var(--accent-hover)]"
+            }`}
+            onDragOver={(event) => {
+              event.preventDefault();
+              if (!previewDrop) setPreviewDrop(true);
+            }}
+            onDragLeave={() => setPreviewDrop(false)}
             onDrop={(event) => {
               event.preventDefault();
+              setPreviewDrop(false);
               const file = event.dataTransfer.files?.[0];
               if (file) void ingestFile(file, "key", activeKey.index);
             }}
@@ -271,7 +281,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 id={zoneLabelId}
                 value={activeZone.label}
                 onChange={(e) => updateSelectedZone(activeZone.index, { label: e.target.value })}
-                className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
+                className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -280,7 +290,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 id={zoneValueId}
                 value={activeZone.valueText}
                 onChange={(e) => updateSelectedZone(activeZone.index, { valueText: e.target.value })}
-                className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
+                className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
               />
             </div>
             <ActionBinding
@@ -330,7 +340,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 id={encLabelId}
                 value={activeEncoder.label}
                 onChange={(e) => updateSelectedEncoder(activeEncoder.index, { label: e.target.value })}
-                className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
+                className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
               />
             </div>
             <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2">
@@ -808,7 +818,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 id={paramInputId}
                 value={activeKey.actionParam}
                 onChange={(e) => updateSelectedKey({ actionParam: e.target.value })}
-                className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none transition-colors"
+                className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none transition-colors"
               />
             </div>
             <button
@@ -875,7 +885,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
         <button
           type="button"
           onClick={handleTestSelectedAction}
-          className="w-full h-9 rounded-md bg-[var(--bg-panel)] border border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] hover:border-[var(--accent-primary)] text-xs font-semibold text-[var(--text-primary)] flex items-center justify-center gap-2 cursor-pointer transition-colors"
+          className="w-full h-9 rounded-md bg-[var(--bg-panel)] border border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] hover:border-[var(--accent-primary)] active:scale-[0.98] text-xs font-semibold text-[var(--text-primary)] flex items-center justify-center gap-2 cursor-pointer transition-all"
         >
           <Play size={13} />
           <span>Test Action</span>
@@ -884,7 +894,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
           type="button"
           onClick={handleClearSelectedKey}
           title="Clear this key in the editor. Apply to Device to update the physical key."
-          className="w-full h-8 rounded-md bg-transparent border border-[var(--border-subtle)] hover:border-[var(--status-error)]/60 hover:bg-[var(--status-error)]/10 text-xs text-[var(--text-secondary)] hover:text-[var(--status-error)] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+          className="w-full h-8 rounded-md bg-transparent border border-[var(--border-subtle)] hover:border-[var(--status-error)]/60 hover:bg-[var(--status-error)]/10 active:scale-[0.98] text-xs text-[var(--text-secondary)] hover:text-[var(--status-error)] flex items-center justify-center gap-1.5 cursor-pointer transition-all"
         >
           <Trash2 size={12} />
           <span>Clear Key in Editor</span>

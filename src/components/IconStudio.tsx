@@ -123,6 +123,7 @@ export const IconStudio: React.FC<{
   onBrandPick,
 }) => {
   const [layer, setLayer] = useState<LayerId>("icon");
+  const [canvasDrop, setCanvasDrop] = useState(false);
   const face = keys.find((item) => item.index === selectedIndex) ?? keys[0];
   if (!face) return null;
   const delays = clip ? (clip.delaysMs.length === clip.frames.length ? clip.delaysMs : clip.frames.map(() => clip.frameDelayMs || 100)) : [];
@@ -143,8 +144,8 @@ export const IconStudio: React.FC<{
                 aria-label={item.title || `Key ${item.index + 1}`}
                 aria-pressed={selected}
                 onClick={() => onSelectKey(item.index)}
-                className={`relative flex aspect-square w-full items-center justify-center rounded-lg border cursor-pointer transition-all hover:brightness-110 ${
-                  selected ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)] shadow-sm" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)]"
+                className={`relative flex aspect-square w-full items-center justify-center rounded-lg border cursor-pointer transition-all ${
+                  selected ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/50 ring-offset-2 ring-offset-[var(--bg-sidebar)] shadow-md" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:-translate-y-[0.5px]"
                 }`}
                 style={{
                   background: item.media
@@ -168,15 +169,22 @@ export const IconStudio: React.FC<{
 
       <main
         className="min-h-0 overflow-y-auto p-5 flex flex-col items-center gap-5 df-dot-grid"
-        onDragOver={(event) => event.preventDefault()}
+        onDragOver={(event) => {
+          event.preventDefault();
+          if (!canvasDrop) setCanvasDrop(true);
+        }}
+        onDragLeave={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget as Node)) setCanvasDrop(false);
+        }}
         onDrop={(event) => {
           event.preventDefault();
+          setCanvasDrop(false);
           const file = event.dataTransfer.files?.[0];
           if (file) onDropFile(file);
         }}
       >
         <div className="flex items-end gap-3.5">
-          <div className="p-3.5 rounded-2xl bg-[var(--bg-panel)] border border-[var(--border-strong)]/80 ring-1 ring-black/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_20px_48px_rgba(0,0,0,0.5)]">
+          <div className={`p-3.5 rounded-2xl bg-[var(--bg-panel)] border ring-1 ring-black/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_20px_48px_rgba(0,0,0,0.5)] transition-all ${canvasDrop ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/45 scale-[1.02]" : "border-[var(--border-strong)]/80"}`}>
             <KeyCap keyConfig={face} clip={clip} pixelWidth={pixelWidth} pixelHeight={pixelHeight} scale={2.4} />
           </div>
           <div className="pb-2 text-[11px] font-mono tabular-nums text-[var(--text-secondary)]">
@@ -326,7 +334,7 @@ export const IconStudio: React.FC<{
               aria-label="Key title"
               value={face.title}
               onChange={(event) => onChange({ title: event.target.value })}
-              className="h-9 px-2.5 rounded-lg bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-sm text-[var(--text-primary)] outline-none"
+              className="h-9 px-2.5 rounded-lg bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-sm text-[var(--text-primary)] outline-none transition-colors"
             />
             <button
               type="button"
@@ -467,7 +475,7 @@ export const IconStudio: React.FC<{
         <button
           type="button"
           onClick={onApply}
-          className="h-10 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+          className="h-10 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all"
         >
           <ImagePlus size={14} />
           Send this page to the deck

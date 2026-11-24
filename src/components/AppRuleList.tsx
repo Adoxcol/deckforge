@@ -127,7 +127,7 @@ const Switch: React.FC<{ checked: boolean; onChange: (v: boolean) => void; label
 );
 
 const field =
-  "h-7 w-full px-2 rounded-[var(--radius-sm)] bg-[var(--bg-input)] border border-[var(--border-subtle)] text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)]";
+  "h-7 w-full px-2 rounded-[var(--radius-sm)] bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] transition-colors";
 
 const RULE_DRAG_TYPE = "application/x-deckforge-rule";
 
@@ -476,8 +476,15 @@ export const PageApps: React.FC<{
     const close = (e: MouseEvent) => {
       if (!boxRef.current?.contains(e.target as Node)) setOpen(null);
     };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(null);
+    };
     window.addEventListener("mousedown", close);
-    return () => window.removeEventListener("mousedown", close);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", close);
+      window.removeEventListener("keydown", onKey);
+    };
   }, [open]);
   React.useEffect(() => setOpen(null), [profile.id, pageIndex]);
   if (!page) return null;
@@ -499,7 +506,7 @@ export const PageApps: React.FC<{
   };
 
   return (
-    <div ref={boxRef} className="relative flex items-center gap-1 h-8 pl-2.5 pr-1 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)]">
+    <div ref={boxRef} className="relative flex items-center gap-1 h-8 pl-2.5 pr-1 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors">
       <span className="text-[11px] text-[var(--text-muted)] mr-0.5">{apps.length ? "Opens with" : "No app"}</span>
       {apps.map((r) => (
         <button

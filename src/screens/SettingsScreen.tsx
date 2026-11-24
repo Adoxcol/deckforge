@@ -50,14 +50,14 @@ export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: s
     </nav>
     <main id="settings-content" aria-labelledby="settings-heading" className="min-h-0 overflow-y-auto p-6 lg:p-8">
       <div className="max-w-3xl mx-auto space-y-5 text-sm text-[var(--text-secondary)]">
-        <header className="flex items-start justify-between gap-4 pb-2">
+        <header className="flex items-start justify-between gap-4 pb-4 border-b border-[var(--border-subtle)]">
           <div><h1 id="settings-heading" className="text-xl font-bold text-[var(--text-primary)]">{selected.name}</h1><p className="text-xs mt-1">{selected.hint}</p></div>
           <span className="text-[11px] px-2.5 py-1 rounded-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)]">{desktop ? "Desktop app" : "Browser preview"}</span>
         </header>
         {section === "general" && <>
           <section className={card} aria-labelledby="startup-heading">
             <div className="flex items-center gap-2 text-[var(--text-primary)]"><Power size={17} /><h2 id="startup-heading" className="font-semibold">Windows sign-in</h2></div>
-            <label className={`flex gap-3 items-center py-1.5 text-[var(--text-primary)] ${desktop ? "cursor-pointer" : "cursor-default"}`}>
+            <label className={`flex gap-3 items-center rounded-lg px-2.5 py-2 -mx-2.5 text-[var(--text-primary)] hover:bg-[var(--bg-sidebar)]/60 transition-colors ${desktop ? "cursor-pointer" : "cursor-default"}`}>
               <input type="checkbox" className="accent-[var(--accent-primary)] w-4 h-4 cursor-pointer disabled:cursor-default" checked={launchAtLogin} disabled={loading || !desktop} onChange={toggleStartup} aria-describedby="startup-help" />
               Start DeckForge in the tray when I sign in
             </label>

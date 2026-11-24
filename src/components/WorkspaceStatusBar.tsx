@@ -54,7 +54,7 @@ export function WorkspaceStatusBar({ deviceId, deviceName, profileId, profileNam
         <Layers size={13} className="shrink-0 text-[var(--text-muted)]" />
         <span className="truncate font-medium text-[var(--text-primary)]">{profileName} / {page.name}</span>
       </span>
-      <span className={`inline-flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium border ${saved ? "bg-[var(--status-success)]/10 border-[var(--status-success)]/25 text-[var(--status-success)]" : "bg-[var(--status-warning)]/10 border-[var(--status-warning)]/25 text-[var(--status-warning)]"}`}>
+      <span className={`inline-flex items-center gap-1.5 shrink-0 px-2 py-0.5 rounded-full text-[11px] font-medium border transition-colors ${saved ? "bg-[var(--status-success)]/10 border-[var(--status-success)]/25 text-[var(--status-success)]" : "bg-[var(--status-warning)]/10 border-[var(--status-warning)]/25 text-[var(--status-warning)]"}`}>
         {saved ? <Check size={11} /> : <span className="w-1.5 h-1.5 rounded-full bg-current" />}{saved ? "Saved" : "Unsaved"}
       </span>
       <span className="w-px h-4 bg-[var(--border-subtle)] shrink-0" aria-hidden />

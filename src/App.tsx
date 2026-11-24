@@ -172,7 +172,7 @@ export const App: React.FC = () => {
           <p className="text-xs leading-relaxed text-[var(--status-warning)] break-words">{bootstrapError}</p>
           <button
             type="button"
-            className="h-9 px-5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer"
+            className="h-9 px-5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white cursor-pointer shadow-xs transition-all"
             onClick={() => setBootstrapAttempt(n => n + 1)}
           >
             Retry loading
@@ -199,11 +199,11 @@ export const App: React.FC = () => {
           {!recoveryDraft && <p className="text-xs leading-relaxed text-[var(--text-secondary)]">The file is preserved at <code className="text-[var(--text-primary)]">%APPDATA%\DeckForge\profile-draft.json</code>. Retry reading it, or discard this recovery copy to open saved profiles.</p>}
           <div className="flex flex-wrap gap-2.5 pt-1 text-xs">
             {recoveryDraft ? (
-              <button type="button" autoFocus disabled={recoveryBusy} className="h-9 px-4 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] font-semibold text-white cursor-pointer disabled:opacity-40" onClick={() => resolveRecovery(true)}>Restore draft</button>
+              <button type="button" autoFocus disabled={recoveryBusy} className="h-9 px-4 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] font-semibold text-white cursor-pointer disabled:opacity-40 transition-all" onClick={() => resolveRecovery(true)}>Restore draft</button>
             ) : (
-              <button type="button" disabled={recoveryBusy} className="h-9 px-4 rounded-lg border border-[var(--border-strong)] hover:border-[var(--accent-primary)] font-medium cursor-pointer disabled:opacity-40" onClick={() => { setRecoveryChecked(false); setRecoveryError(null); setBootstrapAttempt(n => n + 1); }}>Retry recovery</button>
+              <button type="button" disabled={recoveryBusy} className="h-9 px-4 rounded-lg border border-[var(--border-strong)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] font-medium cursor-pointer disabled:opacity-40 transition-colors" onClick={() => { setRecoveryChecked(false); setRecoveryError(null); setBootstrapAttempt(n => n + 1); }}>Retry recovery</button>
             )}
-            <button type="button" disabled={recoveryBusy} className="h-9 px-4 rounded-lg border border-[var(--border-strong)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer disabled:opacity-40" onClick={() => resolveRecovery(false)}>Discard draft</button>
+            <button type="button" disabled={recoveryBusy} className="h-9 px-4 rounded-lg border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer disabled:opacity-40 transition-colors" onClick={() => resolveRecovery(false)}>Discard draft</button>
           </div>
         </section>
       </div>
@@ -343,7 +343,7 @@ export const App: React.FC = () => {
 
       <div className="flex-1 min-h-0 flex">
       {/* Icon rail: one place to switch screens, labels on hover. */}
-      <nav aria-label="Screens" className="w-14 shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] flex flex-col items-center gap-1.5 py-3">
+      <nav aria-label="Screens" className="relative z-30 w-14 shrink-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] flex flex-col items-center gap-1.5 py-3">
         <div aria-hidden className="w-7 h-7 mb-2.5 rounded-[var(--radius-sm)] bg-[var(--accent-primary)] p-[5px] grid grid-cols-2 gap-[3px] shadow-[0_2px_10px_rgba(124,131,247,0.3)]">
           <span className="bg-[var(--bg-app)] rounded-[1.5px]" />
           <span className="bg-[var(--bg-app)] rounded-[1.5px]" />
@@ -360,7 +360,6 @@ export const App: React.FC = () => {
               {tab.id === "settings" && <div aria-hidden className="mt-auto mb-1 w-6 h-px bg-[var(--border-subtle)]" />}
               <button
                 type="button"
-                title={tab.label}
                 aria-label={tab.label}
                 aria-current={isActive ? "page" : undefined}
                 onClick={() => {
@@ -370,9 +369,9 @@ export const App: React.FC = () => {
                     setSurfaceIndex(activeKey.index);
                   }
                 }}
-                className={`group relative w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center transition-all duration-150 cursor-pointer ${
+                className={`group relative w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center transition-all duration-150 active:scale-[0.95] cursor-pointer ${
                   isActive
-                    ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-strong)]/70 shadow-xs"
+                    ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-strong)]/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_2px_8px_rgba(0,0,0,0.25)]"
                     : "border border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
                 }`}
               >
@@ -426,7 +425,7 @@ export const App: React.FC = () => {
               disabled={undoStack.length === 0}
               title="Undo (Ctrl+Z)"
               aria-label="Undo"
-              className="w-7 h-7 rounded-[4px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-default cursor-pointer transition-colors"
+              className="w-7 h-7 rounded-[4px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.94] disabled:opacity-35 disabled:hover:bg-transparent disabled:active:scale-100 disabled:cursor-default cursor-pointer transition-all"
             >
               <RotateCcw size={13.5} />
             </button>
@@ -436,7 +435,7 @@ export const App: React.FC = () => {
               disabled={redoStack.length === 0}
               title="Redo (Ctrl+Y)"
               aria-label="Redo"
-              className="w-7 h-7 rounded-[4px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-default cursor-pointer transition-colors"
+              className="w-7 h-7 rounded-[4px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.94] disabled:opacity-35 disabled:hover:bg-transparent disabled:active:scale-100 disabled:cursor-default cursor-pointer transition-all"
             >
               <RotateCw size={13.5} />
             </button>
@@ -446,7 +445,7 @@ export const App: React.FC = () => {
             onClick={() => setShowOnboarding(true)}
             title="Quick-start guide"
             aria-label="Quick-start guide"
-            className="w-8 h-8 rounded-[var(--radius-sm)] border border-transparent hover:border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] cursor-pointer transition-colors"
+            className="w-8 h-8 rounded-[var(--radius-sm)] border border-transparent hover:border-[var(--border-subtle)] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] active:scale-[0.95] cursor-pointer transition-all"
           >
             <HelpCircle size={15} />
           </button>

@@ -26,7 +26,7 @@ export function QuitDialog({ open, busy, dirty, error, onCancel, onQuit }: {
   }, [open, busy]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-[2px] flex items-center justify-center p-6 animate-fade-in" onKeyDown={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-[2px] flex items-center justify-center p-6 animate-fade-in" onMouseDown={e => { if (e.target === e.currentTarget && !busy) onCancel(); }} onKeyDown={e => e.stopPropagation()}>
       <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="quit-title" className="rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-6 max-w-md w-full shadow-2xl text-[var(--text-primary)] space-y-4 animate-pop-in">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[var(--status-error)]/12 border border-[var(--status-error)]/25 text-[var(--status-error)] flex items-center justify-center shrink-0">
@@ -42,9 +42,9 @@ export function QuitDialog({ open, busy, dirty, error, onCancel, onQuit }: {
         )}
         {error && <p role="alert" className="text-xs text-[var(--status-error)]">{error}</p>}
         <div className="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-[var(--border-subtle)] text-xs">
-          <button type="button" autoFocus disabled={busy} onClick={onCancel} className="h-9 px-3.5 rounded-lg border border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] font-medium text-[var(--text-primary)] cursor-pointer disabled:opacity-40">Cancel</button>
-          <button type="button" disabled={busy} onClick={() => onQuit(false)} className="h-9 px-3.5 rounded-lg border border-[var(--status-error)]/50 hover:bg-[var(--status-error)]/10 font-medium text-[var(--status-error)] cursor-pointer disabled:opacity-40">{dirty ? "Discard and quit" : "Quit"}</button>
-          <button type="button" disabled={busy} onClick={() => onQuit(true)} className="h-9 px-4 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] font-semibold text-white cursor-pointer disabled:opacity-40">{busy ? "Finishing…" : "Save and quit"}</button>
+          <button type="button" autoFocus disabled={busy} onClick={onCancel} className="h-9 px-3.5 rounded-lg border border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] active:scale-[0.98] font-medium text-[var(--text-primary)] cursor-pointer disabled:opacity-40 transition-all">Cancel</button>
+          <button type="button" disabled={busy} onClick={() => onQuit(false)} className="h-9 px-3.5 rounded-lg border border-[var(--status-error)]/50 hover:bg-[var(--status-error)]/10 active:scale-[0.98] font-medium text-[var(--status-error)] cursor-pointer disabled:opacity-40 transition-all">{dirty ? "Discard and quit" : "Quit"}</button>
+          <button type="button" disabled={busy} onClick={() => onQuit(true)} className="h-9 px-4 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] font-semibold text-white cursor-pointer disabled:opacity-40 shadow-xs transition-all">{busy ? "Finishing…" : "Save and quit"}</button>
         </div>
       </div>
     </div>

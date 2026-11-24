@@ -144,8 +144,8 @@ export const MacroStudio: React.FC<{
                 onSelectMacro(item.id);
                 onSelectStep(0);
               }}
-              className={`text-left p-3 rounded-xl border cursor-pointer transition-colors ${
-                active ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]" : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]"
+              className={`text-left p-3 rounded-xl border cursor-pointer transition-all ${
+                active ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] hover:-translate-y-[0.5px]"
               }`}
             >
               <div className="text-xs font-bold text-[var(--text-primary)] truncate">{item.name}</div>
@@ -242,20 +242,21 @@ export const MacroStudio: React.FC<{
                                 onSelectStep(index);
                               }
                             }}
-                            className="cursor-pointer hover:opacity-90 transition-opacity focus:outline-none"
+                            className="cursor-pointer hover:opacity-90 transition-opacity"
                           >
                             <rect x={x} y={8} width={width} height={28} rx={6} fill={kind.color} fillOpacity={selected ? 0.3 : 0.14} stroke={kind.color} strokeOpacity={selected ? 0.9 : 0} />
                             <rect x={x} y={8} width={3} height={28} rx={1.5} fill={kind.color} />
                             <text x={x + 10} y={26} fill={kind.color} fontSize="11" fontWeight="600">
                               {width > 64 ? kind.title : String(index + 1)}
                             </text>
+                            <rect x={x} y={44} width={width} height={8} rx={4} fill="var(--bg-app)" />
                             <rect
                               x={x}
                               y={44}
                               width={actualWidth}
                               height={8}
                               rx={4}
-                              fill={actual ? (actual.status === "Passed" ? "var(--status-success)" : "var(--status-error)") : "var(--border-subtle)"}
+                              fill={actual ? (actual.status === "Passed" ? "var(--status-success)" : "var(--status-error)") : "var(--border-strong)"}
                             />
                             <text x={x} y={70} fill="var(--text-muted)" fontSize="10">
                               {formatMs(actual?.elapsedMs ?? weights[index])}
@@ -463,7 +464,7 @@ export const MacroStudio: React.FC<{
                   });
                   onSelectStep(selectedStepIdx - 1);
                 }}
-                className="h-8 flex-1 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-35 disabled:cursor-default flex items-center justify-center cursor-pointer"
+                className="h-8 flex-1 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.97] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-35 disabled:cursor-default flex items-center justify-center cursor-pointer transition-all"
               >
                 <ChevronUp size={14} />
               </button>
@@ -482,7 +483,7 @@ export const MacroStudio: React.FC<{
                   });
                   onSelectStep(selectedStepIdx + 1);
                 }}
-                className="h-8 flex-1 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-35 disabled:cursor-default flex items-center justify-center cursor-pointer"
+                className="h-8 flex-1 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.97] text-[var(--text-secondary)] hover:text-[var(--text-primary)] disabled:opacity-35 disabled:cursor-default flex items-center justify-center cursor-pointer transition-all"
               >
                 <ChevronDown size={14} />
               </button>
@@ -497,7 +498,7 @@ export const MacroStudio: React.FC<{
                   }));
                   onSelectStep(Math.max(0, selectedStepIdx - 1));
                 }}
-                className="h-8 w-8 rounded-md border border-[var(--status-error)]/35 hover:border-[var(--status-error)] hover:bg-[var(--status-error)]/10 text-[var(--status-error)] flex items-center justify-center cursor-pointer"
+                className="h-8 w-8 rounded-md border border-[var(--status-error)]/35 hover:border-[var(--status-error)] hover:bg-[var(--status-error)]/10 active:scale-[0.97] text-[var(--status-error)] flex items-center justify-center cursor-pointer transition-all"
               >
                 <Trash2 size={14} />
               </button>
@@ -511,7 +512,7 @@ export const MacroStudio: React.FC<{
           <button
             type="button"
             onClick={() => onAssign(macro)}
-            className="mt-auto h-10 rounded-lg bg-[var(--accent-soft)] border border-[var(--accent-primary)]/60 hover:bg-[var(--accent-primary)] text-[var(--accent-text)] hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+            className="mt-auto h-10 rounded-lg bg-[var(--accent-soft)] border border-[var(--accent-primary)]/60 hover:bg-[var(--accent-primary)] active:scale-[0.98] text-[var(--accent-text)] hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
           >
             <Zap size={14} />
             {activeKeyLabel ? `Put on ${activeKeyLabel}` : "Put on selected key"}

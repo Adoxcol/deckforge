@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { BookmarkPlus, Check, LayoutTemplate, Replace, Trash2, X } from "lucide-react";
 import { DeckIcon } from "./DeckIcon";
 import {
@@ -71,6 +71,9 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
   const [pageName, setPageName] = useState<string>(BUILT_IN_TEMPLATES[0].name);
   const [saveName, setSaveName] = useState<string>("");
   const [confirmReplace, setConfirmReplace] = useState(false);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   const all = useMemo(() => [...BUILT_IN_TEMPLATES, ...custom], [custom]);
   const visible = useMemo(
@@ -80,12 +83,29 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
   const selected = all.find((tpl) => tpl.id === selectedId) ?? all[0];
 
   useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    dialogRef.current?.querySelector<HTMLElement>("button, input")?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") {
+        e.preventDefault();
+        closeRef.current();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const focusable = Array.from(
+        dialogRef.current?.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled)") ?? []
+      );
+      if (!focusable.length) return;
+      const idx = focusable.indexOf(document.activeElement as HTMLElement);
+      e.preventDefault();
+      focusable[(idx + (e.shiftKey ? -1 : 1) + focusable.length) % focusable.length].focus();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      previous?.focus();
+    };
+  }, []);
 
   const choose = (tpl: PageTemplate) => {
     setSelectedId(tpl.id);
@@ -126,6 +146,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
       }}
     >
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="templates-title"
@@ -151,7 +172,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 grid grid-cols-[168px_minmax(0,1fr)_316px]">
+        <div className="flex-1 min-h-0 grid grid-cols-[152px_minmax(0,1fr)_288px] xl:grid-cols-[168px_minmax(0,1fr)_316px]">
           {/* Categories */}
           <div className="border-r border-[var(--border-subtle)] p-3 flex flex-col gap-0.5 overflow-y-auto">
             {TEMPLATE_CATEGORIES.map((cat) => {
@@ -261,7 +282,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
               <button
                 type="button"
                 onClick={() => onAdd(instantiateTemplate(selected, pageName))}
-                className="h-9 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer"
+                className="h-9 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all"
               >
                 <Check size={14} /> Add as a new page
               </button>
@@ -270,12 +291,12 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                   type="button"
                   onClick={() => setConfirmReplace(true)}
                   disabled={!currentPage}
-                  className="h-9 rounded-md border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-panel)] text-[var(--text-primary)] text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40"
+                  className="h-9 rounded-md border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-panel)] text-[var(--text-primary)] text-xs font-medium flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-40 transition-colors"
                 >
                   <Replace size={14} /> Replace “{currentPage?.name ?? "current page"}”
                 </button>
               ) : (
-                <div className="rounded-md border border-[var(--status-warning)]/45 bg-[var(--status-warning)]/10 p-2.5 flex flex-col gap-2">
+                <div className="rounded-md border border-[var(--status-warning)]/45 bg-[var(--status-warning)]/10 p-2.5 flex flex-col gap-2 animate-pop-in">
                   <div className="text-[11px] text-[var(--status-warning)]">
                     This overwrites every key, touch zone and knob on “{currentPage?.name}”. You can undo it with Ctrl+Z.
                   </div>
@@ -283,14 +304,14 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                     <button
                       type="button"
                       onClick={() => onReplace(instantiateTemplate(selected, pageName, currentPage?.id))}
-                      className="flex-1 h-8 rounded-md bg-[var(--status-warning)] hover:brightness-110 text-[#1A140A] text-xs font-semibold cursor-pointer"
+                      className="flex-1 h-8 rounded-md bg-[var(--status-warning)] hover:brightness-110 active:scale-[0.98] text-[#1A140A] text-xs font-semibold cursor-pointer transition-all"
                     >
                       Replace page
                     </button>
                     <button
                       type="button"
                       onClick={() => setConfirmReplace(false)}
-                      className="flex-1 h-8 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-panel)] text-[var(--text-primary)] text-xs cursor-pointer"
+                      className="flex-1 h-8 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-panel)] text-[var(--text-primary)] text-xs cursor-pointer transition-colors"
                     >
                       Keep it
                     </button>
@@ -301,7 +322,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                 <button
                   type="button"
                   onClick={() => removeCustom(selected)}
-                  className="h-8 rounded-md border border-[var(--status-error)]/40 text-[var(--status-error)] hover:bg-[var(--status-error)]/10 text-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                  className="h-8 rounded-md border border-[var(--status-error)]/40 text-[var(--status-error)] hover:bg-[var(--status-error)]/10 text-xs flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
                 >
                   <Trash2 size={13} /> Delete this template
                 </button>
@@ -317,13 +338,13 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                   value={saveName}
                   onChange={(e) => setSaveName(e.target.value)}
                   placeholder={currentPage?.name ?? "Template name"}
-                  className="flex-1 min-w-0 h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
+                  className="flex-1 min-w-0 h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
                 />
                 <button
                   type="button"
                   onClick={saveCurrent}
                   disabled={!currentPage}
-                  className="h-8 px-3 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/40 hover:bg-[var(--accent-primary)] text-[var(--accent-text)] hover:text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer disabled:opacity-40"
+                  className="h-8 px-3 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/40 hover:bg-[var(--accent-primary)] text-[var(--accent-text)] hover:text-white text-xs font-medium flex items-center gap-1.5 cursor-pointer disabled:opacity-40 transition-colors"
                 >
                   <BookmarkPlus size={13} /> Save
                 </button>

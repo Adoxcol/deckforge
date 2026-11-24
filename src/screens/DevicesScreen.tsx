@@ -243,7 +243,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
         )}
 
         {deviceDetailTab === "Overview" && activeDevice.encoders && encoders && onKnobLedChange && onResetKnobLeds && (
-          <div className="p-4 rounded-[var(--radius-md)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-3">
+          <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-3">
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <div className="text-[13px] font-bold text-[var(--text-primary)]">Knob LED Ring Colors</div>
@@ -423,10 +423,10 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                   diagnostics.map((d) => (
                     <div
                       key={d.id}
-                      className="p-2 rounded bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] flex items-center justify-between gap-4"
+                      className="p-2 rounded-lg bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] flex items-center justify-between gap-4 transition-colors"
                     >
-                      <div className="min-w-0">
-                        <span className="text-[var(--accent-primary)] mr-2">[{d.stage}]</span>
+                      <div className="min-w-0 flex items-center gap-2">
+                        <span className="px-1.5 py-0.5 rounded bg-[var(--accent-soft)] text-[var(--accent-text)] text-[10.5px] font-semibold shrink-0">{d.stage}</span>
                         <span className="text-[var(--text-primary)] break-words">{d.message}</span>
                       </div>
                       {d.packetHex && (

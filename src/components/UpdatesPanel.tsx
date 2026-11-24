@@ -49,7 +49,14 @@ export const UpdatesPanel: React.FC<{ card: string }> = ({ card }) => {
           {update.notes && <p className="whitespace-pre-line text-[var(--text-secondary)]">{update.notes}</p>}
         </div>
       )}
-      {state === "installing" && <p className="text-xs tabular-nums text-[var(--accent-text)]">Downloading… {percent}%. DeckForge restarts when it's done.</p>}
+      {state === "installing" && (
+        <div className="space-y-1.5">
+          <p className="text-xs tabular-nums text-[var(--accent-text)]">Downloading… {percent}%. DeckForge restarts when it's done.</p>
+          <div className="h-1.5 w-full rounded-full bg-[var(--bg-sidebar)] overflow-hidden">
+            <div className="h-full rounded-full bg-[var(--accent-primary)] transition-[width] duration-150" style={{ width: `${Math.max(4, Math.min(100, percent))}%` }} />
+          </div>
+        </div>
+      )}
       {state === "error" && <p className="rounded-md border border-[var(--status-error)]/30 bg-[var(--status-error)]/10 px-2.5 py-1.5 text-xs text-[var(--status-error)]">Could not check for updates: {message}</p>}
       <div className="flex flex-wrap gap-2">
         {state === "found" ? (

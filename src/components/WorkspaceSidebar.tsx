@@ -1,4 +1,5 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { deckforgeApi } from "../bridge/tauriBridge";
 import { ChevronRight, Download, Plus, RefreshCw, Search, Upload, X } from "lucide-react";
 import { DeckIcon } from "./DeckIcon";
@@ -47,6 +48,8 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
   triggerToast,
 }: WorkspaceSidebarProps) {
   const [pickerOpen, setPickerOpen] = React.useState(false);
+  const [pickerRect, setPickerRect] = React.useState<{ left: number; top: number } | null>(null);
+  const plusBtnRef = React.useRef<HTMLButtonElement>(null);
   const [rescanning, setRescanning] = React.useState(false);
   const [bindingQuery, setBindingQuery] = React.useState("");
   const [appsOpen, setAppsOpen] = React.useState(false);
@@ -62,14 +65,37 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
   React.useEffect(() => {
     if (!pickerOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPickerOpen(false);
+      if (e.key === "Escape") {
+        setPickerOpen(false);
+        plusBtnRef.current?.focus();
+      }
     };
+    const onResize = () => setPickerOpen(false);
     window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onResize);
+    };
   }, [pickerOpen]);
 
+  const togglePicker = () => {
+    if (pickerOpen) {
+      setPickerOpen(false);
+      return;
+    }
+    const box = plusBtnRef.current?.getBoundingClientRect();
+    if (box) {
+      setPickerRect({
+        left: Math.max(8, Math.min(box.left, window.innerWidth - 264)),
+        top: Math.min(box.bottom + 6, window.innerHeight - 260),
+      });
+    }
+    setPickerOpen(true);
+  };
+
   const iconButtonClass =
-    "w-6 h-6 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] transition-all duration-150 flex items-center justify-center cursor-pointer";
+    "w-6 h-6 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.94] transition-all duration-150 flex items-center justify-center cursor-pointer";
   return (
     <aside className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-3.5 flex flex-col gap-4 overflow-y-auto">
       {/* Devices Section */}
@@ -155,8 +181,9 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
             </button>
             <div>
               <button
+                ref={plusBtnRef}
                 type="button"
-                onClick={() => setPickerOpen((open) => !open)}
+                onClick={togglePicker}
                 title="New profile"
                 aria-label="Create profile"
                 aria-expanded={pickerOpen}
@@ -164,13 +191,14 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
               >
                 <Plus size={13} />
               </button>
-              {pickerOpen && (
+              {pickerOpen && pickerRect && createPortal(
                 <>
-                  <div className="fixed inset-0 z-40" onClick={() => setPickerOpen(false)} />
+                  <div className="fixed inset-0 z-[90]" onMouseDown={() => setPickerOpen(false)} />
                   <div
                     role="menu"
                     aria-label="Create profile from template"
-                    className="absolute left-0 w-64 max-w-[calc(100vw-2rem)] top-full mt-1.5 z-50 max-h-[70vh] overflow-y-auto p-1.5 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-strong)] shadow-2xl flex flex-col gap-0.5 animate-pop-in"
+                    style={{ left: pickerRect.left, top: pickerRect.top }}
+                    className="fixed z-[91] w-64 max-w-[calc(100vw-1rem)] max-h-[70vh] overflow-y-auto p-1.5 rounded-xl bg-[var(--bg-panel)]/95 backdrop-blur-md border border-[var(--border-strong)] shadow-2xl flex flex-col gap-0.5 animate-pop-in"
                   >
                     <div className="px-2 pt-1 pb-1.5 text-[11px] font-medium text-[var(--text-muted)]">Start a new profile from</div>
                     {STARTER_PROFILES.map((starter) => (
@@ -197,7 +225,8 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                       </button>
                     ))}
                   </div>
-                </>
+                </>,
+                document.body
               )}
             </div>
           </div>
@@ -319,10 +348,10 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
               </span>
             )}
           </span>
-          <ChevronRight size={14} className={`shrink-0 transition-transform ${appsOpen ? "rotate-90" : ""}`} />
+          <ChevronRight size={14} className={`shrink-0 transition-transform duration-150 ${appsOpen ? "rotate-90" : ""}`} />
         </button>
         {appsOpen && (
-          <div className="mt-2">
+          <div className="mt-2 animate-fade-in">
             <AppRuleList embedded rules={autoSwitchRules} profiles={profiles} showProfileId={activeProfile?.id} currentPageIndex={selectedPageIdx} saveRules={saveRules} />
           </div>
         )}

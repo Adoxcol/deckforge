@@ -43,7 +43,7 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
       <button
         type="button"
         onClick={onBrowse}
-        className="h-9 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/45 hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/20 text-xs font-semibold text-[var(--accent-text)] hover:text-white cursor-pointer transition-colors"
+        className="h-9 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/45 hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary)]/20 active:scale-[0.98] text-xs font-semibold text-[var(--accent-text)] hover:text-white cursor-pointer transition-all"
       >
         Browse media library
       </button>
@@ -51,7 +51,7 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
         <button
           type="button"
           onClick={onUpload}
-          className="flex-1 h-8 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)]/60 hover:bg-[var(--bg-elevated)] text-[11.5px] font-semibold text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+          className="flex-1 h-8 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)]/60 hover:bg-[var(--bg-elevated)] active:scale-[0.98] text-[11.5px] font-semibold text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer transition-all"
         >
           <ImagePlus size={13} />
           Upload image or GIF
@@ -59,7 +59,7 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
         <button
           type="button"
           onClick={onSample}
-          className="h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
+          className="h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] active:scale-[0.98] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-all"
         >
           Sample
         </button>

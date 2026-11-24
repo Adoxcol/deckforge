@@ -92,7 +92,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
           type="button"
           onClick={handleSaveLocally}
           title="Save profiles locally (Ctrl+S)"
-          className="h-8 shrink-0 whitespace-nowrap px-3 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-xs font-medium text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer transition-all duration-150"
+          className="h-8 shrink-0 whitespace-nowrap px-3 rounded-md bg-[var(--bg-panel)] border border-[var(--border-strong)]/70 hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-xs font-medium text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer transition-all duration-150"
         >
           <Save size={13} className="text-[var(--text-secondary)]" />
           <span>Save</span>

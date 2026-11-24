@@ -64,7 +64,7 @@ const ThemePreview: React.FC<{ theme: ThemeId; icons: string[] }> = ({ theme, ic
   return (
     <div className="flex justify-center gap-2.5 p-2.5 rounded-xl bg-[var(--bg-app)] border border-[var(--border-subtle)] w-full">
       {icons.map((name, i) => (
-        <canvas key={name} ref={(el) => { refs.current[i] = el; }} width={112} height={112} className="w-16 h-16 rounded-lg border border-[var(--border-strong)]/60 bg-[#0B0D14]" />
+        <canvas key={name} ref={(el) => { refs.current[i] = el; }} width={112} height={112} className="w-16 h-16 rounded-lg border border-[var(--border-strong)]/60 bg-[#0B0D14] shadow-md" />
       ))}
     </div>
   );
@@ -183,7 +183,7 @@ export const ThemesScreen: React.FC<{
         </p>
       </div>
 
-      <section className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-wrap items-center justify-between gap-4">
+      <section className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="font-bold text-sm flex items-center gap-2"><Wand2 size={15} className="text-[var(--accent-text)]" /> Full-deck wallpaper</div>
           <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-xl">

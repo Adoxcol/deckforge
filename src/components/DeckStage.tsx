@@ -168,7 +168,7 @@ export const DeckStage = React.memo(function DeckStage({
                       ? `radial-gradient(circle at 50% 28%, ${k.accentColor}44, ${k.bgColor})`
                       : k.bgColor,
                 }}
-                className={`aspect-[1/0.9] border border-[var(--border-subtle)] p-2 flex flex-col items-center justify-center gap-1.5 relative overflow-hidden cursor-pointer active:cursor-grabbing active:scale-[0.97] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_2px_6px_rgba(0,0,0,0.35)] transition-[box-shadow,border-color,filter,transform] duration-150 group hover:brightness-110 ${
+                className={`aspect-[1/0.9] border border-[var(--border-subtle)] p-2 flex flex-col items-center justify-center gap-1.5 relative overflow-hidden cursor-pointer active:cursor-grabbing active:scale-[0.97] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_2px_6px_rgba(0,0,0,0.35)] transition-[box-shadow,border-color,filter,transform] duration-150 group ${
                   dropTarget === k.index
                     ? "ring-2 ring-[var(--accent-hover)] ring-offset-2 ring-offset-[var(--bg-panel)] scale-[1.03]"
                     : isLivePressed
@@ -177,7 +177,7 @@ export const DeckStage = React.memo(function DeckStage({
                     ? "ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-[var(--bg-panel)] shadow-[0_0_18px_rgba(124,131,247,0.24)]"
                     : lit
                     ? "ring-2 ring-[var(--status-success)]/85 ring-offset-2 ring-offset-[var(--bg-panel)]"
-                    : "hover:border-[var(--border-strong)] hover:-translate-y-[1px]"
+                    : "hover:border-[var(--border-strong)] hover:-translate-y-[1px] hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_6px_14px_rgba(0,0,0,0.45)]"
                 }`}
               >
                 {(k.doublePress || k.hold) && (
@@ -252,7 +252,7 @@ export const DeckStage = React.memo(function DeckStage({
                 const file = event.dataTransfer.files?.[0];
                 if (file) void ingestFile(file, "strip", 0);
               }}
-              className={`h-7 rounded-md border text-[10.5px] font-semibold cursor-pointer transition-colors ${
+              className={`h-7 px-3 rounded-md border text-[10.5px] font-semibold cursor-pointer active:scale-[0.99] transition-all ${
                 surface === "strip"
                   ? "border-[var(--accent-primary)]/60 bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[0_0_0_1px_rgba(124,131,247,0.2)]"
                   : "border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]"
@@ -304,7 +304,7 @@ export const DeckStage = React.memo(function DeckStage({
                     }}
                     className={`relative min-h-14 overflow-hidden px-2.5 py-1.5 rounded-lg bg-[var(--bg-panel)] border cursor-pointer flex items-center justify-between shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-150 ${
                       dropZone === `zone-${tz.index}`
-                        ? "border-[var(--accent-hover)] bg-[var(--bg-elevated)]"
+                        ? "border-[var(--accent-hover)] ring-2 ring-[var(--accent-hover)]/45 bg-[var(--bg-elevated)] scale-[1.01]"
                         : liveTouchZoneIdx === tz.index
                         ? "border-[var(--status-success)] ring-1 ring-[var(--status-success)]/50 scale-[0.98]"
                         : zoneSelected ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/40" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/60 hover:-translate-y-[0.5px]"
@@ -405,7 +405,7 @@ export const DeckStage = React.memo(function DeckStage({
                 }}
                 className={`relative px-2.5 py-2 rounded-xl bg-[var(--bg-input)] border flex items-center gap-2.5 cursor-pointer shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition-all duration-150 ${
                   dropZone === `enc-${enc.index}`
-                    ? "border-[var(--accent-hover)] bg-[var(--bg-elevated)]"
+                    ? "border-[var(--accent-hover)] ring-2 ring-[var(--accent-hover)]/45 bg-[var(--bg-elevated)]"
                     : liveEncoderEvent?.index === enc.index
                     ? `border-[var(--status-success)] ring-1 ring-[var(--status-success)]/50 ${liveEncoderEvent.kind === "push" ? "scale-[0.97]" : ""}`
                     : isEncSelected
@@ -465,7 +465,7 @@ export const DeckStage = React.memo(function DeckStage({
                           boxShadow: `0 0 10px ${ledColor}66, inset 0 0 4px ${ledColor}44`,
                         }
                   }
-                  className="relative w-7 h-7 rounded-full bg-gradient-to-br from-[var(--border-strong)] to-[var(--bg-sidebar)] border-2 shrink-0 flex items-center justify-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)]"
+                  className="relative w-7 h-7 rounded-full bg-gradient-to-br from-[var(--border-strong)] to-[var(--bg-sidebar)] border-2 shrink-0 flex items-center justify-center shadow-[inset_0_1px_1px_rgba(255,255,255,0.12)] transition-[border-color,box-shadow] duration-150"
                 >
                   <span
                     aria-hidden
@@ -585,7 +585,7 @@ export const DeckStage = React.memo(function DeckStage({
           onClick={handleAddPage}
           title="Add a page"
           aria-label="Add a page"
-          className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer transition-colors"
+          className="w-8 h-8 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.96] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center cursor-pointer transition-all"
         >
           <Plus size={13} />
         </button>
@@ -594,7 +594,7 @@ export const DeckStage = React.memo(function DeckStage({
           onClick={() => setTemplatesOpen(true)}
           title="Page templates"
           aria-label="Page templates"
-          className="h-8 px-2.5 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1.5 text-xs font-medium cursor-pointer transition-colors"
+          className="h-8 px-2.5 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1.5 text-xs font-medium cursor-pointer transition-all"
         >
           <LayoutTemplate size={13} /> Templates
         </button>

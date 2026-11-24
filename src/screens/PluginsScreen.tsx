@@ -77,6 +77,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
   const [searching, setSearching] = useState(false);
   const [installing, setInstalling] = useState<string | null>(null);
   const [rescanning, setRescanning] = useState(false);
+  const confirmRef = React.useRef<HTMLDivElement>(null);
 
   const installed = (result: PluginInstalled) => {
     onPluginsChange(result.plugins);
@@ -160,11 +161,26 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
 
   React.useEffect(() => {
     if (!confirming) return;
+    const previous = document.activeElement as HTMLElement | null;
+    confirmRef.current?.querySelector<HTMLButtonElement>("button")?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setConfirming(null);
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setConfirming(null);
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const buttons = Array.from(confirmRef.current?.querySelectorAll<HTMLButtonElement>("button:not(:disabled)") ?? []);
+      if (!buttons.length) return;
+      const idx = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      e.preventDefault();
+      buttons[(idx + (e.shiftKey ? -1 : 1) + buttons.length) % buttons.length].focus();
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      previous?.focus();
+    };
   }, [confirming]);
 
   const builtIns = (legacySummary?.discoveredPlugins ?? []).filter((p) => p.sourceKind === "BuiltIn");
@@ -257,7 +273,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
                 <div key={plug.uuid} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:-translate-y-[1px] hover:shadow-md transition-all flex flex-col gap-3">
                   <div className="flex items-start gap-3">
                     {plug.icon ? (
-                      <img src={plug.icon} alt="" className="w-9 h-9 rounded-md shrink-0 object-contain bg-black/20" />
+                      <img src={plug.icon} alt="" className="w-9 h-9 rounded-md shrink-0 object-contain bg-black/20 border border-[var(--border-subtle)] p-0.5" />
                     ) : (
                       <span className="w-9 h-9 rounded-md shrink-0 grid place-items-center bg-[var(--bg-sidebar)] text-[var(--text-secondary)]">
                         <Puzzle size={18} />
@@ -350,6 +366,12 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
             These are GitHub projects tagged <code>streamdeck-plugin</code>. Install takes the plugin file from the
             project&apos;s releases, so projects without one can&apos;t be installed here. Downloads from GitHub can take a minute.
           </p>
+          {searching && (!results || results.length === 0) && (
+            <div className="p-6 rounded-xl border border-dashed border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] flex items-center justify-center gap-2">
+              <RefreshCw size={14} className="animate-spin text-[var(--accent-primary)]" />
+              <span>Searching GitHub for Stream Deck plugins…</span>
+            </div>
+          )}
           {results && results.length === 0 && !searching && (
             <div className="p-6 rounded-xl border border-dashed border-[var(--border-subtle)] text-sm text-[var(--text-secondary)] text-center">Nothing found.</div>
           )}
@@ -410,6 +432,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
       {confirming && (
         <div className="fixed inset-0 z-[80] bg-black/65 backdrop-blur-[2px] grid place-items-center p-4 animate-fade-in" onMouseDown={() => setConfirming(null)}>
           <div
+            ref={confirmRef}
             role="dialog"
             aria-modal="true"
             aria-labelledby="plugin-confirm-title"
