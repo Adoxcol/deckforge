@@ -4,38 +4,14 @@ import { createAppIconLoader } from "../lib/appIconCache";
 
 const loadAppIcon = createAppIconLoader((exe) => deckforgeApi.appIcon(exe));
 
-/** Process stem to a Simple Icons slug, for the browser preview and apps with no extractable icon. */
-const BRAND_SLUG: Record<string, string> = {
-  chrome: "googlechrome",
-  discord: "discord",
-  spotify: "spotify",
-  obsidian: "obsidian",
-  figma: "figma",
-  notion: "notion",
-  steam: "steam",
-  steamwebhelper: "steam",
-  dropbox: "dropbox",
-  epicgameslauncher: "epicgames",
-  riotclientservices: "riotgames",
-  docker: "docker",
-  "docker desktop": "docker",
-  qbittorrent: "qbittorrent",
-  nvidia: "nvidia",
-  "nvidia share": "nvidia",
-};
-
 type Brand = { hex: string; path: string };
 
-let brands: Promise<Map<string, Brand>> | null = null;
+let brands: Promise<Record<string, Brand>> | null = null;
 
-function brandMap(): Promise<Map<string, Brand>> {
-  brands ??= import("virtual:brand-icons")
-    .then((mod) => {
-      const map = new Map<string, Brand>();
-      for (const icon of mod.default) map.set(icon.slug, { hex: icon.hex, path: icon.path });
-      return map;
-    })
-    .catch(() => new Map());
+function brandMap(): Promise<Record<string, Brand>> {
+  brands ??= import("virtual:app-brand-icons")
+    .then((mod) => mod.default)
+    .catch(() => ({}));
   return brands;
 }
 
@@ -52,9 +28,8 @@ const exeOf = (stem: string) => (stem ? (stem.endsWith(".exe") ? stem : `${stem}
 export const AppMark: React.FC<{ name: string; path?: string; size?: number }> = ({ name, path, size = 22 }) => {
   const stem = stemOf(name, path);
   const exe = exeOf(stem);
-  const slug = BRAND_SLUG[stem];
   const [src, setSrc] = React.useState<{ exe: string; url: string | null } | null>(null);
-  const [brand, setBrand] = React.useState<{ slug: string; icon: Brand | null } | null>(null);
+  const [brand, setBrand] = React.useState<{ stem: string; icon: Brand | null } | null>(null);
 
   React.useEffect(() => {
     let alive = true;
@@ -68,18 +43,18 @@ export const AppMark: React.FC<{ name: string; path?: string; size?: number }> =
   }, [exe]);
 
   React.useEffect(() => {
-    if (!slug) return;
+    if (!stem) return;
     let alive = true;
     brandMap().then((map) => {
-      if (alive) setBrand({ slug, icon: map.get(slug) ?? null });
+      if (alive) setBrand({ stem, icon: map[stem] ?? null });
     });
     return () => {
       alive = false;
     };
-  }, [slug]);
+  }, [stem]);
 
   const shownSrc = src?.exe === exe ? src.url : null;
-  const shownBrand = brand?.slug === slug ? brand.icon : null;
+  const shownBrand = brand?.stem === stem ? brand.icon : null;
   const letter = (stem || name || "?").charAt(0).toUpperCase();
   const hue = [...stem].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 7);
 

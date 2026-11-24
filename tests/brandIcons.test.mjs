@@ -16,3 +16,16 @@ test("compact logo module preserves every searchable title, color and drawable p
     assert.deepEqual(icons[i], { title, slug, hex, path });
   }
 });
+
+test("app marks load only their small fallback catalog", async () => {
+  const plugin = brandIconsPlugin();
+  const source = await plugin.load(plugin.resolveId("virtual:app-brand-icons"));
+  const { default: icons } = await import(`data:text/javascript;base64,${Buffer.from(source).toString("base64")}`);
+  assert.ok(Buffer.byteLength(source) < 50_000, "app marks must not load the full logo catalog");
+  assert.equal(Object.keys(icons).length, 16);
+  assert.deepEqual(icons.steamwebhelper, icons.steam);
+  assert.deepEqual(icons["docker desktop"], icons.docker);
+  const chrome = Object.values(original).find((icon) => icon.slug === "googlechrome");
+  assert.deepEqual(icons.chrome, { hex: chrome.hex, path: chrome.path });
+  assert.ok(Object.values(icons).every((icon) => icon?.hex && icon?.path));
+});
