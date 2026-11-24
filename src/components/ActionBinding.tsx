@@ -72,7 +72,7 @@ const OutputPair: React.FC<{ value: string; options: { value: string; label: str
       <select
         value={current}
         onChange={(event) => set(event.target.value)}
-        className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
+        className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
       >
         <option value="">Not set</option>
         {current && !options.some((o) => o.value === current) && <option value={current}>{current} (not plugged in)</option>}
@@ -122,7 +122,7 @@ const SoundClip: React.FC<{ value: string; onChange: (value: string) => void }> 
         aria-label="Sound file"
         onChange={(event) => onChange(joinSound(volume, event.target.value))}
         placeholder="C:\sounds\horn.wav"
-        className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+        className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] transition-colors"
       />
       <label className="flex items-center gap-2">
         <span className="text-[10.5px] text-[var(--text-secondary)] w-16 shrink-0">Volume {volume}</span>
@@ -180,7 +180,7 @@ export const ActionBinding: React.FC<{
         <select
           value={actionParam}
           onChange={(event) => onChange(actionId, event.target.value)}
-          className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
+          className="w-full h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
         >
           {!paramOptions.some((option) => option.value === actionParam) && actionParam && (
           <option value={actionParam}>{actionParam}</option>
@@ -213,7 +213,7 @@ export const ActionBinding: React.FC<{
             value={actionParam}
             onChange={(event) => onChange(actionId, event.target.value)}
             placeholder="Ctrl+Shift+M, notepad.exe, https://..."
-            className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] transition-colors"
+            className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] transition-colors"
           />
           {showPresets && (
             <div className="flex flex-wrap gap-1">
@@ -248,7 +248,7 @@ export const ObsConnection: React.FC<{
       value={obsSettings.url}
       onChange={(event) => onSave({ ...obsSettings, url: event.target.value })}
       aria-label="OBS WebSocket URL"
-      className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none"
+      className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none transition-colors"
     />
     <input
       type="password"
@@ -256,7 +256,7 @@ export const ObsConnection: React.FC<{
       placeholder="Password, if OBS has one"
       aria-label="OBS WebSocket password"
       onChange={(event) => onSave({ ...obsSettings, password: event.target.value })}
-      className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+      className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)] transition-colors"
     />
   </div>
 );

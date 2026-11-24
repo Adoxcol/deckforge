@@ -145,7 +145,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
             <button
               type="button"
               onClick={() => onBrightness(activeDevice.brightness)}
-              className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs font-medium cursor-pointer transition-colors"
+              className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-xs font-medium cursor-pointer transition-all"
             >
               Identify deck
             </button>
@@ -161,7 +161,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
               }}
               disabled={restarting}
               title="Screen stuck black or not responding? This resets the USB port the deck is on, so it disconnects and reconnects. Windows asks for permission first. If the screen is still black afterwards, unplug the deck and plug it back in."
-              className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs font-medium cursor-pointer disabled:opacity-60 disabled:cursor-wait flex items-center gap-1.5 transition-colors"
+              className="h-9 px-3.5 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-xs font-medium cursor-pointer disabled:opacity-60 disabled:cursor-wait disabled:active:scale-100 flex items-center gap-1.5 transition-all"
             >
               <RotateCcw size={13} className={restarting ? "animate-spin" : ""} />
               {restarting ? "Restarting…" : "Restart deck"}
@@ -169,7 +169,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
             <button
               type="button"
               onClick={() => onOpenWorkspace()}
-              className="h-9 px-4 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer shadow-xs active:scale-[0.98] transition-all"
+              className="h-9 px-4 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer shadow-[0_2px_10px_rgba(124,131,247,0.28)] active:scale-[0.98] transition-all"
             >
               Open Workspace
             </button>
@@ -188,7 +188,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                 onClick={() => setDeviceDetailTab(tab)}
                 className={`px-3.5 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-all border ${
                   deviceDetailTab === tab
-                    ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-white font-semibold shadow-xs"
+                    ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
                     : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
                 }`}
               >

@@ -186,7 +186,7 @@ export const ActionDrawer = React.memo(function ActionDrawer({
                   setActionCategoryFilter(cat);
                   show();
                 }}
-                className={`shrink-0 h-7 px-2.5 rounded-md text-[11.5px] cursor-pointer transition-all inline-flex items-center gap-1 border ${
+                className={`shrink-0 h-7 px-2.5 rounded-md text-[11.5px] cursor-pointer transition-all active:scale-[0.97] inline-flex items-center gap-1 border ${
                   isAct
                     ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
                     : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"
@@ -208,8 +208,9 @@ export const ActionDrawer = React.memo(function ActionDrawer({
             aria-expanded={open}
             aria-label={open ? "Collapse actions drawer" : "Browse actions"}
             title={open ? "Collapse actions (Esc)" : "Browse all actions"}
-            className="h-7 px-2 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)]/70 hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] inline-flex items-center gap-1 cursor-pointer transition-colors"
+            className="h-7 px-2.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)]/70 hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.97] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] inline-flex items-center gap-1.5 cursor-pointer transition-all"
           >
+            <span>{open ? "Hide" : "Browse"}</span>
             <span className="tabular-nums font-mono text-[10.5px] text-[var(--text-muted)]">{filteredActions.length}</span>
             {open ? <ChevronDown size={13} /> : <ChevronUp size={13} />}
           </button>

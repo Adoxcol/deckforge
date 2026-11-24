@@ -486,12 +486,12 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
             type="button"
             onClick={() => void toggleGameMode()}
             disabled={Boolean(busy)}
-            className={`h-10 px-4 rounded-lg text-sm font-semibold flex items-center gap-2 shrink-0 transition-colors cursor-pointer disabled:cursor-wait ${
+            className={`h-10 px-4 rounded-lg text-sm font-semibold flex items-center gap-2 shrink-0 transition-all cursor-pointer active:scale-[0.98] disabled:cursor-wait disabled:active:scale-100 ${
               busy
                 ? "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
                 : active
                   ? "bg-[var(--status-error)]/15 text-[var(--status-error)] border border-[var(--status-error)]/50 hover:bg-[var(--status-error)]/25"
-                  : "bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)]"
+                  : "bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)] shadow-[0_2px_10px_rgba(124,131,247,0.28)]"
             }`}
           >
             {busy ? <RefreshCw size={16} className="animate-spin" /> : active ? <RotateCcw size={16} /> : <Power size={16} />}
@@ -524,7 +524,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               type="button"
               onClick={addMode}
               aria-label="New mode"
-              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[var(--border-strong)] text-[var(--accent-text)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
+              className="h-8 px-3 rounded-lg text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[var(--border-strong)] text-[var(--accent-text)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)]/40 hover:text-[var(--text-primary)] cursor-pointer transition-colors"
             >
               <Plus size={13} /> New mode
             </button>
@@ -532,7 +532,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               type="button"
               onClick={() => void startImport()}
               aria-label="Import mode from a file"
-              className="h-8 px-3 rounded-full text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
+              className="h-8 px-3 rounded-lg text-[12.5px] font-medium flex items-center gap-1.5 border border-dashed border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)]/60 hover:text-[var(--text-primary)] cursor-pointer transition-colors"
             >
               <Download size={13} /> Import
             </button>
@@ -665,10 +665,11 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               {PICK_TABS.map((t) => (
                 <button
                   key={t.id}
+                  type="button"
                   onClick={() => setPickTab(t.id)}
                   aria-pressed={pickTab === t.id}
-                  className={`h-7 px-3 rounded-md text-[12px] border cursor-pointer flex items-center gap-1.5 ${
-                    pickTab === t.id ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/60 text-[var(--text-primary)]" : "bg-[var(--bg-sidebar)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]"
+                  className={`h-7 px-3 rounded-md text-[12px] border cursor-pointer flex items-center gap-1.5 transition-colors ${
+                    pickTab === t.id ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/60 text-[var(--text-primary)] font-medium" : "bg-[var(--bg-sidebar)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   {t.title} ({tabCount[t.id]})
@@ -746,10 +747,11 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                 {launchersToAdd.map((t) => (
                   <button
                     key={t.id}
+                    type="button"
                     onClick={() => toggleTarget(t.id)}
                     aria-label={`Add ${t.label} to this mode`}
                     title={t.note}
-                    className="h-7 px-2.5 rounded-full text-[12px] border border-dashed border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1.5"
+                    className="h-7 px-2.5 rounded-full text-[12px] border border-dashed border-[var(--border-strong)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center gap-1.5 transition-colors"
                   >
                     <Plus size={11} />
                     <AppMark name={t.processes[0] || t.label} size={14} />
@@ -766,7 +768,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               {selectedTargets.length === 0 ? "Nothing yet" : `${selectedTargets.length} to close or stop`}
             </span>
             {selectedTargets.length > 0 && (
-              <button onClick={clearTargets} className="ml-auto text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer">
+              <button type="button" onClick={clearTargets} className="ml-auto text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors">
                 Clear all
               </button>
             )}
@@ -808,26 +810,29 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                     {custom && custom.processes.length > 0 && (
                       <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                         <button
+                          type="button"
                           onClick={() => updateCustom(custom.id, { graceful: !custom.graceful })}
                           aria-pressed={custom.graceful}
-                          className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                          className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
                         >
                           <Checkbox checked={custom.graceful} /> Ask it to close first
                         </button>
                         <button
+                          type="button"
                           onClick={() => updateCustom(custom.id, { reopen: !custom.reopen })}
                           aria-pressed={custom.reopen}
-                          className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer"
+                          className="flex items-center gap-1.5 text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
                         >
                           <Checkbox checked={custom.reopen} /> Reopen afterwards
                         </button>
                       </div>
                     )}
                     <button
+                      type="button"
                       onClick={() => toggleTarget(t.id)}
                       aria-label={`Take ${t.label} out of this mode`}
                       title="Take it out of this mode"
-                      className="absolute top-2 right-2 w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--status-error)] hover:bg-[var(--status-error)]/10 cursor-pointer"
+                      className="absolute top-2 right-2 w-6 h-6 rounded-md flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--status-error)] hover:bg-[var(--status-error)]/10 cursor-pointer transition-colors"
                     >
                       <X size={13} />
                     </button>
@@ -855,6 +860,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               return (
                 <button
                   key={plan.guid || "leave"}
+                  type="button"
                   onClick={() => updateMode({ powerPlan: plan.guid })}
                   aria-pressed={on}
                   aria-label={plan.guid === "" ? "Leave the power plan alone" : `Use the ${plan.name} power plan`}
@@ -905,10 +911,11 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               {SETTLE_OPTIONS.map((seconds) => (
                 <button
                   key={seconds}
+                  type="button"
                   onClick={() => void save({ ...config, settleSeconds: seconds })}
                   aria-pressed={config.settleSeconds === seconds}
-                  className={`h-7 px-2.5 rounded-md text-[12px] border cursor-pointer ${
-                    config.settleSeconds === seconds ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/60 text-[var(--text-primary)]" : "bg-[var(--bg-sidebar)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)]"
+                  className={`h-7 px-2.5 rounded-md text-[12px] border cursor-pointer transition-colors ${
+                    config.settleSeconds === seconds ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/60 text-[var(--text-primary)] font-medium" : "bg-[var(--bg-sidebar)] border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   {seconds}s
@@ -1169,9 +1176,10 @@ const StartAppsSection: React.FC<{
             />
             <span className="flex-1 min-w-0 truncate text-[11px] text-[var(--text-muted)]" title={app.path}>{app.path}</span>
             <button
+              type="button"
               onClick={() => onChange(apps.filter((_, j) => j !== i))}
               aria-label={`Remove ${app.label}`}
-              className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--status-error)] cursor-pointer"
+              className="p-1 rounded text-[var(--text-secondary)] hover:text-[var(--status-error)] hover:bg-[var(--status-error)]/10 cursor-pointer transition-colors"
             >
               <Trash2 size={13} />
             </button>
@@ -1227,13 +1235,14 @@ const StartAppsSection: React.FC<{
             )}
           </div>
           <input
+            aria-label="Executable path"
             value={typed}
             onChange={(e) => setTyped(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && add(typed)) setTyped("");
             }}
             placeholder="Or paste a path, like C:\Program Files\ExitLag\ExitLag.exe"
-            className="flex-1 h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] text-[11.5px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] placeholder:text-[var(--text-muted)]"
+            className="flex-1 h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[11.5px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] placeholder:text-[var(--text-muted)] transition-colors"
           />
           <button
             type="button"

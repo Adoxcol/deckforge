@@ -178,7 +178,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   ? `radial-gradient(circle at 50% 30%, ${activeKey.accentColor}55, ${activeKey.bgColor})`
                   : activeKey.bgColor,
             }}
-            className={`relative w-16 h-16 overflow-hidden border shadow-[0_4px_14px_rgba(0,0,0,0.35)] flex items-center justify-center shrink-0 transition-all ${
+            className={`relative w-16 h-16 overflow-hidden border shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_4px_14px_rgba(0,0,0,0.4)] flex items-center justify-center shrink-0 transition-all ${
               previewDrop
                 ? "border-[var(--accent-hover)] ring-2 ring-[var(--accent-primary)]/50 scale-[1.03]"
                 : "border-[var(--accent-primary)]/80 hover:border-[var(--accent-hover)]"
@@ -213,6 +213,11 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 size={26}
                 color={activeKey.accentColor}
               />
+            )}
+            {previewDrop && (
+              <span className="absolute inset-0 bg-[var(--accent-soft)]/85 backdrop-blur-[1px] flex items-center justify-center text-[10px] font-semibold text-white">
+                Drop
+              </span>
             )}
           </div>
           <div className="flex-1 min-w-0">
@@ -789,10 +794,10 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   title={ico}
                   aria-label={`Select ${ico} icon`}
                   aria-pressed={activeKey.iconName === ico}
-                  className={`h-9 rounded-md flex items-center justify-center cursor-pointer transition-colors ${
+                  className={`h-9 rounded-md flex items-center justify-center cursor-pointer transition-all active:scale-[0.95] ${
                     activeKey.iconName === ico
-                      ? "bg-[var(--accent-soft)] border border-[var(--accent-primary)] text-white"
-                      : "border border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)]"
+                      ? "bg-[var(--accent-soft)] border border-[var(--accent-primary)] text-white shadow-xs"
+                      : "border border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-subtle)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   <DeckIcon name={ico} size={16} />

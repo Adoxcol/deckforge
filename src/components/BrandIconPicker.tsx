@@ -91,8 +91,8 @@ export const BrandIconPicker: React.FC<{ onPick: (file: File, icon: BrandIcon) =
               type="button"
               onClick={() => setLook(l)}
               aria-pressed={look === l}
-              className={`px-2 py-0.5 rounded cursor-pointer transition-colors ${
-                look === l ? "bg-[var(--accent-soft)] text-white font-medium" : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+              className={`px-2 py-0.5 rounded-[4px] border cursor-pointer transition-all ${
+                look === l ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
               }`}
             >
               {l === "brand" ? "Brand color" : "Dark"}
@@ -131,7 +131,7 @@ export const BrandIconPicker: React.FC<{ onPick: (file: File, icon: BrandIcon) =
             title={icon.title}
             aria-label={`Use ${icon.title} logo`}
             onClick={() => void renderKeyImage(icon, look).then((file) => onPick(file, icon))}
-            className="h-9 rounded-md flex items-center justify-center cursor-pointer hover:bg-[var(--bg-elevated)] border border-transparent hover:border-[var(--border-subtle)] transition-colors"
+            className="h-9 rounded-md flex items-center justify-center cursor-pointer hover:bg-[var(--bg-elevated)] border border-transparent hover:border-[var(--border-subtle)] hover:scale-105 active:scale-95 transition-all"
           >
             <svg viewBox="0 0 24 24" width={16} height={16} fill={isLight(icon.hex) || icon.hex === "000000" ? "#E8EAF0" : `#${icon.hex}`} aria-hidden>
               <path d={icon.path} />

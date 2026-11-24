@@ -13,8 +13,8 @@ const sections = [
   { id: "about", name: "About", hint: "Version and support", icon: Info },
 ] as const;
 type Section = typeof sections[number]["id"];
-const card = "rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-5 space-y-3";
-const action = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-sidebar)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] cursor-pointer transition-colors";
+const card = "rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-5 space-y-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
+const action = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-sidebar)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] active:scale-[0.98] cursor-pointer transition-all";
 
 export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: string | null; onStartupProfileChange: (id: string | null) => Promise<void>; onNavigate: (screen: NavScreenId) => void; onOpenGuide: () => void; onBackup: () => Promise<string>; onRestore: (contents: string) => Promise<number> }> = ({ profiles, startupProfileId, onStartupProfileChange, onNavigate, onOpenGuide, onBackup, onRestore }) => {
   const [section, setSection] = useState<Section>("general");

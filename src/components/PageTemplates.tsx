@@ -218,7 +218,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                       aria-pressed={active}
                       onClick={() => choose(tpl)}
                       onDoubleClick={() => onAdd(instantiateTemplate(tpl, tpl.name))}
-                      className={`text-left rounded-xl border p-3 flex flex-col gap-2.5 cursor-pointer transition-all duration-150 ${
+                      className={`relative text-left rounded-xl border p-3 flex flex-col gap-2.5 cursor-pointer transition-all duration-150 ${
                         active
                           ? "border-[var(--accent-primary)] bg-[var(--accent-soft)] shadow-[0_0_0_1px_rgba(124,131,247,0.3)]"
                           : "border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:border-[var(--border-strong)] hover:-translate-y-[1px] hover:shadow-md"
@@ -231,7 +231,8 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                             className="w-2 h-2 rounded-full shrink-0"
                             style={{ background: tpl.accent }}
                           />
-                          <span className="text-[13px] font-semibold text-[var(--text-primary)] truncate">{tpl.name}</span>
+                          <span className="text-[13px] font-semibold text-[var(--text-primary)] truncate flex-1">{tpl.name}</span>
+                          {active && <Check size={13} className="shrink-0 text-[var(--accent-text)]" />}
                         </div>
                         <div className="text-[11px] leading-snug text-[var(--text-secondary)] mt-1 line-clamp-2">
                           {tpl.tagline}
@@ -271,10 +272,10 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
 
             <label className="flex flex-col gap-1">
               <span className="text-[11px] text-[var(--text-secondary)]">Page name</span>
-              <input
+                <input
                 value={pageName}
                 onChange={(e) => setPageName(e.target.value)}
-                className="h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none"
+                className="h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
               />
             </label>
 

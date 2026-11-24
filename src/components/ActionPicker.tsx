@@ -178,8 +178,8 @@ export const ActionPicker: React.FC<{
                           onMouseMove={() => setCursor(i)}
                           onClick={() => choose(choice)}
                           title={choice.description}
-                          className={`w-full flex items-center gap-2 px-3 py-1.5 text-left text-xs cursor-pointer transition-colors ${
-                            active ? "bg-[var(--accent-soft)]" : ""
+                          className={`mx-1.5 w-[calc(100%-0.75rem)] flex items-center gap-2 px-2.5 py-1.5 rounded-md text-left text-xs cursor-pointer transition-colors ${
+                            active ? "bg-[var(--accent-soft)] text-[var(--text-primary)]" : ""
                           } ${selected ? "text-[var(--accent-text)] font-semibold" : "text-[var(--text-primary)]"}`}
                         >
                           {choice.iconName ? (

@@ -98,7 +98,7 @@ export const DeckStage = React.memo(function DeckStage({
           transform: `scale(${canvasZoom / 100})`,
           marginBlock: `${(canvasZoom - 100) * 1.8}px`,
         }}
-        className="shrink-0 origin-center bg-gradient-to-b from-[var(--bg-elevated)]/90 to-[var(--bg-panel)] border border-[var(--border-strong)]/80 rounded-2xl p-5 ring-1 ring-black/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_24px_56px_rgba(0,0,0,0.55)] transition-[transform,margin] duration-150 max-w-[650px] w-full flex flex-col gap-3.5"
+        className="shrink-0 origin-center bg-gradient-to-b from-[var(--bg-elevated)]/95 to-[var(--bg-panel)] border border-[var(--border-strong)]/85 rounded-2xl p-5 ring-1 ring-white/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_24px_60px_rgba(0,0,0,0.6)] transition-[transform,margin] duration-150 max-w-[650px] w-full flex flex-col gap-3.5"
       >
         {/* Dynamic Key Grid matching real hardware rows x cols */}
         <div
@@ -204,15 +204,22 @@ export const DeckStage = React.memo(function DeckStage({
                 ) : (
                   <>
                     <div
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-105 ${
-                        k.actionId === "none" ? "opacity-70 group-hover:opacity-100" : ""
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform duration-150 group-hover:scale-105 ${
+                        k.actionId === "none" ? "opacity-65 group-hover:opacity-95" : ""
                       }`}
-                      style={{
-                        backgroundColor: `${k.accentColor}22`,
-                        border: `1px solid ${k.accentColor}55`,
-                      }}
+                      style={
+                        k.actionId === "none"
+                          ? {
+                              backgroundColor: "rgba(255,255,255,0.03)",
+                              border: "1px dashed rgba(255,255,255,0.16)",
+                            }
+                          : {
+                              backgroundColor: `${k.accentColor}22`,
+                              border: `1px solid ${k.accentColor}55`,
+                            }
+                      }
                     >
-                      <DeckIcon name={look.icon} size={18} color={k.accentColor} />
+                      <DeckIcon name={look.icon} size={18} color={k.actionId === "none" ? "var(--text-muted)" : k.accentColor} />
                     </div>
                     {k.showTitle && (
                       <span
@@ -306,8 +313,10 @@ export const DeckStage = React.memo(function DeckStage({
                       dropZone === `zone-${tz.index}`
                         ? "border-[var(--accent-hover)] ring-2 ring-[var(--accent-hover)]/45 bg-[var(--bg-elevated)] scale-[1.01]"
                         : liveTouchZoneIdx === tz.index
-                        ? "border-[var(--status-success)] ring-1 ring-[var(--status-success)]/50 scale-[0.98]"
-                        : zoneSelected ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/40" : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/60 hover:-translate-y-[0.5px]"
+                        ? "border-[var(--status-success)] ring-2 ring-[var(--status-success)]/50 scale-[0.98]"
+                        : zoneSelected
+                        ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/45 shadow-[0_0_14px_rgba(124,131,247,0.18)]"
+                        : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/60 hover:-translate-y-[0.5px]"
                     }`}
                   >
                     {zoneClip ? (
@@ -407,9 +416,9 @@ export const DeckStage = React.memo(function DeckStage({
                   dropZone === `enc-${enc.index}`
                     ? "border-[var(--accent-hover)] ring-2 ring-[var(--accent-hover)]/45 bg-[var(--bg-elevated)]"
                     : liveEncoderEvent?.index === enc.index
-                    ? `border-[var(--status-success)] ring-1 ring-[var(--status-success)]/50 ${liveEncoderEvent.kind === "push" ? "scale-[0.97]" : ""}`
+                    ? `border-[var(--status-success)] ring-2 ring-[var(--status-success)]/50 ${liveEncoderEvent.kind === "push" ? "scale-[0.97]" : ""}`
                     : isEncSelected
-                    ? "border-[var(--accent-primary)] ring-1 ring-[var(--accent-primary)]/40"
+                    ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/45 shadow-[0_0_14px_rgba(124,131,247,0.18)]"
                     : "border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]/60 hover:-translate-y-[0.5px]"
                 }`}
               >
@@ -494,7 +503,7 @@ export const DeckStage = React.memo(function DeckStage({
         )}
       </div>
 
-      <div className="text-[11px] tabular-nums text-[var(--text-muted)] text-center">
+      <div className="px-3 py-1 rounded-full bg-[var(--bg-panel)]/70 border border-[var(--border-subtle)]/80 text-[11px] tabular-nums text-[var(--text-muted)] text-center">
         {activeDevice.keys.count} LCD screens · {activeDevice.keys.pixelWidth}×{activeDevice.keys.pixelHeight}px
         {activeDevice.keys.rotation ? ` · ${activeDevice.keys.rotation}°` : ""}
         {activeDevice.touchStrip
@@ -546,7 +555,7 @@ export const DeckStage = React.memo(function DeckStage({
               deckforgeApi.holdAutoSwitch().catch(() => {});
               setSelectedPageIdx((p) => Math.max(0, p - 1));
             }}
-            className="px-1.5 h-6 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-default cursor-pointer"
+            className="px-1.5 h-6 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.94] disabled:opacity-35 disabled:hover:bg-transparent disabled:active:scale-100 disabled:cursor-default cursor-pointer transition-all"
           >
             <ChevronLeft size={13} />
           </button>
@@ -574,7 +583,7 @@ export const DeckStage = React.memo(function DeckStage({
               deckforgeApi.holdAutoSwitch().catch(() => {});
               setSelectedPageIdx((p) => Math.min(activeProfile.pages.length - 1, p + 1));
             }}
-            className="px-1.5 h-6 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] disabled:opacity-35 disabled:hover:bg-transparent disabled:cursor-default cursor-pointer"
+            className="px-1.5 h-6 rounded text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.94] disabled:opacity-35 disabled:hover:bg-transparent disabled:active:scale-100 disabled:cursor-default cursor-pointer transition-all"
           >
             <ChevronRight size={13} />
           </button>

@@ -305,18 +305,24 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                 type="button"
                 aria-current={isSel ? "true" : undefined}
                 onClick={selectProfile}
-                className={`w-full text-left px-2.5 py-2 rounded-lg border flex items-center justify-between gap-2 cursor-pointer transition-all duration-150 active:scale-[0.99] ${
+                className={`group relative w-full text-left px-2.5 py-2 rounded-lg border flex items-center justify-between gap-2 cursor-pointer transition-all duration-150 active:scale-[0.99] ${
                   isSel
                     ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/50 text-[var(--text-primary)] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
-                    : "bg-transparent border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:border-[var(--border-subtle)] hover:text-[var(--text-primary)]"
+                    : "bg-transparent border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:border-[var(--border-subtle)] hover:text-[var(--text-primary)] font-medium"
                 }`}
               >
                 <div className="flex items-center gap-2.5 truncate min-w-0">
-                  <DeckIcon
-                    name={prof.icon}
-                    size={15}
-                    color={isSel ? "var(--accent-text)" : "var(--text-secondary)"}
-                  />
+                  <span
+                    className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-colors ${
+                      isSel ? "bg-[var(--accent-primary)]/20" : "bg-[var(--bg-panel)] group-hover:bg-[var(--bg-elevated)]"
+                    }`}
+                  >
+                    <DeckIcon
+                      name={prof.icon}
+                      size={14}
+                      color={isSel ? "var(--accent-text)" : "var(--text-secondary)"}
+                    />
+                  </span>
                   <span className="text-[12.5px] truncate">{prof.name}</span>
                 </div>
                 <span

@@ -124,6 +124,10 @@ export const IconStudio: React.FC<{
 }) => {
   const [layer, setLayer] = useState<LayerId>("icon");
   const [canvasDrop, setCanvasDrop] = useState(false);
+  const speedId = React.useId();
+  const accentColorId = React.useId();
+  const surfaceColorId = React.useId();
+  const cornersId = React.useId();
   const face = keys.find((item) => item.index === selectedIndex) ?? keys[0];
   if (!face) return null;
   const delays = clip ? (clip.delaysMs.length === clip.frames.length ? clip.delaysMs : clip.frames.map(() => clip.frameDelayMs || 100)) : [];
@@ -288,10 +292,11 @@ export const IconStudio: React.FC<{
                 </div>
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
-                    <label>Speed</label>
-                    <span className="font-mono text-[var(--text-primary)]">{face.media.speed.toFixed(2)}×</span>
+                    <label htmlFor={speedId}>Speed</label>
+                    <span className="font-mono tabular-nums text-[var(--text-primary)]">{face.media.speed.toFixed(2)}×</span>
                   </div>
                   <input
+                    id={speedId}
                     aria-label="Animation speed"
                     type="range"
                     min={0.25}
@@ -377,8 +382,8 @@ export const IconStudio: React.FC<{
                 aria-label={`Select ${name} icon`}
                 aria-pressed={face.iconName === name}
                 onClick={() => onChange({ iconName: name })}
-                className={`h-9 rounded-md flex items-center justify-center cursor-pointer transition-colors border ${
-                  face.iconName === name ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]" : "border-transparent hover:bg-[var(--bg-elevated)] hover:border-[var(--border-subtle)]"
+                className={`h-9 rounded-md flex items-center justify-center cursor-pointer transition-all active:scale-[0.95] border ${
+                  face.iconName === name ? "bg-[var(--accent-soft)] border-[var(--accent-primary)] shadow-xs" : "border-transparent hover:bg-[var(--bg-elevated)] hover:border-[var(--border-subtle)]"
                 }`}
               >
                 <DeckIcon name={name} size={16} color={face.accentColor} />
@@ -406,10 +411,11 @@ export const IconStudio: React.FC<{
             </div>
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] text-[var(--text-secondary)]">Accent</label>
+                <label htmlFor={accentColorId} className="text-[11px] text-[var(--text-secondary)]">Accent</label>
                 <span className="text-[10.5px] font-mono text-[var(--text-muted)]">{face.accentColor.toUpperCase()}</span>
               </div>
               <input
+                id={accentColorId}
                 aria-label="Accent color"
                 type="color"
                 value={face.accentColor}
@@ -419,10 +425,11 @@ export const IconStudio: React.FC<{
             </div>
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] text-[var(--text-secondary)]">Surface</label>
+                <label htmlFor={surfaceColorId} className="text-[11px] text-[var(--text-secondary)]">Surface</label>
                 <span className="text-[10.5px] font-mono text-[var(--text-muted)]">{face.bgColor.toUpperCase()}</span>
               </div>
               <input
+                id={surfaceColorId}
                 aria-label="Surface color"
                 type="color"
                 value={face.bgColor}
@@ -439,7 +446,7 @@ export const IconStudio: React.FC<{
                   onClick={() => onChange({ backgroundStyle: style })}
                   className={`h-7 rounded text-[11px] cursor-pointer transition-all border ${
                     face.backgroundStyle === style
-                      ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-white font-semibold shadow-xs"
+                      ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
                       : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
                   }`}
                 >
@@ -449,10 +456,11 @@ export const IconStudio: React.FC<{
             </div>
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between text-[11px] text-[var(--text-secondary)]">
-                <label>Corners</label>
-                <span className="font-mono text-[var(--text-primary)]">{face.cornerRadius}px</span>
+                <label htmlFor={cornersId}>Corners</label>
+                <span className="font-mono tabular-nums text-[var(--text-primary)]">{face.cornerRadius}px</span>
               </div>
               <input
+                id={cornersId}
                 aria-label="Corner radius"
                 type="range"
                 min={2}

@@ -131,7 +131,7 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
           <button
             type="button"
             onClick={onClear}
-            className="h-7 rounded-md border border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--status-error)] hover:border-[var(--status-error)]/60 hover:bg-[var(--status-error)]/10 flex items-center justify-center gap-1 cursor-pointer transition-colors"
+            className="h-7 rounded-md border border-[var(--border-subtle)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--status-error)] hover:border-[var(--status-error)]/60 hover:bg-[var(--status-error)]/10 active:scale-[0.98] flex items-center justify-center gap-1 cursor-pointer transition-all"
           >
             <Trash2 size={12} />
             Remove image

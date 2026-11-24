@@ -226,7 +226,7 @@ export const ThemesScreen: React.FC<{
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void applyTheme(theme.id, false)}
-                className="flex-1 h-8 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                className="flex-1 h-8 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:active:scale-100 shadow-xs transition-all"
               >
                 {busy === `${theme.id}:false` && <RefreshCw size={12} className="animate-spin" />}
                 {busy === `${theme.id}:false` ? "Drawing…" : "Apply to page"}
@@ -235,7 +235,7 @@ export const ThemesScreen: React.FC<{
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void applyTheme(theme.id, true)}
-                className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
+                className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:active:scale-100 transition-all"
               >
                 {busy === `${theme.id}:true` && <RefreshCw size={12} className="animate-spin" />}
                 {busy === `${theme.id}:true` ? "Drawing…" : `Key ${selectedIndex + 1} only`}

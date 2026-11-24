@@ -164,15 +164,15 @@ export const App: React.FC = () => {
     return (
       <div className="h-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex items-center justify-center p-8" role="alert">
         {quitDialog}
-        <div className="max-w-md w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-6 shadow-2xl space-y-4 text-center animate-pop-in">
-          <div className="w-11 h-11 mx-auto rounded-xl bg-[var(--status-warning)]/15 text-[var(--status-warning)] flex items-center justify-center">
+        <div className="max-w-md w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-6 shadow-[0_24px_64px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.05)] space-y-4 text-center animate-pop-in">
+          <div className="w-11 h-11 mx-auto rounded-xl bg-[var(--status-warning)]/15 border border-[var(--status-warning)]/30 text-[var(--status-warning)] flex items-center justify-center">
             <AlertTriangle size={22} />
           </div>
-          <h1 className="text-lg font-bold">Could not load DeckForge</h1>
+          <h1 className="text-lg font-bold tracking-tight">Could not load DeckForge</h1>
           <p className="text-xs leading-relaxed text-[var(--status-warning)] break-words">{bootstrapError}</p>
           <button
             type="button"
-            className="h-9 px-5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white cursor-pointer shadow-xs transition-all"
+            className="h-9 px-5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white cursor-pointer shadow-[0_2px_10px_rgba(124,131,247,0.3)] transition-all"
             onClick={() => setBootstrapAttempt(n => n + 1)}
           >
             Retry loading
@@ -372,14 +372,14 @@ export const App: React.FC = () => {
                 className={`group relative w-10 h-10 rounded-[var(--radius-md)] flex items-center justify-center transition-all duration-150 active:scale-[0.95] cursor-pointer ${
                   isActive
                     ? "bg-[var(--bg-elevated)] text-[var(--text-primary)] border border-[var(--border-strong)]/80 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_2px_8px_rgba(0,0,0,0.25)]"
-                    : "border border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
+                    : "border border-transparent text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)] hover:border-[var(--border-subtle)]/70"
                 }`}
               >
-                {isActive && <span aria-hidden className="absolute -left-[9px] top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-[var(--accent-primary)] shadow-[0_0_8px_rgba(124,131,247,0.65)]" />}
+                {isActive && <span aria-hidden className="absolute -left-[8px] top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-[var(--accent-primary)] shadow-[0_0_8px_rgba(124,131,247,0.65)]" />}
                 <Icon size={18} strokeWidth={isActive ? 2.1 : 1.75} />
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute left-full ml-3 z-50 px-2.5 py-1 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-strong)] shadow-[0_8px_24px_rgba(0,0,0,0.45)] text-[11.5px] font-medium text-[var(--text-primary)] whitespace-nowrap opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0 transition-all duration-150"
+                  className="pointer-events-none absolute left-full ml-3 z-50 px-2.5 py-1 rounded-md bg-[var(--bg-elevated)]/95 backdrop-blur-md border border-[var(--border-strong)] shadow-[0_8px_24px_rgba(0,0,0,0.45)] text-[11.5px] font-medium text-[var(--text-primary)] whitespace-nowrap opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 group-focus-visible:opacity-100 group-focus-visible:translate-x-0 transition-all duration-150"
                 >
                   {tab.label}
                 </span>
@@ -412,7 +412,7 @@ export const App: React.FC = () => {
             type="button"
             onClick={handleImportLegacyProfiles}
             title="Parse & Import Legacy .sdProfile Configurations from %APPDATA%\HotSpot\StreamDock\profiles"
-            className="h-8 px-2.5 shrink-0 whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-panel)]/70 hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] text-[12px] font-medium flex items-center gap-1.5 cursor-pointer transition-colors"
+            className="h-8 px-2.5 shrink-0 whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--border-subtle)] bg-[var(--bg-panel)]/70 hover:border-[var(--border-strong)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.98] text-[12px] font-medium flex items-center gap-1.5 cursor-pointer transition-all"
           >
             <Download size={13} className="shrink-0" />
             <span>Import from Stream Dock</span>

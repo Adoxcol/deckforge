@@ -112,7 +112,7 @@ export const DeckStatusBadge: React.FC<Props> = ({ onNotify, status, onRefresh }
         onClick={resend}
         disabled={sending || status?.state !== "connected"}
         title="Send every picture to the deck again, with the full connect sequence"
-        className="h-7 px-2.5 shrink-0 whitespace-nowrap rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] disabled:opacity-40 disabled:hover:bg-[var(--bg-panel)] disabled:hover:border-[var(--border-subtle)] disabled:hover:text-[var(--text-secondary)] flex items-center gap-1.5 cursor-pointer disabled:cursor-default transition-colors"
+        className="h-7 px-2.5 shrink-0 whitespace-nowrap rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.97] disabled:opacity-40 disabled:hover:bg-[var(--bg-panel)] disabled:hover:border-[var(--border-subtle)] disabled:hover:text-[var(--text-secondary)] disabled:active:scale-100 flex items-center gap-1.5 cursor-pointer disabled:cursor-default transition-all"
       >
         <RefreshCw size={11} className={sending ? "animate-spin" : ""} />
         <span>Resend layout</span>
@@ -121,7 +121,7 @@ export const DeckStatusBadge: React.FC<Props> = ({ onNotify, status, onRefresh }
         type="button"
         onClick={changeControl}
         disabled={!status || changingControl || status.state === "pausing"}
-        className="h-7 px-2.5 shrink-0 whitespace-nowrap rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[11px] font-medium text-[var(--status-warning)] hover:border-[var(--status-warning)]/60 hover:bg-[var(--status-warning)]/10 disabled:opacity-40 disabled:hover:border-[var(--border-subtle)] disabled:hover:bg-[var(--bg-panel)] cursor-pointer disabled:cursor-default transition-colors"
+        className="h-7 px-2.5 shrink-0 whitespace-nowrap rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] text-[11px] font-medium text-[var(--status-warning)] hover:border-[var(--status-warning)]/60 hover:bg-[var(--status-warning)]/10 active:scale-[0.97] disabled:opacity-40 disabled:hover:border-[var(--border-subtle)] disabled:hover:bg-[var(--bg-panel)] disabled:active:scale-100 cursor-pointer disabled:cursor-default transition-all"
         title={suspended ? "Close AJAZZ first, then reconnect with DeckForge" : "Release the deck so you can use AJAZZ"}
       >
         {suspended ? "Use DeckForge" : "Pause DeckForge"}

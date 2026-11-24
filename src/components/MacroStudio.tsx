@@ -197,7 +197,7 @@ export const MacroStudio: React.FC<{
 
             <div className="flex items-center justify-between gap-3 text-xs text-[var(--text-secondary)]">
               <span>One chain at a time. Extra starts are rejected. Limit: 256 blocks and 60 seconds.</span>
-              <button type="button" onClick={onStop} className="h-8 px-3 rounded-md border border-[var(--status-error)]/60 hover:bg-[var(--status-error)]/10 text-[var(--status-error)] font-medium cursor-pointer shrink-0 transition-colors">
+              <button type="button" onClick={onStop} className="h-8 px-3 rounded-md border border-[var(--status-error)]/60 hover:bg-[var(--status-error)]/10 active:scale-[0.98] text-[var(--status-error)] font-medium cursor-pointer shrink-0 transition-all">
                 Stop running chain
               </button>
             </div>
@@ -315,13 +315,14 @@ export const MacroStudio: React.FC<{
               })}
             </div>
 
-            <div className="sticky bottom-0 mt-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-sidebar)]/95 backdrop-blur-md p-2 shadow-xl flex flex-wrap gap-1.5">
+            <div className="sticky bottom-0 mt-auto rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-sidebar)]/95 backdrop-blur-md p-2 shadow-xl flex flex-wrap items-center gap-1.5">
+              <span className="px-1.5 text-[10.5px] font-medium text-[var(--text-muted)]">Add block</span>
               {BLOCKS.map((kind) => (
                 <button
                   key={kind.type}
                   type="button"
                   onClick={() => addBlock(kind.type)}
-                  className="h-8 px-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] hover:-translate-y-[1px] text-[11.5px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer transition-all"
+                  className="h-8 px-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] hover:-translate-y-[1px] active:scale-[0.97] text-[11.5px] font-semibold text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer transition-all"
                 >
                   <Plus size={12} color={kind.color} />
                   {kind.title}
@@ -355,7 +356,7 @@ export const MacroStudio: React.FC<{
                     steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, label } : item)),
                   }));
                 }}
-                className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
+                className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
               />
             </div>
             <div className="flex flex-col gap-1">
@@ -373,7 +374,7 @@ export const MacroStudio: React.FC<{
                     ),
                   }));
                 }}
-                className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
+                className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
               >
                 {BLOCKS.map((kind) => (
                   <option key={kind.type} value={kind.type}>
@@ -395,7 +396,7 @@ export const MacroStudio: React.FC<{
                       steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, parameter } : item)),
                     }));
                   }}
-                  className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
+                  className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
                 >
                   {profiles.map((profile) => (
                     <option key={profile.id} value={profile.id}>
@@ -414,7 +415,7 @@ export const MacroStudio: React.FC<{
                       steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, parameter } : item)),
                     }));
                   }}
-                  className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none transition-colors"
+                  className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs font-mono text-[var(--text-primary)] outline-none transition-colors"
                 />
               )}
             </div>
@@ -426,7 +427,7 @@ export const MacroStudio: React.FC<{
                   updateMacro(current => ({ ...current, steps: current.steps.map((item, index) =>
                     index === selectedStepIdx ? { ...item, timeoutMs } : item) }));
                 }}
-                className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs font-mono tabular-nums text-[var(--text-primary)] outline-none transition-colors" />
+                className="h-8 px-2.5 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs font-mono tabular-nums text-[var(--text-primary)] outline-none transition-colors" />
               <p className="text-[10px] text-[var(--text-muted)] leading-snug">Timeout or Stop ends the chain. An action already dispatched cannot be undone.</p>
             </div>
             <div className="flex flex-col gap-1">
@@ -441,7 +442,7 @@ export const MacroStudio: React.FC<{
                     steps: current.steps.map((item, index) => (index === selectedStepIdx ? { ...item, onError } : item)),
                   }));
                 }}
-                className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer"
+                className="h-8 px-2 rounded-md bg-[var(--bg-app)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none cursor-pointer transition-colors"
               >
                 <option value="Stop">Stop the chain</option>
                 <option value="Continue">Keep going</option>

@@ -205,7 +205,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               onClick={() => setTab(t)}
               className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-all border ${
                 tab === t
-                  ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-white font-semibold shadow-xs"
+                  ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
                   : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"
               }`}
             >
@@ -295,7 +295,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
                     {plug.actions.length > 0 && `: ${plug.actions.slice(0, 4).map((a) => a.name).join(", ")}${plug.actions.length > 4 ? "…" : ""}`}
                   </div>
                   {plug.enabled && plug.problem && (
-                    <div className="flex gap-2 text-[11px] text-[var(--status-warning)] leading-snug">
+                    <div className="flex gap-2 px-2.5 py-2 rounded-lg bg-[var(--status-warning)]/10 border border-[var(--status-warning)]/25 text-[11px] text-[var(--status-warning)] leading-snug">
                       <TriangleAlert size={13} className="shrink-0 mt-0.5" />
                       <span>{plug.problem}</span>
                     </div>
@@ -306,10 +306,10 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
                         type="button"
                         disabled={busy === plug.uuid}
                         onClick={() => (plug.enabled ? setEnabled(plug, false) : setConfirming(plug))}
-                        className={`h-8 px-3 rounded-md text-xs font-semibold cursor-pointer disabled:opacity-50 transition-colors ${
+                        className={`h-8 px-3 rounded-md text-xs font-semibold cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 transition-all ${
                           plug.enabled
                             ? "border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]"
-                            : "bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white"
+                            : "bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white shadow-xs"
                         }`}
                       >
                         {plug.enabled ? "Turn off" : "Turn on"}
