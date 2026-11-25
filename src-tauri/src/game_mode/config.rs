@@ -420,10 +420,13 @@ pub fn config() -> GameModeConfig {
 
 pub fn save_config(cfg: GameModeConfig) -> Result<GameModeConfig, String> {
     let cfg = sanitize(cfg);
+    // Serialize saves with readers and other saves, then replace the file only
+    // after its complete contents have reached disk.
+    let mut current = config_slot().lock().unwrap_or_else(|e| e.into_inner());
     std::fs::create_dir_all(data_dir()).map_err(|e| e.to_string())?;
     let raw = serde_json::to_string_pretty(&cfg).map_err(|e| e.to_string())?;
-    std::fs::write(config_path(), raw).map_err(|e| e.to_string())?;
-    *config_slot().lock().unwrap_or_else(|e| e.into_inner()) = cfg.clone();
+    crate::db::write_atomic(&config_path(), &raw)?;
+    *current = cfg.clone();
     Ok(cfg)
 }
 
