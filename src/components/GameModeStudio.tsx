@@ -18,6 +18,7 @@ import {
 import { AppMark } from "./AppMark";
 import { deckforgeApi } from "../bridge/tauriBridge";
 import { errorText } from "../lib/format";
+import { createOrderedSave } from "../lib/orderedSave";
 import {
   buildModeFile,
   parseModeFile,
@@ -38,6 +39,7 @@ import type {
 } from "../types/deckforge";
 
 type Notify = (text: string, kind?: "success" | "info" | "warning") => void;
+const persistConfig = createOrderedSave((config: GameModeConfig) => deckforgeApi.gameModeSaveConfig(config));
 
 type PickTab = "apps" | "background" | "services";
 
@@ -179,11 +181,13 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
   const [status, setStatus] = React.useState<GameModeStatus | null>(null);
   const [scanning, setScanning] = React.useState(false);
   const [savedAt, setSavedAt] = React.useState<number>(0);
+  const [saveError, setSaveError] = React.useState(false);
   const [now, setNow] = React.useState<number>(() => Date.now());
   const [editingId, setEditingId] = React.useState<string>("");
   const [confirmDelete, setConfirmDelete] = React.useState(false);
   const [arming, setArming] = React.useState(false);
   const [pendingImport, setPendingImport] = React.useState<PlacedMode | null>(null);
+  const saveRevision = React.useRef(0);
 
   // The list of what is running on this PC.
   const [pickTab, setPickTab] = React.useState<PickTab>("apps");
@@ -229,11 +233,25 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
   }, [refresh]);
 
   const save = async (next: GameModeConfig) => {
+    const revision = ++saveRevision.current;
     setConfig(next);
-    const saved = await deckforgeApi.gameModeSaveConfig(next);
-    setConfig(saved);
-    setSavedAt(Date.now());
-    return saved;
+    setSavedAt(0);
+    setSaveError(false);
+    try {
+      const saved = await persistConfig(next);
+      if (revision === saveRevision.current) {
+        setConfig(saved);
+        setSavedAt(Date.now());
+        setSaveError(false);
+      }
+      return saved;
+    } catch (error) {
+      if (revision === saveRevision.current) {
+        setSaveError(true);
+        notify(`Could not save Game Mode settings: ${errorText(error)}`, "warning");
+      }
+      return null;
+    }
   };
 
   const mode: GameModeMode | null = config ? config.modes.find((m) => m.id === editingId) ?? config.modes[0] : null;
@@ -275,12 +293,12 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
     let id = `my-${slug(draft.label)}`;
     let n = 2;
     while (taken.has(id)) id = `my-${slug(draft.label)}-${n++}`;
-    await save({
+    const saved = await save({
       ...config,
       customTargets: [...config.customTargets, { ...draft, id }],
       modes: config.modes.map((m) => (m.id === mode.id ? { ...m, targets: [...m.targets, id] } : m)),
     });
-    await refresh();
+    if (saved) await refresh();
   };
 
   const toggleProgram = (app: GameModeRunningApp) => {
@@ -362,10 +380,11 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
   const confirmImport = async () => {
     if (!config || !pendingImport) return;
     const placed = pendingImport;
-    setPendingImport(null);
     setEditingId(placed.mode.id);
     setConfirmDelete(false);
-    await save({ ...config, customTargets: placed.customTargets, modes: [...config.modes, placed.mode] });
+    const saved = await save({ ...config, customTargets: placed.customTargets, modes: [...config.modes, placed.mode] });
+    if (!saved) return;
+    setPendingImport(null);
     await refresh();
     notify(`Imported "${placed.mode.name}". Check what it closes before you start it.`, "success");
   };
@@ -897,7 +916,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
           </div>
         </Step>
 
-        <Step step="4" title="When it starts and ends" hint={savedAt > 0 ? "Saved" : "Changes save automatically"}>
+        <Step step="4" title="When it starts and ends" hint={saveError ? "Save failed" : savedAt > 0 ? "Saved" : "Changes save automatically"}>
           <Toggle
             on={config.autoDetect}
             onClick={() => void save({ ...config, autoDetect: !config.autoDetect })}
