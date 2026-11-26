@@ -8,6 +8,7 @@ import { MediaConfigurator } from "./MediaConfigurator";
 import { ActionBinding, ObsConnection, actionNeedsParam, splitStoredBinding } from "./ActionBinding";
 import { useCatalog } from "./ActionDrawer";
 import { ActionTemplate } from "../data/actionCatalog";
+import { ToggleSwitch } from "./ToggleSwitch";
 import { Check, ClipboardPaste, Copy, Play, Star, Trash2 } from "lucide-react";
 import {
   DEFAULT_KNOB_LED_COLORS,
@@ -139,6 +140,9 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
   const zoneValueId = React.useId();
   const encLabelId = React.useId();
   const paramInputId = React.useId();
+  const reactiveLedId = React.useId();
+  const stayLitId = React.useId();
+  const showTitleId = React.useId();
   const catalog = useCatalog();
   const browseActions = () => catalog?.show();
   return (
@@ -221,12 +225,13 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
             )}
           </div>
           <div className="flex-1 min-w-0">
-            <label htmlFor={titleId} className="block text-[11.5px] text-[var(--text-secondary)] mb-1">Title</label>
+            <label htmlFor={titleId} className="block text-[11.5px] font-medium text-[var(--text-secondary)] mb-1">Title</label>
             <input
               id={titleId}
               value={activeKey.title}
+              placeholder="Button title…"
               onChange={(e) => updateSelectedKey({ title: e.target.value })}
-              className="w-full h-9 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
+              className="w-full h-9 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] outline-none transition-colors"
             />
             {(() => {
               const look = liveKeyLook(activeKey.actionId, activeKey.title, activeKey.iconName, activeKey.media ? null : face, activeKey.actionParam);
@@ -348,7 +353,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 className="w-full h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] text-xs text-[var(--text-primary)] outline-none transition-colors"
               />
             </div>
-            <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2">
+            <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] df-card-surface flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[11.5px] font-semibold text-[var(--text-primary)]">
                   Knob LED Light
@@ -416,14 +421,14 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   onClick={() => onKnobLedChange("all", ledColor)}
                   title="Apply this color to all four knob LEDs"
                   aria-label="Apply this color to all four knob LEDs"
-                  className="min-w-0 min-h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
+                  className="min-w-0 min-h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.98] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-all"
                 >
                   Apply to all
                 </button>
                 <button
                   type="button"
                   onClick={onResetKnobLeds}
-                  className="min-w-0 min-h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--status-warning)] hover:bg-[var(--bg-elevated)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
+                  className="min-w-0 min-h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--status-warning)] hover:bg-[var(--bg-elevated)] active:scale-[0.98] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-all"
                 >
                   Reset LEDs
                 </button>
@@ -432,7 +437,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                     type="button"
                     onClick={() => onKnobLedChange("all", profileColorStrip)}
                     title={`Set all 4 knobs to profile accent (${profileColorStrip})`}
-                    className="min-w-0 min-h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center justify-center gap-1.5 transition-colors"
+                    className="min-w-0 min-h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.98] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer flex items-center justify-center gap-1.5 transition-all"
                   >
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: profileColorStrip }} />
                     <span className="truncate">Match profile</span>
@@ -442,7 +447,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   type="button"
                   onClick={onApplyKnobLedsToAllPages}
                   title="Copy this page's 4 knob LED colors to every page in this profile"
-                  className="min-w-0 min-h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
+                  className="min-w-0 min-h-8 px-2.5 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.98] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-all"
                 >
                   All pages
                 </button>
@@ -455,7 +460,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                       key={palette.name}
                       type="button"
                       onClick={() => onApplyKnobLedPalette(palette.colors, palette.name)}
-                      className="h-7 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] flex items-center justify-between gap-1.5 cursor-pointer transition-colors"
+                      className="h-7 px-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.98] flex items-center justify-between gap-1.5 cursor-pointer transition-all"
                     >
                       <span className="text-[10.5px] font-medium text-[var(--text-secondary)]">{palette.name}</span>
                       <span className="flex items-center gap-0.5">
@@ -468,28 +473,18 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 </div>
               </div>
               <div className="pt-1 border-t border-[var(--border-subtle)] flex items-center justify-between gap-2">
-                <div>
+                <label htmlFor={reactiveLedId} className="cursor-pointer select-none">
                   <div className="text-[11px] font-medium text-[var(--text-primary)]">Reactive LED</div>
                   <div className="text-[10px] text-[var(--text-muted)]">
                     Turns red when muted; highlights when active
                   </div>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={!!activeEncoder.ledReactive}
-                  aria-label="Toggle reactive knob LED"
-                  onClick={() => updateSelectedEncoder(activeEncoder.index, { ledReactive: !activeEncoder.ledReactive })}
-                  className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
-                    activeEncoder.ledReactive ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"
-                  }`}
-                >
-                  <div
-                    className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${
-                      activeEncoder.ledReactive ? "translate-x-4" : "translate-x-0"
-                    }`}
-                  />
-                </button>
+                </label>
+                <ToggleSwitch
+                  id={reactiveLedId}
+                  checked={!!activeEncoder.ledReactive}
+                  ariaLabel="Toggle reactive knob LED"
+                  onChange={() => updateSelectedEncoder(activeEncoder.index, { ledReactive: !activeEncoder.ledReactive })}
+                />
               </div>
               <div className="pt-1 border-t border-[var(--border-subtle)] flex flex-col gap-1.5">
                 <span className="text-[10.5px] text-[var(--text-muted)]">LED Animation</span>
@@ -595,9 +590,11 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
           {(["Action", "Appearance", "Behavior"] as const).map((tab) => (
             <button
               key={tab}
+              id={`inspector-tab-${tab}`}
               type="button"
               role="tab"
               aria-selected={inspectorTab === tab}
+              aria-controls={`inspector-panel-${tab}`}
               onClick={() => setInspectorTab(tab)}
               className={`h-7 rounded text-[11.5px] font-medium cursor-pointer transition-all border ${
                 inspectorTab === tab
@@ -611,25 +608,19 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
         </div>
 
         {inspectorTab === "Action" && (
-          <div className="flex flex-col gap-3">
+          <div id="inspector-panel-Action" role="tabpanel" aria-labelledby="inspector-tab-Action" className="flex flex-col gap-3 animate-fade-in">
             <p className="text-[11px] leading-relaxed text-[var(--text-muted)] px-0.5">
               A double-press waits a moment so it can be told apart from a tap. A hold runs when the key stays down.
             </p>
-            <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-1.5">
+            <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] df-card-surface flex flex-col gap-1.5">
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[11.5px] font-semibold text-[var(--text-primary)]">Stay lit</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={activeKey.latch === true}
-                  aria-label="Stay lit"
-                  onClick={() => updateSelectedKey({ latch: !activeKey.latch })}
-                  className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
-                    activeKey.latch ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"
-                  }`}
-                >
-                  <div className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${activeKey.latch ? "translate-x-4" : "translate-x-0"}`} />
-                </button>
+                <label htmlFor={stayLitId} className="text-[11.5px] font-semibold text-[var(--text-primary)] cursor-pointer select-none">Stay lit</label>
+                <ToggleSwitch
+                  id={stayLitId}
+                  checked={activeKey.latch === true}
+                  ariaLabel="Stay lit"
+                  onChange={() => updateSelectedKey({ latch: !activeKey.latch })}
+                />
               </div>
               <p className="text-[10.5px] leading-relaxed text-[var(--text-muted)]">
                 After a press the key reads ON until you press it again. Apply to Device to show that on the deck.
@@ -671,26 +662,16 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
             {!activeKey.actionId.startsWith("obs.") && [activeKey.doublePress?.actionId, activeKey.hold?.actionId].some((action) => action?.startsWith("obs.")) && (
               <ObsConnection obsSettings={obsSettings} onSave={saveObs} />
             )}
-            <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2.5">
+            <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] df-card-surface flex flex-col gap-2.5">
               {/* Show Title Toggle */}
               <div className="flex items-center justify-between">
-                <span className="text-xs text-[var(--text-secondary)]">Show Title</span>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={activeKey.showTitle}
-                  aria-label="Show Title"
-                  onClick={() => updateSelectedKey({ showTitle: !activeKey.showTitle })}
-                  className={`w-9 h-5 rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
-                    activeKey.showTitle ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"
-                  }`}
-                >
-                  <div
-                    className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${
-                      activeKey.showTitle ? "translate-x-4" : "translate-x-0"
-                    }`}
-                  />
-                </button>
+                <label htmlFor={showTitleId} className="text-xs text-[var(--text-secondary)] cursor-pointer select-none">Show Title</label>
+                <ToggleSwitch
+                  id={showTitleId}
+                  checked={activeKey.showTitle}
+                  ariaLabel="Show Title"
+                  onChange={() => updateSelectedKey({ showTitle: !activeKey.showTitle })}
+                />
               </div>
 
               {/* Title Size */}
@@ -783,9 +764,9 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
         )}
 
         {inspectorTab === "Appearance" && (
-          <div className="flex flex-col gap-2">
+          <div id="inspector-panel-Appearance" role="tabpanel" aria-labelledby="inspector-tab-Appearance" className="flex flex-col gap-2 animate-fade-in">
             <span className="text-xs text-[var(--text-secondary)]">Choose Key Icon (Lucide Vector)</span>
-            <div className="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto p-1.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-md">
+            <div className="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto p-2 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-md">
               {AVAILABLE_ICON_NAMES.map((ico) => (
                 <button
                   key={ico}
@@ -814,7 +795,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
         )}
 
         {inspectorTab === "Behavior" && (
-          <div className="flex flex-col gap-3">
+          <div id="inspector-panel-Behavior" role="tabpanel" aria-labelledby="inspector-tab-Behavior" className="flex flex-col gap-3 animate-fade-in">
             <div>
               <label htmlFor={paramInputId} className="block text-xs text-[var(--text-secondary)] mb-1">
                 Command / Parameter
@@ -845,7 +826,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                 setActionCategoryFilter("Custom");
                 triggerToast(`Saved "${activeKey.title}" to ★ Custom Actions catalog!`, "success");
               }}
-              className="w-full h-8 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/50 hover:bg-[var(--accent-primary)] text-xs font-semibold text-[var(--accent-text)] hover:text-white flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+              className="w-full h-8 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/50 hover:bg-[var(--accent-primary)] active:scale-[0.98] text-xs font-semibold text-[var(--accent-text)] hover:text-white flex items-center justify-center gap-1.5 cursor-pointer transition-all"
             >
               <Star size={13} />
               <span>Save to Custom Actions Library</span>
@@ -857,7 +838,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   setClipboardKey(JSON.parse(JSON.stringify(activeKey)));
                   triggerToast(`Copied Key #${activeKey.index + 1}`, "info");
                 }}
-                className="flex-1 h-8 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs font-medium text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                className="flex-1 h-8 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-xs font-medium text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer transition-all"
               >
                 <Copy size={12} />
                 <span>Copy</span>
@@ -873,7 +854,7 @@ export const KeyInspector: React.FC<KeyInspectorProps> = ({
                   });
                   triggerToast(`Pasted to Key #${activeKey.index + 1}`, "success");
                 }}
-                className="flex-1 h-8 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] disabled:opacity-40 disabled:hover:bg-[var(--bg-panel)] disabled:hover:border-[var(--border-subtle)] disabled:cursor-default text-xs font-medium text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer transition-colors"
+                className="flex-1 h-8 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] disabled:opacity-40 disabled:hover:bg-[var(--bg-panel)] disabled:hover:border-[var(--border-subtle)] disabled:active:scale-100 disabled:cursor-default text-xs font-medium text-[var(--text-primary)] flex items-center justify-center gap-1.5 cursor-pointer transition-all"
               >
                 <ClipboardPaste size={12} />
                 <span>Paste</span>

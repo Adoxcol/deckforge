@@ -28,12 +28,12 @@ export function PerformancePanel() {
     return () => { request.current++; };
   }, [desktop, refresh]);
 
-  return <section className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] rounded-xl p-4 flex flex-col gap-3">
+  return <section className="bg-[var(--bg-panel)] border border-[var(--border-subtle)] df-card-surface rounded-xl p-4 flex flex-col gap-3">
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="text-sm font-bold">Performance measurements</h2>
       {desktop && <div className="flex gap-2">
-        <button type="button" disabled={busy} onClick={() => void refresh()} className="px-3 py-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs font-medium cursor-pointer disabled:opacity-50 disabled:cursor-default">{busy ? "Reading…" : "Refresh"}</button>
-        <button type="button" disabled={busy} onClick={() => void refresh(true)} className="px-3 py-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs font-medium cursor-pointer disabled:opacity-50 disabled:cursor-default">Clear samples</button>
+        <button type="button" disabled={busy} onClick={() => void refresh()} className="px-3 py-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-xs font-medium cursor-pointer disabled:opacity-50 disabled:cursor-default transition-all">{busy ? "Reading…" : "Refresh"}</button>
+        <button type="button" disabled={busy} onClick={() => void refresh(true)} className="px-3 py-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-xs font-medium cursor-pointer disabled:opacity-50 disabled:cursor-default transition-all">Clear samples</button>
       </div>}
     </div>
     <p className="text-xs text-[var(--text-secondary)] leading-relaxed">

@@ -97,7 +97,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                   onSelectDevice(dev.id);
                 }
               }}
-              className={`p-3 rounded-xl border cursor-pointer transition-all ${
+              className={`p-3 rounded-xl border cursor-pointer active:scale-[0.99] transition-all ${
                 dev.id === activeDevice.id
                   ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
                   : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]"
@@ -169,7 +169,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
             <button
               type="button"
               onClick={() => onOpenWorkspace()}
-              className="h-9 px-4 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer shadow-[0_2px_10px_rgba(124,131,247,0.28)] active:scale-[0.98] transition-all"
+              className="h-9 px-4 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer df-cta active:scale-[0.98] transition-all"
             >
               Open Workspace
             </button>
@@ -200,7 +200,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
 
         {deviceDetailTab === "Overview" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors">
+            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] df-card-surface transition-colors">
               <div className="text-[12px] text-[var(--text-secondary)]">Driver</div>
               <div className={`text-[15px] font-semibold mt-1 ${activeDevice.verifiedDriver ? "text-[var(--status-success)]" : "text-[var(--text-primary)]"}`}>
                 {activeDevice.verifiedDriver ? "Tested with this deck" : "Preview only"}
@@ -211,7 +211,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                   : "No hardware is attached; changes show in the editor only."}
               </p>
             </div>
-            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors">
+            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] df-card-surface transition-colors">
               <div className="text-[12px] text-[var(--text-secondary)]">Screen updates</div>
               <div className="text-[15px] font-semibold tabular-nums mt-1 text-[var(--text-primary)]">
                 {frameStats.lastTransferLatencyMs} ms last update
@@ -221,7 +221,7 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                 {(frameStats.bytesSaved / 1024).toFixed(1)} KB of USB traffic.
               </p>
             </div>
-            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors">
+            <div className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] df-card-surface transition-colors">
               <div className="text-[12px] text-[var(--text-secondary)]">Brightness</div>
               <div className="flex items-center gap-3 mt-2">
                 <input
@@ -274,14 +274,14 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                 <button
                   type="button"
                   onClick={() => onKnobLedChange("all", "#000000")}
-                  className="h-8 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] text-xs font-medium cursor-pointer transition-colors"
+                  className="h-8 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.98] text-xs font-medium cursor-pointer transition-all"
                 >
                   All Off
                 </button>
                 <button
                   type="button"
                   onClick={onResetKnobLeds}
-                  className="h-8 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--status-warning)] hover:bg-[var(--bg-elevated)] text-xs font-medium cursor-pointer transition-colors"
+                  className="h-8 px-3 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--status-warning)] hover:bg-[var(--bg-elevated)] active:scale-[0.98] text-xs font-medium cursor-pointer transition-all"
                 >
                   Factory Reset
                 </button>
@@ -335,13 +335,19 @@ export const DevicesScreen: React.FC<DevicesScreenProps> = ({
                           }`}
                         />
                       ))}
-                      <input
-                        type="color"
-                        aria-label={`Custom color for knob ${enc.index + 1}`}
-                        value={ledOff ? "#000000" : ledColor}
-                        onChange={(e) => onKnobLedChange(enc.index, e.target.value.toUpperCase())}
-                        className="w-6 h-5 bg-transparent border border-[var(--border-subtle)] hover:border-[var(--border-strong)] rounded p-0 cursor-pointer transition-colors"
-                      />
+                      <label
+                        title="Custom RGB color"
+                        className="h-5 px-1.5 rounded bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 inline-flex items-center gap-1 cursor-pointer transition-all"
+                      >
+                        <input
+                          type="color"
+                          aria-label={`Custom color for knob ${enc.index + 1}`}
+                          value={ledOff ? "#000000" : ledColor}
+                          onChange={(e) => onKnobLedChange(enc.index, e.target.value.toUpperCase())}
+                          className="w-3.5 h-3.5 bg-transparent border-0 p-0 cursor-pointer focus-ring-none"
+                        />
+                        <span className="text-[10px] text-[var(--text-secondary)]">Pick</span>
+                      </label>
                     </div>
                   </div>
                 );

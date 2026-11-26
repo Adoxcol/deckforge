@@ -183,7 +183,7 @@ export const ThemesScreen: React.FC<{
         </p>
       </div>
 
-      <section className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] transition-colors flex flex-wrap items-center justify-between gap-4">
+      <section className="p-4 rounded-xl bg-gradient-to-r from-[var(--bg-panel)] to-[var(--accent-soft)]/35 border border-[var(--border-subtle)] hover:border-[var(--border-strong)] df-card-surface transition-colors flex flex-wrap items-center justify-between gap-4">
         <div>
           <div className="font-bold text-sm flex items-center gap-2"><Wand2 size={15} className="text-[var(--accent-text)]" /> Full-deck wallpaper</div>
           <p className="text-xs text-[var(--text-secondary)] mt-1 max-w-xl">
@@ -206,7 +206,7 @@ export const ThemesScreen: React.FC<{
           type="button"
           disabled={busy !== null}
           onClick={() => fileInput.current?.click()}
-          className="h-9 px-4 shrink-0 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-50 active:scale-[0.98] transition-all"
+          className="h-9 px-4 shrink-0 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer disabled:opacity-50 df-cta active:scale-[0.98] transition-all"
         >
           {busy === "wallpaper" ? <RefreshCw size={14} className="animate-spin" /> : <ImagePlus size={14} />}
           {busy === "wallpaper" ? "Splitting…" : "Choose GIF"}
@@ -215,7 +215,7 @@ export const ThemesScreen: React.FC<{
 
       <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4">
         {KEY_THEMES.map((theme) => (
-          <div key={theme.id} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:-translate-y-[1px] hover:shadow-lg transition-all flex flex-col gap-3">
+          <div key={theme.id} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:-translate-y-[1px] hover:shadow-lg df-card-surface transition-all flex flex-col gap-3">
             <ThemePreview theme={theme.id} icons={previewIcons} />
             <div>
               <div className="font-bold text-sm">{theme.name}</div>
@@ -226,7 +226,7 @@ export const ThemesScreen: React.FC<{
                 type="button"
                 disabled={busy !== null}
                 onClick={() => void applyTheme(theme.id, false)}
-                className="flex-1 h-8 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:active:scale-100 shadow-xs transition-all"
+                className="flex-1 h-8 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:active:scale-100 df-cta transition-all"
               >
                 {busy === `${theme.id}:false` && <RefreshCw size={12} className="animate-spin" />}
                 {busy === `${theme.id}:false` ? "Drawing…" : "Apply to page"}

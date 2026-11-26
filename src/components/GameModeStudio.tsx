@@ -87,8 +87,8 @@ const slug = (text: string) =>
 const Checkbox: React.FC<{ checked: boolean }> = ({ checked }) => (
   <span
     aria-hidden="true"
-    className={`w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 ${
-      checked ? "bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white" : "bg-[var(--bg-sidebar)] border-[var(--border-strong)] text-transparent"
+    className={`w-4 h-4 rounded-[4px] border flex items-center justify-center shrink-0 transition-all duration-150 ${
+      checked ? "bg-[var(--accent-primary)] border-[var(--accent-primary)] text-white shadow-[0_0_8px_rgba(124,131,247,0.3)]" : "bg-[var(--bg-sidebar)] border-[var(--border-strong)] text-transparent"
     }`}
   >
     <Check size={11} strokeWidth={3} />
@@ -111,22 +111,22 @@ const Toggle: React.FC<{ on: boolean; onClick: () => void; title: string; hint: 
     onClick={onClick}
     aria-pressed={on}
     aria-label={label}
-    className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:border-[var(--border-strong)] cursor-pointer transition-colors"
+    className="w-full text-left flex items-center gap-3 px-3 py-2.5 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-panel)]/70 active:scale-[0.99] cursor-pointer transition-all"
   >
     <span className="min-w-0 flex-1">
       <span className="block text-[12.5px] font-semibold text-[var(--text-primary)]">{title}</span>
       <span className="block text-[11.5px] text-[var(--text-secondary)] mt-0.5 leading-snug">{hint}</span>
     </span>
-    <span className={`w-9 h-5 rounded-full p-0.5 shrink-0 transition-colors ${on ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"}`}>
-      <span className={`block w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${on ? "translate-x-4" : "translate-x-0"}`} />
+    <span className={`w-9 h-5 rounded-full p-0.5 shrink-0 border transition-all duration-150 ${on ? "bg-[var(--accent-primary)] border-[var(--accent-hover)]/40 shadow-[0_0_10px_rgba(124,131,247,0.28)]" : "bg-[var(--border-strong)] border-white/10"}`}>
+      <span className={`block w-4 h-4 rounded-full bg-white shadow-xs transition-transform duration-150 ease-[cubic-bezier(0.22,1,0.36,1)] ${on ? "translate-x-[14px]" : "translate-x-0"}`} />
     </span>
   </button>
 );
 
 const Step: React.FC<{ step: string; title: string; hint?: string; action?: React.ReactNode; children: React.ReactNode }> = ({ step, title, hint, action, children }) => (
-  <section aria-label={title} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)]/35">
+  <section aria-label={title} className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)]/55 df-card-surface">
     <div className="flex items-start gap-3 px-4 py-3 border-b border-[var(--border-subtle)]">
-      <span className="mt-0.5 w-5 h-5 rounded-full bg-[var(--accent-soft)] text-[var(--accent-text)] text-[11px] font-semibold flex items-center justify-center shrink-0">{step}</span>
+      <span className="mt-0.5 w-5 h-5 rounded-full bg-[var(--accent-soft)] border border-[var(--accent-primary)]/30 text-[var(--accent-text)] text-[11px] font-semibold flex items-center justify-center shrink-0">{step}</span>
       <div className="min-w-0 flex-1">
         <h2 className="text-[13px] font-semibold text-[var(--text-primary)]">{title}</h2>
         {hint && <p className="text-[11.5px] text-[var(--text-muted)] mt-0.5 leading-snug">{hint}</p>}
@@ -140,9 +140,9 @@ const Step: React.FC<{ step: string; title: string; hint?: string; action?: Reac
 const Radio: React.FC<{ checked: boolean }> = ({ checked }) => (
   <span
     aria-hidden="true"
-    className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${checked ? "border-[var(--accent-primary)]" : "border-[var(--border-strong)]"}`}
+    className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 transition-colors duration-150 ${checked ? "border-[var(--accent-primary)]" : "border-[var(--border-strong)]"}`}
   >
-    <span className={`w-2 h-2 rounded-full ${checked ? "bg-[var(--accent-primary)]" : "bg-transparent"}`} />
+    <span className={`w-2 h-2 rounded-full transition-transform duration-150 ${checked ? "bg-[var(--accent-primary)] scale-100" : "bg-transparent scale-0"}`} />
   </span>
 );
 
@@ -510,7 +510,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                 ? "bg-[var(--bg-elevated)] text-[var(--text-secondary)] border border-[var(--border-subtle)]"
                 : active
                   ? "bg-[var(--status-error)]/15 text-[var(--status-error)] border border-[var(--status-error)]/50 hover:bg-[var(--status-error)]/25"
-                  : "bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)] shadow-[0_2px_10px_rgba(124,131,247,0.28)]"
+                  : "bg-[var(--accent-primary)] text-white hover:bg-[var(--accent-hover)] df-cta"
             }`}
           >
             {busy ? <RefreshCw size={16} className="animate-spin" /> : active ? <RotateCcw size={16} /> : <Power size={16} />}
@@ -518,7 +518,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
           </button>
         </div>
 
-        <section aria-label="Modes" className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)]/35 p-3 flex flex-col gap-3">
+        <section aria-label="Modes" className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)]/55 df-card-surface p-3 flex flex-col gap-3">
           <div className="flex items-center gap-2 flex-wrap">
             {config.modes.map((m) => (
               <button
@@ -529,9 +529,9 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                   setConfirmDelete(false);
                 }}
                 aria-pressed={m.id === mode.id}
-                className={`h-8 px-3 rounded-lg text-[12.5px] font-medium flex items-center gap-1.5 border cursor-pointer transition-colors ${
+                className={`h-8 px-3 rounded-lg text-[12.5px] font-medium flex items-center gap-1.5 border cursor-pointer active:scale-[0.98] transition-all ${
                   m.id === mode.id
-                    ? "bg-[var(--accent-primary)] border-transparent text-white"
+                    ? "bg-[var(--accent-primary)] border-transparent text-white shadow-[0_2px_8px_rgba(124,131,247,0.28)]"
                     : "bg-transparent border-[var(--border-subtle)] text-[var(--text-secondary)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)]"
                 }`}
               >
@@ -623,7 +623,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
               onKeyDown={(event) => {
                 if (event.key === "Enter") event.currentTarget.blur();
               }}
-              className="h-8 w-48 px-2.5 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] text-[13px] font-medium text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)]"
+              className="h-8 w-48 px-2.5 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[13px] font-medium text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] transition-colors"
             />
             <button
               type="button"
@@ -702,7 +702,7 @@ export const GameModeStudio: React.FC<{ notify: Notify }> = ({ notify }) => {
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search"
                   aria-label="Search what is running"
-                  className="h-7 w-48 pl-7 pr-6 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] transition-colors"
+                  className="h-7 w-48 pl-7 pr-6 rounded-md bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] text-[12px] text-[var(--text-primary)] outline-none focus:border-[var(--accent-primary)] transition-colors"
                 />
                 {query && (
                   <button
@@ -1232,7 +1232,7 @@ const StartAppsSection: React.FC<{
             {picking && (
               <>
                 <div className="fixed inset-0 z-[90]" onMouseDown={() => setPicking(false)} />
-                <div className="absolute z-[91] left-0 top-9 w-72 max-h-64 overflow-y-auto rounded-lg border border-[var(--border-strong)] bg-[var(--bg-panel)] shadow-2xl py-1 animate-pop-in">
+                <div className="absolute z-[91] left-0 top-9 w-72 max-h-64 overflow-y-auto rounded-lg border border-[var(--border-strong)] bg-[var(--bg-panel)]/95 backdrop-blur-md shadow-2xl py-1 animate-pop-in">
                   {choices.length === 0 && <div className="px-3 py-4 text-center text-[11.5px] text-[var(--text-muted)]">Open the app first, then pick it here.</div>}
                   {choices.map((p) => (
                     <button

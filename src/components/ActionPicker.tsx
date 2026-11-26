@@ -106,6 +106,7 @@ export const ActionPicker: React.FC<{
         type="button"
         aria-expanded={open}
         aria-haspopup="listbox"
+        aria-controls={open ? `${pickerId}-listbox` : undefined}
         onClick={() => (open ? setOpen(false) : openPicker())}
         onKeyDown={(event) => {
           if (event.key === "ArrowDown" || event.key === "Enter" || event.key === " ") {
@@ -153,15 +154,15 @@ export const ActionPicker: React.FC<{
                     <X size={12} />
                   </button>
                 )}
-                <span className="text-[10px] font-mono text-[var(--text-muted)] tabular-nums">{flat.length}</span>
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-muted)] tabular-nums">{flat.length}</span>
               </div>
-              <div ref={listRef} className="overflow-y-auto py-1" role="listbox">
+              <div id={`${pickerId}-listbox`} ref={listRef} className="overflow-y-auto py-1" role="listbox">
                 {flat.length === 0 && (
                   <div className="px-3 py-6 text-center text-xs text-[var(--text-secondary)]">No action matches “{query}”.</div>
                 )}
                 {groups.map(([group, items]) => (
                   <div key={group}>
-                    <div className="px-3 pt-2 pb-1 text-[10.5px] font-semibold text-[var(--text-muted)]">{group}</div>
+                    <div className="sticky top-0 z-10 px-3 pt-2 pb-1 bg-[var(--bg-panel)]/95 backdrop-blur-xs text-[10.5px] font-semibold text-[var(--text-muted)]">{group}</div>
                     {items.map((choice) => {
                       index += 1;
                       const i = index;

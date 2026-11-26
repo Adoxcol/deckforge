@@ -1,6 +1,7 @@
 import React from "react";
 import { Film, ImagePlus, Trash2 } from "lucide-react";
 import type { MediaPreview, ScreenMediaConfig } from "../types/deckforge";
+import { ToggleSwitch } from "./ToggleSwitch";
 
 interface MediaConfiguratorProps {
   title: string;
@@ -25,8 +26,9 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
   onChange,
   onClear,
 }) => {
+  const loopId = React.useId();
   return (
-    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-2.5 flex flex-col gap-2">
+    <div className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] df-card-surface p-2.5 flex flex-col gap-2">
       <div className="flex items-center justify-between gap-2">
         <div>
           <div className="text-[11.5px] font-semibold text-[var(--text-primary)]">{title}</div>
@@ -107,23 +109,13 @@ export const MediaConfigurator: React.FC<MediaConfiguratorProps> = ({
             />
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-[11.5px] text-[var(--text-secondary)]">Loop animation</span>
-            <button
-              type="button"
-              role="switch"
-              aria-label="Loop animation"
-              aria-checked={config.loopPlayback}
-              onClick={() => onChange({ loopPlayback: !config.loopPlayback })}
-              className={`w-9 h-5 rounded-full p-0.5 cursor-pointer transition-colors shrink-0 ${
-                config.loopPlayback ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"
-              }`}
-            >
-              <div
-                className={`w-4 h-4 rounded-full bg-white shadow-xs transition-transform ${
-                  config.loopPlayback ? "translate-x-4" : "translate-x-0"
-                }`}
-              />
-            </button>
+            <label htmlFor={loopId} className="text-[11.5px] text-[var(--text-secondary)] cursor-pointer select-none">Loop animation</label>
+            <ToggleSwitch
+              id={loopId}
+              checked={config.loopPlayback}
+              ariaLabel="Loop animation"
+              onChange={() => onChange({ loopPlayback: !config.loopPlayback })}
+            />
           </div>
           <p className="text-[10.5px] leading-relaxed text-[var(--text-muted)]">
             The deck plays each frame at this speed, with at least 80ms between frames so the LCD bus stays stable. Press Apply to Device to push every screen.

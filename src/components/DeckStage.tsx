@@ -102,7 +102,7 @@ export const DeckStage = React.memo(function DeckStage({
       >
         {/* Dynamic Key Grid matching real hardware rows x cols */}
         <div
-          className="grid gap-3"
+          className="grid gap-3 p-2.5 rounded-xl bg-[var(--bg-app)]/55 border border-black/45 shadow-[inset_0_2px_8px_rgba(0,0,0,0.45)]"
           style={{
             gridTemplateColumns: `repeat(${activeDevice.keys.cols}, minmax(0, 1fr))`,
           }}
@@ -190,6 +190,16 @@ export const DeckStage = React.memo(function DeckStage({
                     {k.hold && <span className="w-1.5 h-1.5 rounded-full bg-[var(--status-warning)]" />}
                   </span>
                 )}
+                <span
+                  aria-hidden
+                  className={`pointer-events-none absolute top-1.5 left-1.5 z-10 px-1 py-px rounded text-[9px] font-mono tabular-nums leading-none transition-opacity duration-150 ${
+                    isSelected
+                      ? "opacity-90 bg-[var(--accent-primary)] text-white"
+                      : "opacity-0 group-hover:opacity-85 group-focus-visible:opacity-85 bg-black/55 text-[var(--text-secondary)]"
+                  }`}
+                >
+                  {k.index + 1}
+                </span>
                 {clip ? (
                   <ScreenFace
                     clip={clip}
@@ -223,8 +233,8 @@ export const DeckStage = React.memo(function DeckStage({
                     </div>
                     {k.showTitle && (
                       <span
-                        className={`font-semibold truncate max-w-full leading-tight ${
-                          k.actionId === "none" ? "text-[var(--text-secondary)]" : "text-[var(--text-primary)]"
+                        className={`truncate max-w-full leading-tight ${
+                          k.actionId === "none" ? "font-medium text-[var(--text-muted)]" : "font-semibold text-[var(--text-primary)]"
                         } ${
                           k.titleSize === "Small"
                             ? "text-[10px]"
@@ -259,14 +269,14 @@ export const DeckStage = React.memo(function DeckStage({
                 const file = event.dataTransfer.files?.[0];
                 if (file) void ingestFile(file, "strip", 0);
               }}
-              className={`h-7 px-3 rounded-md border text-[10.5px] font-semibold cursor-pointer active:scale-[0.99] transition-all ${
+              className={`h-7 px-3 rounded-md border text-[10.5px] font-semibold flex items-center justify-between gap-2 cursor-pointer active:scale-[0.99] transition-all ${
                 surface === "strip"
                   ? "border-[var(--accent-primary)]/60 bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[0_0_0_1px_rgba(124,131,247,0.2)]"
                   : "border-[var(--border-subtle)] bg-[var(--bg-input)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)]"
               }`}
             >
-              Whole touch strip · {activeDevice.touchStrip.pixelWidth}×{activeDevice.touchStrip.pixelHeight}
-              {activePage.stripMedia ? " · image" : ""}
+              <span>Whole touch strip{activePage.stripMedia ? " · custom image" : ""}</span>
+              <span className="font-mono text-[10px] text-[var(--text-muted)]">{activeDevice.touchStrip.pixelWidth}×{activeDevice.touchStrip.pixelHeight}</span>
             </button>
             <div
               className="grid gap-2 bg-[var(--bg-app)] border border-[var(--border-subtle)] rounded-xl p-2"
@@ -330,16 +340,23 @@ export const DeckStage = React.memo(function DeckStage({
                         className="absolute inset-0"
                       />
                     ) : (
-                      <div className="min-w-0">
-                        <div className="text-[10.5px] font-semibold text-[var(--text-muted)] truncate">
-                          {tz.label}
+                      <div className="min-w-0 flex-1 flex items-center justify-between gap-2">
+                        <div className="min-w-0">
+                          <div className="text-[10.5px] font-semibold text-[var(--text-muted)] truncate">
+                            {tz.label}
+                          </div>
+                          <div
+                            className="text-[11px] font-mono font-semibold truncate"
+                            style={{ color: tz.accentColor }}
+                          >
+                            {zoneValue}
+                          </div>
                         </div>
-                        <div
-                          className="text-[11px] font-mono font-semibold truncate"
-                          style={{ color: tz.accentColor }}
-                        >
-                          {zoneValue}
-                        </div>
+                        <span
+                          aria-hidden
+                          className="w-1 h-6 rounded-full shrink-0 opacity-75"
+                          style={{ backgroundColor: tz.accentColor }}
+                        />
                       </div>
                     )}
                   </div>

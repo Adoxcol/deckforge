@@ -112,7 +112,7 @@ const SoundClip: React.FC<{ value: string; onChange: (value: string) => void }> 
               if (picked) onChange(joinSound(volume, picked));
             });
           }}
-          className="px-2 py-0.5 rounded text-[10.5px] font-semibold cursor-pointer bg-[var(--accent-soft)] text-[var(--accent-text)] border border-[var(--accent-primary)]/45 hover:bg-[var(--accent-primary)] hover:text-white transition-colors"
+          className="px-2 py-0.5 rounded text-[10.5px] font-semibold cursor-pointer bg-[var(--accent-soft)] text-[var(--accent-text)] border border-[var(--accent-primary)]/45 hover:bg-[var(--accent-primary)] hover:text-white active:scale-[0.96] transition-all"
         >
           Browse
         </button>
@@ -158,7 +158,7 @@ export const ActionBinding: React.FC<{
   const showRecord = actionId === "custom.hotkey" || actionId === "sys.hotkey";
   const showPresets = showRecord;
   return (
-    <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2">
+    <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] df-card-surface flex flex-col gap-2">
       <label className="text-[11px] font-semibold text-[var(--text-primary)]">{label}</label>
       <ActionPicker
         value={choices.some((choice) => choice.id === actionId) ? actionId : actionId || "custom.hotkey"}
@@ -199,7 +199,7 @@ export const ActionBinding: React.FC<{
               <button
                 type="button"
                 onClick={onRecord}
-                className={`px-2 py-0.5 rounded text-[10.5px] font-semibold cursor-pointer transition-colors ${
+                className={`px-2 py-0.5 rounded text-[10.5px] font-semibold cursor-pointer active:scale-[0.96] transition-all ${
                   recording
                     ? "bg-[var(--status-error)] text-white animate-pulse"
                     : "bg-[var(--accent-soft)] text-[var(--accent-text)] border border-[var(--accent-primary)]/45 hover:bg-[var(--accent-primary)] hover:text-white"
@@ -222,7 +222,7 @@ export const ActionBinding: React.FC<{
                   key={preset}
                   type="button"
                   onClick={() => onChange(actionId === "sys.hotkey" ? "sys.hotkey" : "custom.hotkey", preset)}
-                  className="px-1.5 py-0.5 rounded bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:text-[var(--text-primary)] text-[10px] font-mono text-[var(--text-secondary)] cursor-pointer transition-colors"
+                  className="px-1.5 py-0.5 rounded bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] hover:text-[var(--text-primary)] active:scale-[0.96] text-[10px] font-mono text-[var(--text-secondary)] cursor-pointer transition-all"
                 >
                   {preset}
                 </button>
@@ -239,7 +239,7 @@ export const ObsConnection: React.FC<{
   obsSettings: ObsSettings;
   onSave: (settings: ObsSettings) => void;
 }> = ({ obsSettings, onSave }) => (
-  <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col gap-2">
+  <div className="p-2.5 rounded-lg bg-[var(--bg-panel)] border border-[var(--border-subtle)] df-card-surface flex flex-col gap-2">
     <div className="text-[11px] font-semibold text-[var(--text-primary)]">OBS WebSocket</div>
     <p className="text-[10.5px] leading-relaxed text-[var(--text-secondary)]">
       In OBS, open Tools, then WebSocket Server Settings, and turn the server on. The usual address is ws://127.0.0.1:4455.

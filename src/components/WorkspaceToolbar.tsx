@@ -33,11 +33,11 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
   return (
     <div className="min-h-13 px-4 py-2.5 border-b border-[var(--border-subtle)] flex items-center justify-between flex-wrap gap-3 shrink-0 bg-[var(--bg-app)]">
       <div className="flex items-center gap-2.5 min-w-0">
-        <span className="w-7 h-7 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/30 flex items-center justify-center shrink-0">
+        <span className="w-7 h-7 rounded-md bg-[var(--accent-soft)] border border-[var(--accent-primary)]/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] flex items-center justify-center shrink-0">
           <DeckIcon name={activeProfile.icon} size={14} color="var(--accent-text)" />
         </span>
         <h1 className="text-[15px] font-bold tracking-tight text-[var(--text-primary)] truncate">{activeProfile.name}</h1>
-        <span className="text-[11px] tabular-nums px-2 py-0.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-muted)] shrink-0">
+        <span className="text-[11px] font-mono tabular-nums px-2 py-0.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-muted)] shrink-0">
           {activeProfile.pages.length} {activeProfile.pages.length === 1 ? "page" : "pages"}
         </span>
       </div>
@@ -96,6 +96,7 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
         >
           <Save size={13} className="text-[var(--text-secondary)]" />
           <span>Save</span>
+          <kbd className="df-kbd hidden xl:inline-flex ml-0.5">Ctrl+S</kbd>
         </button>
 
         {/* Primary Violet CTA: Apply / Deploy to Device */}
@@ -103,10 +104,11 @@ export const WorkspaceToolbar: React.FC<WorkspaceToolbarProps> = ({
           type="button"
           onClick={handleApplyToDevice}
           title="Send this page to the deck (Ctrl+Enter)"
-          className="h-8 shrink-0 whitespace-nowrap px-3.5 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer shadow-[0_2px_10px_rgba(124,131,247,0.28)] hover:shadow-[0_3px_14px_rgba(124,131,247,0.42)] active:scale-[0.98] transition-all duration-150"
+          className="h-8 shrink-0 whitespace-nowrap px-3.5 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white flex items-center gap-1.5 cursor-pointer df-cta active:scale-[0.98] transition-all duration-150"
         >
           <Play size={12} fill="currentColor" />
           <span>Apply to Device</span>
+          <kbd className="df-kbd df-kbd-accent hidden xl:inline-flex ml-0.5">Ctrl+↵</kbd>
         </button>
       </div>
     </div>

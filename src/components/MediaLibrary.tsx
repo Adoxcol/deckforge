@@ -1,5 +1,5 @@
 import React from "react";
-import { RefreshCw, Search, Star, Upload, X } from "lucide-react";
+import { Film, RefreshCw, Search, Star, Upload, X } from "lucide-react";
 import type { CommonsGif, MediaPreview } from "../types/deckforge";
 import { deckforgeApi } from "../bridge/tauriBridge";
 import { bytesToBase64, errorText } from "../lib/format";
@@ -13,7 +13,7 @@ interface Props {
   onUse: (clip: MediaPreview) => void;
   onClose: () => void;
 }
-const button = "rounded-md border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 py-2 text-xs font-medium disabled:opacity-50 disabled:cursor-default hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] cursor-pointer transition-colors";
+const button = "h-9 inline-flex items-center justify-center gap-1.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-input)] px-3 text-xs font-medium disabled:opacity-50 disabled:cursor-default hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] cursor-pointer transition-all";
 
 export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
   const dialog = React.useRef<HTMLDialogElement>(null);
@@ -76,13 +76,13 @@ export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
     onUse(clip); onClose();
   });
   return <dialog ref={dialog} aria-labelledby="media-library-title" onCancel={event => { event.preventDefault(); if (!busyRef.current) onClose(); }}
-    className="m-auto w-[760px] max-w-[95vw] max-h-[88vh] flex flex-col overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] text-[var(--text-primary)] p-0 shadow-2xl backdrop:bg-black/65 backdrop:backdrop-blur-[2px] animate-pop-in">
+    className="m-auto w-[760px] max-w-[95vw] max-h-[88vh] flex flex-col overflow-hidden rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] text-[var(--text-primary)] p-0 df-modal-surface backdrop:bg-black/65 backdrop:backdrop-blur-[2px] animate-pop-in">
     <div className="px-5 py-3.5 border-b border-[var(--border-subtle)] flex items-center justify-between gap-3 shrink-0 bg-[var(--bg-sidebar)]">
       <div>
         <h2 id="media-library-title" className="text-base font-bold tracking-tight">Media library</h2>
         <p className="text-[11.5px] text-[var(--text-secondary)]">Animated icons and images, ready for your deck.</p>
       </div>
-      <button type="button" className="w-8 h-8 rounded-lg border border-transparent hover:border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] flex items-center justify-center cursor-pointer disabled:opacity-50 transition-colors" disabled={busy} onClick={onClose} aria-label="Close media library"><X size={16}/></button>
+      <button type="button" className="w-8 h-8 rounded-lg border border-transparent hover:border-[var(--border-subtle)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.95] flex items-center justify-center cursor-pointer disabled:opacity-50 transition-all" disabled={busy} onClick={onClose} aria-label="Close media library"><X size={16}/></button>
     </div>
     <div className="p-5 flex-1 min-h-0 overflow-y-auto flex flex-col gap-3.5">
       <div role="tablist" aria-label="Media library tabs" className="flex gap-1 flex-wrap bg-[var(--bg-sidebar)] border border-[var(--border-subtle)] p-1 rounded-lg w-fit">{["Starter pack", "My media", "Favorites", "Recent", "Find GIFs"].map(name => <button type="button" role="tab" key={name} className={`px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-all border ${tab === name ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs" : "border-transparent text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]"}`} aria-selected={tab === name} onClick={() => setTab(name)}>{name}</button>)}</div>
@@ -93,7 +93,7 @@ export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
           {gifQuery && <button type="button" aria-label="Clear GIF search" onClick={() => setGifQuery("")} className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"><X size={13}/></button>}
         </div>
         <button type="submit" className={button} disabled={busy || gifQuery.trim().length < 2}>Search</button>
-      </form> : <div className="flex items-center gap-2"><div className="min-w-0 flex-1 flex items-center gap-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 px-3 h-9 transition-all"><Search size={15} className="text-[var(--text-muted)] shrink-0"/><input autoFocus aria-label="Search media library" placeholder="Search your library..." value={query} onChange={e => setQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent outline-none focus-ring-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"/>{query && <button type="button" aria-label="Clear media search" onClick={() => setQuery("")} className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"><X size={13}/></button>}</div><button type="button" className={button} disabled={busy} onClick={() => upload.current?.click()}><Upload size={14} className="inline mr-1"/>Upload</button></div>}
+      </form> : <div className="flex items-center gap-2"><div className="min-w-0 flex-1 flex items-center gap-2 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus-within:border-[var(--accent-primary)] focus-within:ring-2 focus-within:ring-[var(--accent-primary)]/20 px-3 h-9 transition-all"><Search size={15} className="text-[var(--text-muted)] shrink-0"/><input autoFocus aria-label="Search media library" placeholder="Search your library..." value={query} onChange={e => setQuery(e.target.value)} className="min-w-0 flex-1 bg-transparent outline-none focus-ring-none text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)]"/>{query && <button type="button" aria-label="Clear media search" onClick={() => setQuery("")} className="p-0.5 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"><X size={13}/></button>}</div><button type="button" className={button} disabled={busy} onClick={() => upload.current?.click()}><Upload size={14}/>Upload</button></div>}
       <input ref={upload} type="file" hidden accept="image/png,image/jpeg,image/gif,image/webp,image/bmp" onChange={event => {
         const file = event.target.files?.[0]; event.target.value = "";
         if (file) void run(async () => {
@@ -102,7 +102,7 @@ export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
         });
       }}/>
       <form className="flex gap-2" onSubmit={event => { event.preventDefault(); void run(async () => { imported(await deckforgeApi.importMediaUrl(url.trim())); setUrl(""); }); }}>
-        <input aria-label="Direct image or GIF link" type="url" required placeholder="Paste a direct HTTPS image or GIF link" value={url} onChange={e => setUrl(e.target.value)} className="min-w-0 flex-1 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] outline-none px-3 py-2 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors"/>
+        <input aria-label="Direct image or GIF link" type="url" required placeholder="Paste a direct HTTPS image or GIF link" value={url} onChange={e => setUrl(e.target.value)} className="min-w-0 flex-1 h-9 rounded-md bg-[var(--bg-input)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] focus:border-[var(--accent-primary)] outline-none px-3 text-xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] transition-colors"/>
         <button type="submit" className={button} disabled={busy || !url.trim()}>Import link</button>
       </form>
       <p className="text-[11px] text-[var(--text-muted)]">Import files you own or have permission to use. Up to 8 MB. Webpage links are not image files.</p>
@@ -135,7 +135,7 @@ export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
               <span className="block truncate text-[11px] mt-2" title={clip.fileName}>{clip.fileName}</span>
               <span className={`inline-block mt-0.5 px-1.5 py-px rounded text-[9.5px] font-medium ${clip.frameCount > 1 ? "bg-[var(--accent-soft)] text-[var(--accent-text)]" : "text-[var(--text-muted)]"}`}>{clip.frameCount > 1 ? "Animated" : "Image"}</span>
             </button>
-            <button type="button" aria-label={`${prefs.favorites.includes(clip.id) ? "Unfavorite" : "Favorite"} ${clip.fileName}`} aria-pressed={prefs.favorites.includes(clip.id)} onClick={() => savePrefs({ ...prefs, favorites: prefs.favorites.includes(clip.id) ? prefs.favorites.filter(id => id !== clip.id) : [...prefs.favorites, clip.id] })} className={`absolute top-2 right-2 rounded bg-black/70 hover:bg-black/90 text-white p-1 cursor-pointer transition-all hover:scale-110 ${prefs.favorites.includes(clip.id) ? "opacity-100" : "opacity-60 group-hover:opacity-100 focus-visible:opacity-100"}`}><Star size={13} fill={prefs.favorites.includes(clip.id) ? "#FBBF24" : "none"}/></button>
+            <button type="button" aria-label={`${prefs.favorites.includes(clip.id) ? "Unfavorite" : "Favorite"} ${clip.fileName}`} aria-pressed={prefs.favorites.includes(clip.id)} onClick={() => savePrefs({ ...prefs, favorites: prefs.favorites.includes(clip.id) ? prefs.favorites.filter(id => id !== clip.id) : [...prefs.favorites, clip.id] })} className={`absolute top-2.5 right-2.5 rounded-md bg-black/70 backdrop-blur-xs border border-white/10 hover:bg-black/90 text-white p-1 cursor-pointer transition-all hover:scale-110 active:scale-95 ${prefs.favorites.includes(clip.id) ? "opacity-100" : "opacity-60 group-hover:opacity-100 focus-visible:opacity-100"}`}><Star size={12} fill={prefs.favorites.includes(clip.id) ? "#FBBF24" : "none"}/></button>
           </div>
         ); })}
         {!shown.length && <p className="col-span-full py-8 text-center text-sm text-[var(--text-secondary)]">{query ? "No matching media." : "Nothing here yet. Choose a starter animation or import an image or GIF."}</p>}
@@ -146,15 +146,15 @@ export function MediaLibrary({ clips, onStored, onUse, onClose }: Props) {
     </div>
     {tab === "Find GIFs" ? (
       <div className="px-5 py-3.5 flex gap-3 items-center border-t border-[var(--border-subtle)] bg-[var(--bg-sidebar)] shrink-0">
-        <div className="h-14 w-14 shrink-0 rounded-lg bg-black/30 border border-[var(--border-subtle)] overflow-hidden">{gifSelected && <img src={gifSelected.imageUrl} alt="Selected GIF preview" className="w-full h-full object-cover"/>}</div>
+        <div className="h-14 w-14 shrink-0 rounded-lg bg-black/30 border border-[var(--border-subtle)] overflow-hidden flex items-center justify-center text-[var(--text-muted)]">{gifSelected ? <img src={gifSelected.imageUrl} alt="Selected GIF preview" className="w-full h-full object-cover"/> : <Film size={18} className="opacity-45"/>}</div>
         <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{gifSelected?.title ?? "Choose a GIF"}</p>{gifSelected && <button type="button" className="text-[11px] text-[var(--accent-text)] hover:underline cursor-pointer" onClick={() => void deckforgeApi.openCommonsFilePage(gifSelected.sourceUrl).catch(err => setError(errorText(err)))}>Open file page and license</button>}</div>
-        <button type="button" className="h-9 px-4 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white cursor-pointer disabled:opacity-40 disabled:cursor-default shadow-xs transition-all" disabled={!gifSelected || busy} onClick={() => void useGif()}>Use on screen</button>
+        <button type="button" className="h-9 px-4 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white cursor-pointer disabled:opacity-40 disabled:cursor-default df-cta transition-all" disabled={!gifSelected || busy} onClick={() => void useGif()}>Use on screen</button>
       </div>
     ) : (
       <div className="px-5 py-3.5 flex gap-3 items-center border-t border-[var(--border-subtle)] bg-[var(--bg-sidebar)] shrink-0">
-        <div className="h-14 w-14 shrink-0 rounded-lg bg-black/30 border border-[var(--border-subtle)] overflow-hidden">{selected && <ScreenFace clip={selected} iconName="Image" accent="#A78BFA"/>}</div>
+        <div className="h-14 w-14 shrink-0 rounded-lg bg-black/30 border border-[var(--border-subtle)] overflow-hidden flex items-center justify-center text-[var(--text-muted)]">{selected ? <ScreenFace clip={selected} iconName="Image" accent="#A78BFA"/> : <Film size={18} className="opacity-45"/>}</div>
         <div className="flex-1 min-w-0"><p className="text-sm font-medium truncate">{selected?.fileName ?? "Choose an image or animation"}</p><p className="text-[11px] text-[var(--text-muted)]">Adjust fit and speed in the editor. Apply to Device when ready.</p></div>
-        <button type="button" className="h-9 px-4 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white cursor-pointer disabled:opacity-40 disabled:cursor-default shadow-xs transition-all" disabled={!selected || busy} onClick={() => void useSelected()}>Use on screen</button>
+        <button type="button" className="h-9 px-4 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white cursor-pointer disabled:opacity-40 disabled:cursor-default df-cta transition-all" disabled={!selected || busy} onClick={() => void useSelected()}>Use on screen</button>
       </div>
     )}
   </dialog>;

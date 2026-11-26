@@ -25,6 +25,10 @@
     --radius-sm: 6px;
     --radius-md: 10px;
     --radius-lg: 14px;
+    --shadow-card: inset 0 1px 0 rgba(255, 255, 255, 0.045), 0 4px 16px rgba(0, 0, 0, 0.24);
+    --shadow-modal: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 24px 64px rgba(0, 0, 0, 0.68);
+    --shadow-cta: 0 2px 10px rgba(124, 131, 247, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+    --shadow-cta-hover: 0 4px 16px rgba(124, 131, 247, 0.44), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   }
 
   * {
@@ -68,29 +72,43 @@
     transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
-  button:active:not(:disabled) {
+  button:active:not(:disabled),
+  [role="button"]:active:not([aria-disabled="true"]) {
     translate: 0 0.5px;
   }
 
   button:focus-visible,
-  input:focus-visible,
-  select:focus-visible,
-  textarea:focus-visible,
   a:focus-visible,
   summary:focus-visible,
   [role="button"]:focus-visible,
   [role="tab"]:focus-visible,
   [role="switch"]:focus-visible,
+  [role="menuitem"]:focus-visible,
+  [role="option"]:focus-visible,
   [tabindex]:focus-visible {
     outline: 2px solid var(--accent-primary);
-    outline-offset: 1px;
+    outline-offset: 2px;
+  }
+
+  input:not(.outline-none):focus-visible,
+  select:not(.outline-none):focus-visible,
+  textarea:not(.outline-none):focus-visible {
+    outline: 2px solid var(--accent-primary);
+    outline-offset: 2px;
   }
 
   input.outline-none:not(.focus-ring-none):focus,
   select.outline-none:not(.focus-ring-none):focus,
   textarea.outline-none:not(.focus-ring-none):focus {
     outline: none;
-    box-shadow: 0 0 0 2px rgba(124, 131, 247, 0.24);
+    box-shadow: 0 0 0 2px rgba(124, 131, 247, 0.32);
+  }
+
+  input.outline-none:not(.focus-ring-none):focus-visible,
+  select.outline-none:not(.focus-ring-none):focus-visible,
+  textarea.outline-none:not(.focus-ring-none):focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(124, 131, 247, 0.38);
   }
 
   .scrollbar-none {
@@ -252,9 +270,48 @@
 .df-dot-grid {
   background-color: var(--bg-app);
   background-image:
-    radial-gradient(ellipse 65% 45% at 50% 0%, rgba(124, 131, 247, 0.05), transparent 70%),
-    radial-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px);
-  background-size: 100% 100%, 18px 18px;
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(124, 131, 247, 0.065), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(0, 0, 0, 0.25), transparent 75%),
+    radial-gradient(rgba(255, 255, 255, 0.048) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 18px 18px;
+}
+
+.df-card-surface {
+  box-shadow: var(--shadow-card);
+}
+
+.df-modal-surface {
+  box-shadow: var(--shadow-modal);
+}
+
+.df-cta {
+  box-shadow: var(--shadow-cta);
+}
+
+.df-cta:hover:not(:disabled) {
+  box-shadow: var(--shadow-cta-hover);
+}
+
+.df-kbd {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 5px;
+  height: 17px;
+  border-radius: 4px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+.df-kbd-accent {
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 @media (prefers-reduced-motion: reduce) {

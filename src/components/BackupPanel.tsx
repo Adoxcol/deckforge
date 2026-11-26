@@ -28,8 +28,8 @@ export function BackupPanel({ onBackup, onRestore }: {
     }
     setPending({ ...picked, count: file.profiles.length });
   });
-  const button = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-sidebar)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[var(--border-strong)] disabled:hover:bg-[var(--bg-sidebar)] cursor-pointer transition-colors";
-  return <section className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-5 space-y-3">
+  const button = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-sidebar)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-[var(--border-strong)] disabled:hover:bg-[var(--bg-sidebar)] disabled:active:scale-100 cursor-pointer transition-all";
+  return <section className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] df-card-surface p-5 space-y-3">
     <div className="flex items-center gap-2 text-[var(--text-primary)]"><Archive size={17} /><h2 className="font-semibold">Profiles & media backup</h2></div>
     <p className="text-xs leading-relaxed">Back up all editor profiles, all macros, and every image or animation those profiles use in one file.</p>
     <p className="text-xs leading-relaxed">Includes unsaved profile edits and media playback settings. Restore adds copies to the editor; Save keeps them locally and Apply sends a page to the deck. Existing profiles remain unchanged.</p>

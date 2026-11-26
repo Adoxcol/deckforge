@@ -164,7 +164,7 @@ export const App: React.FC = () => {
     return (
       <div className="h-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex items-center justify-center p-8" role="alert">
         {quitDialog}
-        <div className="max-w-md w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-6 shadow-[0_24px_64px_rgba(0,0,0,0.6),inset_0_1px_0_rgba(255,255,255,0.05)] space-y-4 text-center animate-pop-in">
+        <div className="max-w-md w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-6 df-modal-surface space-y-4 text-center animate-pop-in">
           <div className="w-11 h-11 mx-auto rounded-xl bg-[var(--status-warning)]/15 border border-[var(--status-warning)]/30 text-[var(--status-warning)] flex items-center justify-center">
             <AlertTriangle size={22} />
           </div>
@@ -172,7 +172,7 @@ export const App: React.FC = () => {
           <p className="text-xs leading-relaxed text-[var(--status-warning)] break-words">{bootstrapError}</p>
           <button
             type="button"
-            className="h-9 px-5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white cursor-pointer shadow-[0_2px_10px_rgba(124,131,247,0.3)] transition-all"
+            className="h-9 px-5 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white cursor-pointer df-cta transition-all"
             onClick={() => setBootstrapAttempt(n => n + 1)}
           >
             Retry loading
@@ -186,7 +186,7 @@ export const App: React.FC = () => {
     return (
       <div className="h-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex items-center justify-center p-8">
         {quitDialog}
-        <section aria-labelledby="recovery-title" className="max-w-lg w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-6 shadow-2xl space-y-4 animate-pop-in">
+        <section aria-labelledby="recovery-title" className="max-w-lg w-full rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-6 df-modal-surface space-y-4 animate-pop-in">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-[var(--accent-soft)] text-[var(--accent-text)] flex items-center justify-center shrink-0">
               <AlertTriangle size={20} />
@@ -199,7 +199,7 @@ export const App: React.FC = () => {
           {!recoveryDraft && <p className="text-xs leading-relaxed text-[var(--text-secondary)]">The file is preserved at <code className="text-[var(--text-primary)]">%APPDATA%\DeckForge\profile-draft.json</code>. Retry reading it, or discard this recovery copy to open saved profiles.</p>}
           <div className="flex flex-wrap gap-2.5 pt-1 text-xs">
             {recoveryDraft ? (
-              <button type="button" autoFocus disabled={recoveryBusy} className="h-9 px-4 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] font-semibold text-white cursor-pointer disabled:opacity-40 transition-all" onClick={() => resolveRecovery(true)}>Restore draft</button>
+              <button type="button" autoFocus disabled={recoveryBusy} className="h-9 px-4 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] font-semibold text-white cursor-pointer disabled:opacity-40 df-cta transition-all" onClick={() => resolveRecovery(true)}>Restore draft</button>
             ) : (
               <button type="button" disabled={recoveryBusy} className="h-9 px-4 rounded-lg border border-[var(--border-strong)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-elevated)] font-medium cursor-pointer disabled:opacity-40 transition-colors" onClick={() => { setRecoveryChecked(false); setRecoveryError(null); setBootstrapAttempt(n => n + 1); }}>Retry recovery</button>
             )}
@@ -234,7 +234,7 @@ export const App: React.FC = () => {
     <div className="h-screen w-screen bg-[var(--bg-app)] text-[var(--text-primary)] flex flex-col overflow-hidden select-none">
       {quitDialog}
       {(!savedLocally || draftStatus.error) && (
-        <div role={draftStatus.error ? "alert" : "status"} className="px-4 py-1.5 text-[11.5px] bg-[var(--bg-panel)] border-b border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center gap-2.5 shrink-0">
+        <div role={draftStatus.error ? "alert" : "status"} aria-live="polite" className="px-4 py-1.5 text-[11.5px] bg-[var(--bg-panel)] border-b border-[var(--border-subtle)] text-[var(--text-secondary)] flex items-center gap-2.5 shrink-0 animate-fade-in">
           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${draftStatus.error ? "bg-[var(--status-warning)]" : draftStatus.pending ? "bg-[var(--accent-primary)] animate-pulse" : "bg-[var(--status-success)]"}`} />
           <span className="truncate">{draftStatus.error ? `Recovery copy could not update: ${draftStatus.error}. Retry recovery or save your profiles.` : draftStatus.pending ? "Updating recovery copy…" : "Recovery copy saved · Profile edits are still unsaved"}</span>
           {draftStatus.error && <button type="button" className="ml-auto shrink-0 px-2.5 py-0.5 rounded-md border border-[var(--status-warning)]/40 bg-[var(--status-warning)]/10 text-[var(--status-warning)] hover:bg-[var(--status-warning)]/20 hover:text-[var(--text-primary)] cursor-pointer font-medium transition-colors" onClick={draftWriter.retry}>Retry recovery copy</button>}
@@ -247,7 +247,8 @@ export const App: React.FC = () => {
           <div
             key={name}
             role={status.error ? "alert" : "status"}
-            className={`px-4 py-1.5 text-[11.5px] border-b flex items-center gap-2.5 shrink-0 ${
+            aria-live="polite"
+            className={`px-4 py-1.5 text-[11.5px] border-b flex items-center gap-2.5 shrink-0 animate-fade-in ${
               status.error
                 ? "bg-[var(--status-warning)]/10 border-[var(--status-warning)]/30 text-[var(--status-warning)]"
                 : "bg-[var(--accent-soft)] border-[var(--accent-primary)]/30 text-[var(--accent-text)]"
@@ -282,7 +283,7 @@ export const App: React.FC = () => {
         <div
           role="status"
           aria-live="polite"
-          className={`fixed bottom-14 right-5 z-[95] flex items-center gap-2.5 pl-2.5 pr-2 py-2 rounded-xl bg-[var(--bg-elevated)]/95 backdrop-blur-md border shadow-[0_12px_32px_rgba(0,0,0,0.55)] text-[12.5px] font-medium text-[var(--text-primary)] max-w-md animate-slide-up ${
+          className={`fixed bottom-14 right-5 z-[95] flex items-center gap-2.5 pl-2.5 pr-2 py-2 rounded-xl bg-[var(--bg-elevated)]/95 backdrop-blur-md border ring-1 ring-white/[0.06] shadow-[0_14px_36px_rgba(0,0,0,0.58)] text-[12.5px] font-medium text-[var(--text-primary)] max-w-md animate-slide-up ${
             toastMessage.kind === "warning"
               ? "border-[var(--status-warning)]/45"
               : toastMessage.kind === "info"
@@ -390,13 +391,25 @@ export const App: React.FC = () => {
       </nav>
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
       <header className="h-12 bg-[var(--bg-app)] border-b border-[var(--border-subtle)] px-4 flex items-center justify-between gap-3 shrink-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-[12px] font-medium text-[var(--text-muted)] hidden sm:inline">DeckForge</span>
-          <span className="text-[var(--border-strong)] hidden sm:inline" aria-hidden>/</span>
-          <span className="text-[13.5px] font-semibold tracking-tight text-[var(--text-primary)] truncate">
-            {[...NAV_ITEMS, { id: "settings", label: "Settings" }].find((n) => n.id === activeScreen)?.label ?? "DeckForge"}
-          </span>
-        </div>
+        {(() => {
+          const navList = [...NAV_ITEMS, { id: "settings" as NavScreenId, label: "Settings", icon: Settings }];
+          const currentNav = navList.find((n) => n.id === activeScreen);
+          const ScreenIcon = currentNav?.icon;
+          return (
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[12px] font-medium text-[var(--text-muted)] hidden sm:inline">DeckForge</span>
+              <span className="text-[var(--border-strong)] hidden sm:inline" aria-hidden>/</span>
+              {ScreenIcon && (
+                <span className="w-6 h-6 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--accent-text)] flex items-center justify-center shrink-0" aria-hidden>
+                  <ScreenIcon size={13} />
+                </span>
+              )}
+              <span className="text-[13.5px] font-semibold tracking-tight text-[var(--text-primary)] truncate">
+                {currentNav?.label ?? "DeckForge"}
+              </span>
+            </div>
+          );
+        })()}
         {/* Right Controls */}
         <div className="flex items-center gap-1.5 shrink-0">
           {telemetry?.officialStreamdockRunning && (
@@ -418,14 +431,14 @@ export const App: React.FC = () => {
             <span>Import from Stream Dock</span>
           </button>
           <span className="w-px h-4 bg-[var(--border-subtle)] mx-0.5" aria-hidden />
-          <div className="flex items-center bg-[var(--bg-panel)]/70 border border-[var(--border-subtle)] rounded-[var(--radius-sm)] p-0.5 gap-0.5">
+          <div className="flex items-center h-8 bg-[var(--bg-panel)]/70 border border-[var(--border-subtle)] rounded-[var(--radius-sm)] p-[3px] gap-0.5">
             <button
               type="button"
               onClick={handleUndo}
               disabled={undoStack.length === 0}
               title="Undo (Ctrl+Z)"
               aria-label="Undo"
-              className="w-7 h-7 rounded-[4px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.94] disabled:opacity-35 disabled:hover:bg-transparent disabled:active:scale-100 disabled:cursor-default cursor-pointer transition-all"
+              className="w-6 h-6 rounded-[4px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.94] disabled:opacity-35 disabled:hover:bg-transparent disabled:active:scale-100 disabled:cursor-default cursor-pointer transition-all"
             >
               <RotateCcw size={13.5} />
             </button>
@@ -435,7 +448,7 @@ export const App: React.FC = () => {
               disabled={redoStack.length === 0}
               title="Redo (Ctrl+Y)"
               aria-label="Redo"
-              className="w-7 h-7 rounded-[4px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.94] disabled:opacity-35 disabled:hover:bg-transparent disabled:active:scale-100 disabled:cursor-default cursor-pointer transition-all"
+              className="w-6 h-6 rounded-[4px] flex items-center justify-center text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] active:scale-[0.94] disabled:opacity-35 disabled:hover:bg-transparent disabled:active:scale-100 disabled:cursor-default cursor-pointer transition-all"
             >
               <RotateCw size={13.5} />
             </button>

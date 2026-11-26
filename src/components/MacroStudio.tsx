@@ -126,12 +126,17 @@ export const MacroStudio: React.FC<{
         <button
           type="button"
           onClick={createMacro}
-          className="h-9 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-[0.98] transition-all"
+          className="h-9 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer df-cta active:scale-[0.98] transition-all"
         >
           <Plus size={14} />
           New chain
         </button>
-        {macros.map((item) => {
+        {macros.length === 0 ? (
+          <div className="px-3 py-4 rounded-xl border border-dashed border-[var(--border-subtle)] bg-[var(--bg-panel)]/40 text-center text-[11.5px] text-[var(--text-muted)]">
+            No macro chains yet. Create one to get started.
+          </div>
+        ) : (
+        macros.map((item) => {
           const bars = item.steps.map(plannedMs);
           const sum = bars.reduce((acc, value) => acc + value, 0) || 1;
           const active = item.id === macro?.id;
@@ -144,10 +149,13 @@ export const MacroStudio: React.FC<{
                 onSelectMacro(item.id);
                 onSelectStep(0);
               }}
-              className={`text-left p-3 rounded-xl border cursor-pointer transition-all ${
+              className={`relative text-left p-3 rounded-xl border cursor-pointer active:scale-[0.99] transition-all ${
                 active ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/70 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]" : "bg-[var(--bg-panel)] border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)] hover:-translate-y-[0.5px]"
               }`}
             >
+              {active && (
+                <span aria-hidden className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded-r-full bg-[var(--accent-primary)] shadow-[0_0_8px_rgba(124,131,247,0.55)]" />
+              )}
               <div className="text-xs font-bold text-[var(--text-primary)] truncate">{item.name}</div>
               <div className="mt-2 flex h-2 rounded-full overflow-hidden bg-[var(--bg-app)]">
                 {bars.map((value, index) => (
@@ -157,12 +165,12 @@ export const MacroStudio: React.FC<{
                   />
                 ))}
               </div>
-              <div className="mt-1.5 text-[10.5px] text-[var(--text-muted)]">
+              <div className="mt-1.5 text-[10.5px] text-[var(--text-muted)] tabular-nums">
                 {item.steps.length} blocks · {formatMs(bars.reduce((acc, value) => acc + value, 0))}
               </div>
             </button>
           );
-        })}
+        }))}
       </aside>
 
       <main className="min-h-0 overflow-y-auto p-5 flex flex-col gap-4 df-dot-grid">
@@ -174,7 +182,7 @@ export const MacroStudio: React.FC<{
                   aria-label="Macro chain name"
                   value={macro.name}
                   onChange={(event) => updateMacro((current) => ({ ...current, name: event.target.value, lastEditedMs: Date.now() }))}
-                  className="w-full bg-transparent hover:bg-[var(--bg-panel)]/50 focus:bg-[var(--bg-panel)] rounded-md px-2 -mx-2 py-0.5 border border-transparent focus:border-[var(--border-subtle)] text-xl font-bold text-[var(--text-primary)] outline-none"
+                  className="w-full bg-transparent hover:bg-[var(--bg-panel)]/50 focus:bg-[var(--bg-panel)] rounded-md px-2 -mx-2 py-0.5 border border-transparent focus:border-[var(--border-subtle)] text-xl font-bold text-[var(--text-primary)] outline-none transition-colors"
                 />
                 <input
                   aria-label="Macro chain description"
@@ -182,7 +190,7 @@ export const MacroStudio: React.FC<{
                   onChange={(event) =>
                     updateMacro((current) => ({ ...current, description: event.target.value, lastEditedMs: Date.now() }))
                   }
-                  className="w-full mt-1 bg-transparent hover:bg-[var(--bg-panel)]/50 focus:bg-[var(--bg-panel)] rounded-md px-2 -mx-2 py-0.5 border border-transparent focus:border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] outline-none"
+                  className="w-full mt-1 bg-transparent hover:bg-[var(--bg-panel)]/50 focus:bg-[var(--bg-panel)] rounded-md px-2 -mx-2 py-0.5 border border-transparent focus:border-[var(--border-subtle)] text-xs text-[var(--text-secondary)] outline-none transition-colors"
                 />
               </div>
               <button
@@ -201,7 +209,7 @@ export const MacroStudio: React.FC<{
                 Stop running chain
               </button>
             </div>
-            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-sidebar)]/90 p-3.5">
+            <div className="rounded-2xl border border-[var(--border-subtle)] bg-[var(--bg-sidebar)]/90 df-card-surface p-3.5">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-[11px] font-semibold text-[var(--text-secondary)]">Timing</span>
                 <span className="text-[11px] font-mono tabular-nums text-[var(--text-primary)]">{formatMs(total)}</span>
@@ -246,7 +254,7 @@ export const MacroStudio: React.FC<{
                           >
                             <rect x={x} y={8} width={width} height={28} rx={6} fill={kind.color} fillOpacity={selected ? 0.3 : 0.14} stroke={kind.color} strokeOpacity={selected ? 0.9 : 0} />
                             <rect x={x} y={8} width={3} height={28} rx={1.5} fill={kind.color} />
-                            <text x={x + 10} y={26} fill={kind.color} fontSize="11" fontWeight="600">
+                            <text x={x + 10} y={26} fill={kind.color} fontSize="11" fontWeight="600" fontFamily="Inter, sans-serif">
                               {width > 64 ? kind.title : String(index + 1)}
                             </text>
                             <rect x={x} y={44} width={width} height={8} rx={4} fill="var(--bg-app)" />
@@ -258,7 +266,7 @@ export const MacroStudio: React.FC<{
                               rx={4}
                               fill={actual ? (actual.status === "Passed" ? "var(--status-success)" : "var(--status-error)") : "var(--border-strong)"}
                             />
-                            <text x={x} y={70} fill="var(--text-muted)" fontSize="10">
+                            <text x={x} y={70} fill="var(--text-muted)" fontSize="10" fontFamily="JetBrains Mono, monospace">
                               {formatMs(actual?.elapsedMs ?? weights[index])}
                             </text>
                           </g>
@@ -510,14 +518,16 @@ export const MacroStudio: React.FC<{
         )}
 
         {macro && (
-          <button
-            type="button"
-            onClick={() => onAssign(macro)}
-            className="mt-auto h-10 rounded-lg bg-[var(--accent-soft)] border border-[var(--accent-primary)]/60 hover:bg-[var(--accent-primary)] active:scale-[0.98] text-[var(--accent-text)] hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
-          >
-            <Zap size={14} />
-            {activeKeyLabel ? `Put on ${activeKeyLabel}` : "Put on selected key"}
-          </button>
+          <div className="mt-auto pt-3 border-t border-[var(--border-subtle)] flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => onAssign(macro)}
+              className="h-10 rounded-lg bg-[var(--accent-soft)] border border-[var(--accent-primary)]/60 hover:bg-[var(--accent-primary)] active:scale-[0.98] text-[var(--accent-text)] hover:text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+            >
+              <Zap size={14} />
+              {activeKeyLabel ? `Put on ${activeKeyLabel}` : "Put on selected key"}
+            </button>
+          </div>
         )}
         {runReport && runReport.macroId === macro?.id && (
           <div className="rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-app)] p-2.5 text-[11px] font-mono text-[var(--text-secondary)] flex flex-col gap-1">

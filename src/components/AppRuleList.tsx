@@ -1,10 +1,11 @@
 import React from "react";
-import { Gamepad2, Plus, Trash2 } from "lucide-react";
+import { ChevronRight, Gamepad2, Plus, Trash2 } from "lucide-react";
 import { deckforgeApi } from "../bridge/tauriBridge";
 import type { AutoSwitchRule, Profile } from "../types/deckforge";
 import { assignUnrestrictedApp, conflictingRule } from "../lib/appRuleConflicts";
 import { createAppIconLoader } from "../lib/appIconCache";
 import { previewAppSwitch } from "../lib/appSwitchPreview";
+import { ToggleSwitch } from "./ToggleSwitch";
 
 /** Friendly names for common apps, so a rule reads "OBS Studio" rather than "obs64.exe". */
 const KNOWN_APPS: Record<string, string> = {
@@ -108,22 +109,7 @@ const ProgramIcon: React.FC<{ exe: string; size?: number }> = ({ exe, size = 32 
 };
 
 const Switch: React.FC<{ checked: boolean; onChange: (v: boolean) => void; label: string }> = ({ checked, onChange, label }) => (
-  <button
-    type="button"
-    role="switch"
-    aria-checked={checked}
-    aria-label={label}
-    onClick={() => onChange(!checked)}
-    className={`w-8 h-[18px] rounded-full p-0.5 transition-colors cursor-pointer shrink-0 ${
-      checked ? "bg-[var(--accent-primary)]" : "bg-[var(--border-strong)]"
-    }`}
-  >
-    <div
-      className={`w-3.5 h-3.5 rounded-full bg-white shadow-xs transition-transform ${
-        checked ? "translate-x-3.5" : "translate-x-0"
-      }`}
-    />
-  </button>
+  <ToggleSwitch size="sm" checked={checked} onChange={() => onChange(!checked)} ariaLabel={label} />
 );
 
 const field =
@@ -214,8 +200,11 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
       </div>
       )}
 
-      <details className="rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)]/70 p-2 text-xs">
-        <summary className="cursor-pointer select-none text-[11.5px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">Preview a switch</summary>
+      <details className="group rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)]/70 p-2 text-xs">
+        <summary className="flex items-center justify-between gap-2 cursor-pointer select-none list-none text-[11.5px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+          <span>Preview a switch</span>
+          <ChevronRight size={13} className="shrink-0 text-[var(--text-muted)] transition-transform duration-150 group-open:rotate-90" />
+        </summary>
         <div className="mt-2.5 flex flex-col gap-2">
           <label className="flex flex-col gap-1 text-[11px] text-[var(--text-secondary)]">Starting profile
             <select aria-label="Preview starting profile" className={field} value={activePreviewProfileId} onChange={e => setPreviewProfileId(e.target.value)}>
@@ -295,14 +284,14 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
                 </div>
               )}
               {selected && selected.targetProfileId === prof.id && !selected.targetPageId && (
-                <div className="mt-2 flex flex-col gap-1.5 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] p-2">
+                <div className="mt-2 flex flex-col gap-1.5 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] border border-[var(--border-subtle)] p-2 animate-pop-in">
                   <div className="flex items-center gap-2">
                     <AppIcon exe={selected.processName} size={20} />
                     <span className="text-[12px] font-medium text-[var(--text-primary)] truncate flex-1">{appName(selected.processName)}</span>
                     <Switch checked={selected.enabled} onChange={enabled => patch(selected.id, {enabled})} label={`Switch to ${prof.name} for ${appName(selected.processName)}`}/>
                   </div>
                   <input aria-label="Only when window title contains" value={selected.windowTitleContains} placeholder="Window title (optional)" onChange={e => patch(selected.id, {windowTitleContains:e.target.value})} className={field}/>
-                  <button type="button" onClick={() => { saveRules(rules.filter(r => r.id !== selected.id)); setSelectedId(null); }} className="self-start flex items-center gap-1.5 text-[11.5px] text-[var(--status-error)] hover:underline cursor-pointer">
+                  <button type="button" onClick={() => { saveRules(rules.filter(r => r.id !== selected.id)); setSelectedId(null); }} className="self-start inline-flex items-center gap-1.5 px-2 py-1 -ml-1 rounded-md text-[11.5px] text-[var(--status-error)] hover:bg-[var(--status-error)]/10 cursor-pointer transition-colors">
                     <Trash2 size={12} /> Remove
                   </button>
                 </div>
@@ -362,7 +351,8 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
                             setDraft("");
                           }}
                           title={`Add an app that opens ${pg.name}`}
-                          className="w-6 h-6 rounded-[var(--radius-sm)] border border-dashed border-[var(--border-strong)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)] cursor-pointer"
+                          aria-label={`Add an app that opens ${pg.name}`}
+                          className="w-6 h-6 rounded-[var(--radius-sm)] border border-dashed border-[var(--border-strong)] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--accent-primary)] active:scale-95 cursor-pointer transition-all"
                         >
                           <Plus size={13} />
                         </button>
@@ -384,7 +374,7 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
                       />
                     )}
                     {selected && apps.some((r) => r.id === selected.id) && (
-                      <div className="flex flex-col gap-1.5 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] p-2">
+                      <div className="flex flex-col gap-1.5 rounded-[var(--radius-sm)] bg-[var(--bg-panel)] p-2 animate-pop-in">
                         <div className="flex items-center gap-2">
                           <AppIcon exe={selected.processName} size={20} />
                           <span className="text-[12px] font-medium text-[var(--text-primary)] truncate flex-1">
@@ -411,7 +401,7 @@ export const AppRuleList: React.FC<Props> = ({ rules, profiles, saveRules, showP
                             saveRules(rules.filter((r) => r.id !== selected.id));
                             setSelectedId(null);
                           }}
-                          className="self-start flex items-center gap-1.5 text-[11.5px] text-[var(--status-error)] hover:underline cursor-pointer"
+                          className="self-start inline-flex items-center gap-1.5 px-2 py-1 -ml-1 rounded-md text-[11.5px] text-[var(--status-error)] hover:bg-[var(--status-error)]/10 cursor-pointer transition-colors"
                         >
                           <Trash2 size={12} /> Remove
                         </button>
@@ -513,6 +503,7 @@ export const PageApps: React.FC<{
           key={r.id}
           type="button"
           onClick={() => setOpen(open === r.id ? null : r.id)}
+          aria-label={`${appName(r.processName)}${r.enabled ? "" : " (off)"}`}
           title={r.targetPageId && r.targetPageId !== page.id ? `${appName(r.processName)}: its page was deleted, so it opens page 1. Drag it to a page to fix.` : `${appName(r.processName)}${r.enabled ? "" : " (off)"}`}
           className={`relative rounded-[4px] cursor-pointer transition-all ${open === r.id ? "ring-2 ring-[var(--accent-primary)] ring-offset-1 ring-offset-[var(--bg-panel)]" : "hover:brightness-110"} ${
             r.enabled ? "" : "opacity-40 grayscale"
@@ -531,13 +522,14 @@ export const PageApps: React.FC<{
           setOpen(open === "add" ? null : "add");
         }}
         title={`Add an app that opens ${page.name}`}
-        className="w-5 h-5 rounded-[4px] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
+        aria-label={`Add an app that opens ${page.name}`}
+        className="w-5 h-5 rounded-[4px] flex items-center justify-center text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-elevated)] active:scale-95 cursor-pointer transition-all"
       >
         <Plus size={12} />
       </button>
 
       {open && (
-        <div className="absolute bottom-full mb-2 left-0 z-30 w-64 p-3 rounded-[var(--radius-md)] bg-[var(--bg-elevated)] border border-[var(--border-strong)] shadow-2xl flex flex-col gap-2 animate-pop-in">
+        <div className="absolute bottom-full mb-2 right-0 sm:left-0 sm:right-auto z-40 w-64 p-3 rounded-[var(--radius-md)] bg-[var(--bg-elevated)] border border-[var(--border-strong)] ring-1 ring-white/[0.06] shadow-2xl flex flex-col gap-2 animate-pop-in">
           {open === "add" ? (
             <>
               <div className="text-[12px] font-medium text-[var(--text-primary)]">Open {page.name} when this app is in front</div>
@@ -623,7 +615,7 @@ export const PageApps: React.FC<{
                   saveRules(rules.filter((r) => r.id !== selected.id));
                   setOpen(null);
                 }}
-                className="self-start flex items-center gap-1.5 text-[11.5px] text-[var(--status-error)] hover:underline cursor-pointer"
+                className="self-start inline-flex items-center gap-1.5 px-2 py-1 -ml-1 rounded-md text-[11.5px] text-[var(--status-error)] hover:bg-[var(--status-error)]/10 cursor-pointer transition-colors"
               >
                 <Trash2 size={12} /> Remove from this page
               </button>

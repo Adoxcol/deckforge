@@ -27,7 +27,7 @@ export function QuitDialog({ open, busy, dirty, error, onCancel, onQuit }: {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-[2px] flex items-center justify-center p-6 animate-fade-in" onMouseDown={e => { if (e.target === e.currentTarget && !busy) onCancel(); }} onKeyDown={e => e.stopPropagation()}>
-      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="quit-title" className="rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-6 max-w-md w-full shadow-2xl text-[var(--text-primary)] space-y-4 animate-pop-in">
+      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="quit-title" className="rounded-2xl border border-[var(--border-strong)] bg-[var(--bg-panel)] p-6 max-w-md w-full df-modal-surface text-[var(--text-primary)] space-y-4 animate-pop-in">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-[var(--status-error)]/12 border border-[var(--status-error)]/25 text-[var(--status-error)] flex items-center justify-center shrink-0">
             <Power size={17} />

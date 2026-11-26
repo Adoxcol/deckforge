@@ -1,7 +1,7 @@
 import React from "react";
 import { createPortal } from "react-dom";
 import { deckforgeApi } from "../bridge/tauriBridge";
-import { ChevronRight, Download, Plus, RefreshCw, Search, Upload, X } from "lucide-react";
+import { AppWindow, ChevronRight, Download, Plus, RefreshCw, Search, Upload, X } from "lucide-react";
 import { DeckIcon } from "./DeckIcon";
 import { AppRuleList } from "./AppRuleList";
 import { STARTER_PROFILES, type StarterProfile } from "../data/starterProfiles";
@@ -50,6 +50,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [pickerRect, setPickerRect] = React.useState<{ left: number; top: number } | null>(null);
   const plusBtnRef = React.useRef<HTMLButtonElement>(null);
+  const menuRef = React.useRef<HTMLDivElement>(null);
   const [rescanning, setRescanning] = React.useState(false);
   const [bindingQuery, setBindingQuery] = React.useState("");
   const [appsOpen, setAppsOpen] = React.useState(false);
@@ -64,6 +65,9 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
 
   React.useEffect(() => {
     if (!pickerOpen) return;
+    const frame = requestAnimationFrame(() => {
+      menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setPickerOpen(false);
@@ -74,6 +78,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
     window.addEventListener("keydown", onKey);
     window.addEventListener("resize", onResize);
     return () => {
+      cancelAnimationFrame(frame);
       window.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", onResize);
     };
@@ -195,6 +200,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                 <>
                   <div className="fixed inset-0 z-[90]" onMouseDown={() => setPickerOpen(false)} />
                   <div
+                    ref={menuRef}
                     role="menu"
                     aria-label="Create profile from template"
                     style={{ left: pickerRect.left, top: pickerRect.top }}
@@ -210,10 +216,10 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                           setPickerOpen(false);
                           handleAddProfile(starter);
                         }}
-                        className="flex items-start gap-2 px-2 py-1.5 rounded-[var(--radius-sm)] text-left hover:bg-[var(--bg-elevated)] cursor-pointer transition-colors"
+                        className="group flex items-start gap-2.5 px-2 py-1.5 rounded-[var(--radius-sm)] text-left hover:bg-[var(--bg-elevated)] active:scale-[0.985] cursor-pointer transition-all"
                       >
                         <span
-                          className="mt-0.5 w-6 h-6 shrink-0 rounded-[var(--radius-sm)] flex items-center justify-center"
+                          className="mt-0.5 w-6 h-6 shrink-0 rounded-[var(--radius-sm)] flex items-center justify-center transition-transform duration-150 group-hover:scale-105"
                           style={{ color: starter.color, background: `${starter.color}22` }}
                         >
                           <DeckIcon name={starter.icon} size={13} color={starter.color} />
@@ -266,6 +272,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                   key={`${hit.profileId}:${hit.pageIndex}:${hit.surface}:${hit.index}`}
                   type="button"
                   role="option"
+                  aria-selected={false}
                   onClick={() => {
                     deckforgeApi.holdAutoSwitch().catch(() => {});
                     setSelectedProfileId(hit.profileId);
@@ -307,10 +314,13 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                 onClick={selectProfile}
                 className={`group relative w-full text-left px-2.5 py-2 rounded-lg border flex items-center justify-between gap-2 cursor-pointer transition-all duration-150 active:scale-[0.99] ${
                   isSel
-                    ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/50 text-[var(--text-primary)] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]"
+                    ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/50 text-[var(--text-primary)] font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
                     : "bg-transparent border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:border-[var(--border-subtle)] hover:text-[var(--text-primary)] font-medium"
                 }`}
               >
+                {isSel && (
+                  <span aria-hidden className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[var(--accent-primary)] shadow-[0_0_8px_rgba(124,131,247,0.55)]" />
+                )}
                 <div className="flex items-center gap-2.5 truncate min-w-0">
                   <span
                     className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-colors ${
@@ -326,8 +336,8 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
                   <span className="text-[12.5px] truncate">{prof.name}</span>
                 </div>
                 <span
-                  className={`text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded shrink-0 ${
-                    isSel ? "bg-[var(--accent-primary)]/20 text-[var(--accent-text)]" : "text-[var(--text-muted)]"
+                  className={`text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded-md shrink-0 transition-colors ${
+                    isSel ? "bg-[var(--accent-primary)]/20 text-[var(--accent-text)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-secondary)]"
                   }`}
                   title={`${prof.pages.length} ${prof.pages.length === 1 ? "page" : "pages"}`}
                 >
@@ -347,6 +357,7 @@ export const WorkspaceSidebar = React.memo(function WorkspaceSidebar({
           className="w-full flex items-center justify-between gap-2 px-1.5 py-1 rounded-md text-left cursor-pointer text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-panel)]/60 transition-colors"
         >
           <span className="flex items-center gap-1.5">
+            <AppWindow size={13} className="shrink-0 text-[var(--text-muted)]" />
             <span className="text-[11.5px] font-semibold tracking-wide">When an app opens</span>
             {enabledRuleCount > 0 && (
               <span className="text-[10px] font-mono tabular-nums px-1.5 py-0.5 rounded-full bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[var(--text-muted)]">

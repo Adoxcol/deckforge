@@ -136,7 +136,7 @@ export const IconStudio: React.FC<{
   return (
     <div className="flex-1 min-h-0 grid grid-cols-[248px_minmax(0,1fr)_292px] xl:grid-cols-[288px_minmax(0,1fr)_312px] overflow-hidden animate-screen-in">
       <aside className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 flex flex-col gap-3 overflow-y-auto">
-        <div className="text-[11px] font-semibold text-[var(--text-secondary)]">This page</div>
+        <div className="text-[11.5px] font-semibold tracking-wide text-[var(--text-secondary)]">This page</div>
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(columns, 5))}, minmax(0, 1fr))` }}>
           {keys.map((item) => {
             const selected = item.index === face.index;
@@ -188,8 +188,13 @@ export const IconStudio: React.FC<{
         }}
       >
         <div className="flex items-end gap-3.5">
-          <div className={`p-3.5 rounded-2xl bg-[var(--bg-panel)] border ring-1 ring-black/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_20px_48px_rgba(0,0,0,0.5)] transition-all ${canvasDrop ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/45 scale-[1.02]" : "border-[var(--border-strong)]/80"}`}>
+          <div className={`relative p-3.5 rounded-2xl bg-[var(--bg-panel)] border ring-1 ring-black/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_20px_48px_rgba(0,0,0,0.5)] transition-all ${canvasDrop ? "border-[var(--accent-primary)] ring-2 ring-[var(--accent-primary)]/45 scale-[1.02]" : "border-[var(--border-strong)]/80"}`}>
             <KeyCap keyConfig={face} clip={clip} pixelWidth={pixelWidth} pixelHeight={pixelHeight} scale={2.4} />
+            {canvasDrop && (
+              <div className="absolute inset-0 rounded-2xl bg-[var(--accent-soft)]/80 backdrop-blur-[2px] flex items-center justify-center text-xs font-semibold text-white pointer-events-none animate-fade-in">
+                Drop image or GIF
+              </div>
+            )}
           </div>
           <div className="pb-2 text-[11px] font-mono tabular-nums text-[var(--text-secondary)]">
             {pixelWidth}×{pixelHeight}
@@ -231,13 +236,20 @@ export const IconStudio: React.FC<{
               type="button"
               aria-pressed={layer === item.id}
               onClick={() => setLayer(item.id)}
-              className={`relative mb-2 last:mb-0 w-full rounded-2xl border p-3 text-left cursor-pointer transition-all ${
+              className={`relative mb-2 last:mb-0 w-full rounded-2xl border p-3 text-left cursor-pointer active:scale-[0.99] transition-all ${
                 layer === item.id ? "border-[var(--accent-primary)] bg-[var(--bg-elevated)] shadow-md" : "border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:border-[var(--border-strong)] hover:-translate-y-[0.5px]"
               }`}
             >
               <span className={`absolute -left-8 top-4 h-4 w-4 rounded-full border-2 border-[var(--bg-app)] transition-transform ${layer === item.id ? "scale-110 ring-2 ring-[var(--accent-primary)]/40" : ""}`} style={{ background: item.color }} />
-              <div className="text-sm font-semibold text-[var(--text-primary)]">{item.title}</div>
-              <div className="text-[11px] font-mono text-[var(--text-secondary)] truncate">{item.detail}</div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm font-semibold text-[var(--text-primary)]">{item.title}</div>
+                {layer === item.id && (
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[var(--accent-soft)] border border-[var(--accent-primary)]/35 text-[var(--accent-text)]">
+                    Editing
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] font-mono text-[var(--text-secondary)] truncate mt-0.5">{item.detail}</div>
             </button>
           ))}
         </div>
@@ -373,7 +385,7 @@ export const IconStudio: React.FC<{
         )}
 
         {layer === "icon" && (
-          <div className="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto p-1.5 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-md">
+          <div className="grid grid-cols-5 gap-1.5 max-h-48 overflow-y-auto p-2 bg-[var(--bg-input)] border border-[var(--border-subtle)] rounded-md">
             {AVAILABLE_ICON_NAMES.map((name) => (
               <button
                 key={name}
@@ -473,21 +485,23 @@ export const IconStudio: React.FC<{
           </>
         )}
 
-        <button
-          type="button"
-          onClick={onPaintPage}
-          className="mt-auto h-8 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[11px] text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
-        >
-          Paint this color on every key
-        </button>
-        <button
-          type="button"
-          onClick={onApply}
-          className="h-10 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all"
-        >
-          <ImagePlus size={14} />
-          Send this page to the deck
-        </button>
+        <div className="mt-auto pt-3 border-t border-[var(--border-subtle)] flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={onPaintPage}
+            className="h-8 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-all"
+          >
+            Paint this color on every key
+          </button>
+          <button
+            type="button"
+            onClick={onApply}
+            className="h-10 rounded-lg bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white flex items-center justify-center gap-1.5 cursor-pointer df-cta transition-all"
+          >
+            <ImagePlus size={14} />
+            Send this page to the deck
+          </button>
+        </div>
       </aside>
     </div>
   );

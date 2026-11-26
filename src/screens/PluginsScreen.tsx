@@ -245,7 +245,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               type="button"
               disabled={installing !== null}
               onClick={() => fileInput.current?.click()}
-              className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="h-8 px-3 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-xs font-medium text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-all"
             >
               <Upload size={13} /> {installing ? "Installing…" : "Install from file"}
             </button>
@@ -253,7 +253,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               type="button"
               disabled={rescanning}
               onClick={rescan}
-              className="h-8 px-3 rounded-md border border-[var(--border-subtle)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-xs text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer disabled:opacity-60 transition-colors"
+              className="h-8 px-3 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] active:scale-[0.98] text-xs font-medium text-[var(--text-primary)] flex items-center gap-1.5 cursor-pointer disabled:opacity-60 transition-all"
             >
               <RefreshCw size={13} className={rescanning ? "animate-spin" : ""} /> {rescanning ? "Scanning…" : "Look again"}
             </button>
@@ -270,7 +270,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
               const status = statusOf(plug);
               const runnable = plug.runtime !== "unknown";
               return (
-                <div key={plug.uuid} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:-translate-y-[1px] hover:shadow-md transition-all flex flex-col gap-3">
+                <div key={plug.uuid} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] hover:-translate-y-[1px] hover:shadow-md df-card-surface transition-all flex flex-col gap-3">
                   <div className="flex items-start gap-3">
                     {plug.icon ? (
                       <img src={plug.icon} alt="" className="w-9 h-9 rounded-md shrink-0 object-contain bg-black/20 border border-[var(--border-subtle)] p-0.5" />
@@ -282,7 +282,10 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-bold text-sm truncate">{plug.name}</span>
-                        <span className={`text-[10px] px-2 py-0.5 rounded font-semibold shrink-0 ${TONE[status.tone]}`}>{status.text}</span>
+                        <span className={`inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full font-semibold shrink-0 ${TONE[status.tone]}`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-current" aria-hidden />
+                          {status.text}
+                        </span>
                       </div>
                       <div className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
                         {[plug.author && `By ${plug.author}`, plug.version && `v${plug.version}`, plug.source, RUNTIME_LABEL[plug.runtime]].filter(Boolean).join(" • ")}
@@ -309,7 +312,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
                         className={`h-8 px-3 rounded-md text-xs font-semibold cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:active:scale-100 transition-all ${
                           plug.enabled
                             ? "border border-[var(--border-subtle)] text-[var(--text-primary)] hover:border-[var(--border-strong)] hover:bg-[var(--bg-elevated)]"
-                            : "bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white shadow-xs"
+                            : "bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white df-cta"
                         }`}
                       >
                         {plug.enabled ? "Turn off" : "Turn on"}
@@ -358,7 +361,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
                 </button>
               )}
             </div>
-            <button type="submit" disabled={searching} className="h-9 px-4 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-xs font-semibold text-white cursor-pointer disabled:opacity-50">
+            <button type="submit" disabled={searching} className="h-9 px-4 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-xs font-semibold text-white cursor-pointer disabled:opacity-50 shadow-xs transition-all">
               {searching ? "Searching…" : "Search"}
             </button>
           </form>
@@ -418,7 +421,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
       {tab === "Built-in actions" && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {builtIns.map((plug) => (
-            <div key={plug.id} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] flex flex-col justify-between gap-3">
+            <div key={plug.id} className="p-4 rounded-xl bg-[var(--bg-panel)] border border-[var(--border-subtle)] hover:border-[var(--border-strong)] df-card-surface flex flex-col justify-between gap-3 transition-colors">
               <div>
                 <span className="font-bold text-sm">{plug.name}</span>
                 <p className="text-xs text-[var(--text-secondary)] mt-2 leading-relaxed">{plug.description}</p>
@@ -436,7 +439,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ legacySummary, onI
             role="dialog"
             aria-modal="true"
             aria-labelledby="plugin-confirm-title"
-            className="w-full max-w-md rounded-2xl bg-[var(--bg-panel)] border border-[var(--border-strong)] p-5 flex flex-col gap-3 shadow-2xl animate-pop-in"
+            className="w-full max-w-md rounded-2xl bg-[var(--bg-panel)] border border-[var(--border-strong)] p-5 flex flex-col gap-3 df-modal-surface animate-pop-in"
             onMouseDown={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2.5">

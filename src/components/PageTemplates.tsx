@@ -150,7 +150,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
         role="dialog"
         aria-modal="true"
         aria-labelledby="templates-title"
-        className="w-[1040px] max-w-full h-[640px] max-h-full bg-[var(--bg-app)] border border-[var(--border-strong)] rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-pop-in"
+        className="w-[1040px] max-w-full h-[640px] max-h-full bg-[var(--bg-app)] border border-[var(--border-strong)] rounded-2xl df-modal-surface flex flex-col overflow-hidden animate-pop-in"
       >
         <div className="flex items-center gap-3 px-5 h-14 border-b border-[var(--border-subtle)] shrink-0">
           <div className="w-8 h-8 rounded-lg bg-[var(--accent-soft)] text-[var(--accent-text)] flex items-center justify-center">
@@ -184,10 +184,10 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                   type="button"
                   aria-pressed={active}
                   onClick={() => setCategory(cat)}
-                  className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-md text-[12px] cursor-pointer transition-colors ${
+                  className={`flex items-center justify-between text-left px-2.5 py-1.5 rounded-md text-[12px] border cursor-pointer transition-all ${
                     active
-                      ? "bg-[var(--accent-soft)] text-[var(--text-primary)] font-semibold"
-                      : "text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"
+                      ? "bg-[var(--accent-soft)] border-[var(--accent-primary)]/40 text-[var(--text-primary)] font-semibold shadow-xs"
+                      : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   <span>{cat === "Mine" ? "My templates" : cat}</span>
@@ -218,7 +218,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
                       aria-pressed={active}
                       onClick={() => choose(tpl)}
                       onDoubleClick={() => onAdd(instantiateTemplate(tpl, tpl.name))}
-                      className={`relative text-left rounded-xl border p-3 flex flex-col gap-2.5 cursor-pointer transition-all duration-150 ${
+                      className={`relative text-left rounded-xl border p-3 flex flex-col gap-2.5 cursor-pointer active:scale-[0.985] transition-all duration-150 ${
                         active
                           ? "border-[var(--accent-primary)] bg-[var(--accent-soft)] shadow-[0_0_0_1px_rgba(124,131,247,0.3)]"
                           : "border-[var(--border-subtle)] bg-[var(--bg-sidebar)] hover:border-[var(--border-strong)] hover:-translate-y-[1px] hover:shadow-md"
@@ -283,7 +283,7 @@ export const PageTemplates: React.FC<PageTemplatesProps> = ({
               <button
                 type="button"
                 onClick={() => onAdd(instantiateTemplate(selected, pageName))}
-                className="h-9 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-all"
+                className="h-9 rounded-md bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] active:scale-[0.98] text-white text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer df-cta transition-all"
               >
                 <Check size={14} /> Add as a new page
               </button>

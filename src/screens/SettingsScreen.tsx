@@ -4,6 +4,7 @@ import { deckforgeApi, isTauriRuntime } from "../bridge/tauriBridge";
 import type { NavScreenId, Profile } from "../types/deckforge";
 import { BackupPanel } from "../components/BackupPanel";
 import { UpdatesPanel } from "../components/UpdatesPanel";
+import { ToggleSwitch } from "../components/ToggleSwitch";
 import packageInfo from "../../package.json";
 
 const sections = [
@@ -13,7 +14,7 @@ const sections = [
   { id: "about", name: "About", hint: "Version and support", icon: Info },
 ] as const;
 type Section = typeof sections[number]["id"];
-const card = "rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-5 space-y-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]";
+const card = "rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-panel)] p-5 space-y-3 df-card-surface";
 const action = "inline-flex items-center gap-2 rounded-lg border border-[var(--border-strong)] bg-[var(--bg-sidebar)] px-3 py-2 text-xs font-medium text-[var(--text-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--accent-soft)] active:scale-[0.98] cursor-pointer transition-all";
 
 export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: string | null; onStartupProfileChange: (id: string | null) => Promise<void>; onNavigate: (screen: NavScreenId) => void; onOpenGuide: () => void; onBackup: () => Promise<string>; onRestore: (contents: string) => Promise<number> }> = ({ profiles, startupProfileId, onStartupProfileChange, onNavigate, onOpenGuide, onBackup, onRestore }) => {
@@ -38,13 +39,14 @@ export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: s
   };
   const link = (label: string, screen: NavScreenId) => <button type="button" className={action} onClick={() => onNavigate(screen)}>{label}<ArrowUpRight size={14} /></button>;
   const selected = sections.find(item => item.id === section)!;
+  const startupToggleId = React.useId();
 
   return <div className="flex-1 min-h-0 grid grid-cols-[228px_minmax(0,1fr)] overflow-hidden animate-screen-in">
     <nav aria-label="Settings sections" className="min-h-0 bg-[var(--bg-sidebar)] border-r border-[var(--border-subtle)] p-4 space-y-1.5 overflow-y-auto">
       <p className="px-3 py-1.5 text-[11px] font-semibold tracking-wide text-[var(--text-muted)]">Preferences</p>
       {sections.map(({ id, name, hint, icon: Icon }) => <button type="button" key={id} onClick={() => setSection(id)}
         aria-current={section === id ? "page" : undefined} aria-controls="settings-content"
-        className={`w-full flex items-start gap-3 text-left rounded-lg px-3 py-2.5 border cursor-pointer transition-colors ${section === id ? "border-[var(--accent-primary)]/45 bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:border-[var(--border-subtle)] hover:text-[var(--text-primary)]"}`}>
+        className={`w-full flex items-start gap-3 text-left rounded-lg px-3 py-2.5 border cursor-pointer active:scale-[0.99] transition-all ${section === id ? "border-[var(--accent-primary)]/45 bg-[var(--accent-soft)] text-[var(--text-primary)] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]" : "border-transparent text-[var(--text-secondary)] hover:bg-[var(--bg-panel)] hover:border-[var(--border-subtle)] hover:text-[var(--text-primary)]"}`}>
         <Icon size={16} className={`mt-0.5 shrink-0 ${section === id ? "text-[var(--accent-text)]" : ""}`} /><span><span className="block text-xs font-semibold">{name}</span><span className="block text-[10.5px] text-[var(--text-secondary)] mt-0.5">{hint}</span></span>
       </button>)}
     </nav>
@@ -57,10 +59,18 @@ export const SettingsScreen: React.FC<{ profiles: Profile[]; startupProfileId: s
         {section === "general" && <>
           <section className={card} aria-labelledby="startup-heading">
             <div className="flex items-center gap-2 text-[var(--text-primary)]"><Power size={17} /><h2 id="startup-heading" className="font-semibold">Windows sign-in</h2></div>
-            <label className={`flex gap-3 items-center rounded-lg px-2.5 py-2 -mx-2.5 text-[var(--text-primary)] hover:bg-[var(--bg-sidebar)]/60 transition-colors ${desktop ? "cursor-pointer" : "cursor-default"}`}>
-              <input type="checkbox" className="accent-[var(--accent-primary)] w-4 h-4 cursor-pointer disabled:cursor-default" checked={launchAtLogin} disabled={loading || !desktop} onChange={toggleStartup} aria-describedby="startup-help" />
-              Start DeckForge in the tray when I sign in
-            </label>
+            <div className="flex items-center justify-between gap-4 rounded-lg px-2.5 py-2 -mx-2.5 hover:bg-[var(--bg-sidebar)]/60 transition-colors">
+              <label htmlFor={startupToggleId} className={`text-[var(--text-primary)] select-none ${desktop ? "cursor-pointer" : "cursor-default"}`}>
+                Start DeckForge in the tray when I sign in
+              </label>
+              <ToggleSwitch
+                id={startupToggleId}
+                checked={launchAtLogin}
+                disabled={loading || !desktop}
+                ariaLabel="Start DeckForge in the tray when I sign in"
+                onChange={() => void toggleStartup()}
+              />
+            </div>
             <p id="startup-help" className="text-xs leading-relaxed">{desktop ? "Uses this executable path. Enable from the installed app; if you move it, enable this setting again." : "This preference is available in the Windows desktop app. Browser preview does not change Windows settings."}</p>
             {loading && desktop && <p role="status" className="text-xs">Checking startup preference…</p>}
             {error && <p role="alert" className="text-xs text-[var(--status-error)]">{error}</p>}

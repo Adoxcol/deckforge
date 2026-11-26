@@ -174,7 +174,7 @@ export const ActionDrawer = React.memo(function ActionDrawer({
             </button>
           )}
         </div>
-        <div className="flex items-center gap-1 overflow-x-auto min-w-0 py-0.5 px-0.5 -mx-0.5 scrollbar-none" role="toolbar" aria-label="Action categories">
+        <div className="flex items-center gap-1 overflow-x-auto min-w-0 py-1 px-1 -mx-1 scrollbar-none" role="toolbar" aria-label="Action categories">
           {CATEGORIES.map((cat) => {
             const isAct = actionCategoryFilter === cat;
             return (
@@ -199,7 +199,7 @@ export const ActionDrawer = React.memo(function ActionDrawer({
           })}
         </div>
         <div className="ml-auto flex items-center gap-1.5 shrink-0">
-          <span className="hidden lg:inline-flex items-center px-2 h-6 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[10.5px] font-mono text-[var(--text-muted)]">
+          <span className="hidden lg:inline-flex items-center px-2 h-7 rounded-md bg-[var(--bg-panel)] border border-[var(--border-subtle)] text-[10.5px] font-mono text-[var(--text-muted)]">
             Target: <span className="ml-1 text-[var(--text-secondary)]">{assignTargetLabel}</span>
           </span>
           <button
@@ -221,8 +221,20 @@ export const ActionDrawer = React.memo(function ActionDrawer({
       <div className="min-h-0 flex-1 px-3 pb-3 overflow-hidden animate-fade-in">
         <div className="h-full grid grid-cols-[repeat(auto-fill,minmax(195px,1fr))] gap-2 overflow-y-auto pr-1 content-start">
           {filteredActions.length === 0 ? (
-            <div className="col-span-full py-6 text-center text-xs text-[var(--text-muted)]">
-              No actions match “{actionSearch.trim()}”{actionCategoryFilter !== "All" ? ` in ${actionCategoryFilter}` : ""}.
+            <div className="col-span-full py-6 flex flex-col items-center justify-center gap-2 text-center text-xs text-[var(--text-muted)]">
+              <span>No actions match “{actionSearch.trim()}”{actionCategoryFilter !== "All" ? ` in ${actionCategoryFilter}` : ""}.</span>
+              {(actionSearch || actionCategoryFilter !== "All") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActionSearch("");
+                    setActionCategoryFilter("All");
+                  }}
+                  className="h-7 px-2.5 rounded-md border border-[var(--border-subtle)] bg-[var(--bg-panel)] hover:bg-[var(--bg-elevated)] hover:border-[var(--border-strong)] text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
           ) : (
             filteredActions.map((act) => (
