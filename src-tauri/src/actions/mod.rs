@@ -104,6 +104,12 @@ fn is_media_vk(vk: u8) -> bool {
     (0xAD..=0xB3).contains(&vk)
 }
 
+/// Keys that sit apart from the number pad. Sent without the extended flag, Windows reads
+/// Page Up as numpad 9 and so on, and with Alt held that types a character instead.
+fn is_extended_vk(vk: u8) -> bool {
+    matches!(vk, 0x21..=0x28 | 0x2D | 0x2E | 0x5B | 0x5C | 0x5D | 0x6F | 0x90 | 0xA3 | 0xA5) || is_media_vk(vk)
+}
+
 /// Hardware scan codes. `MapVirtualKey` returns 0 for these, and Spotify ignores that tap.
 fn media_scan_code(vk: u8) -> u8 {
     match vk {
@@ -474,11 +480,13 @@ pub fn send_hotkey_chord(chord: &str) -> Result<String, String> {
 
     #[cfg(target_os = "windows")]
     unsafe {
+        let flags = |vk: u8| if is_extended_vk(vk) { KEYEVENTF_EXTENDEDKEY } else { 0 };
+        let scan = |vk: u8| MapVirtualKeyW(vk as u32, MAPVK_VK_TO_VSC) as u8;
         for &vk in &vks {
-            keybd_event(vk, 0, 0, 0);
+            keybd_event(vk, scan(vk), flags(vk), 0);
         }
         for &vk in vks.iter().rev() {
-            keybd_event(vk, 0, KEYEVENTF_KEYUP, 0);
+            keybd_event(vk, scan(vk), flags(vk) | KEYEVENTF_KEYUP, 0);
         }
     }
 
@@ -950,6 +958,24 @@ mod tests {
         assert_eq!(macro_delay_ms("500"), 500);
         assert_eq!(macro_delay_ms("9000"), 3_000);
         assert_eq!(macro_delay_ms("nope"), 100);
+    }
+}
+
+#[cfg(test)]
+mod extended_key_tests {
+    use super::*;
+
+    #[test]
+    fn navigation_keys_are_extended_and_letters_are_not() {
+        let alt_pgup = chord_to_vks("Alt+PageUp");
+        assert_eq!(alt_pgup, vec![0x12, 0x21]);
+        assert!(!is_extended_vk(0x12));
+        assert!(is_extended_vk(0x21));
+        for vk in [0x22u8, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x2D, 0x2E] {
+            assert!(is_extended_vk(vk), "{vk:#x}");
+        }
+        assert!(!is_extended_vk(b'A'));
+        assert!(!is_extended_vk(0x68));
     }
 }
 

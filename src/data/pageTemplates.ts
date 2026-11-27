@@ -189,6 +189,26 @@ interface TemplateDef {
 
 const DEFS: TemplateDef[] = [
   {
+    id: "tpl-nvidia",
+    name: "NVIDIA Capture",
+    tagline: "Instant Replay, clips, recording and the overlay from the NVIDIA app. Uses its default shortcuts.",
+    category: "Gaming",
+    accent: "#76B900",
+    specs: [
+      hotkey("Save Clip", "ALT+F10", "Scissors", "Alt+F10", "mint"),
+      hotkey("Replay", "ALT+SHIFT+F10", "RefreshCw", "Alt+Shift+F10", "mint"),
+      hotkey("Record", "ALT+F9", "CircleDot", "Alt+F9", "rose"),
+      hotkey("Screenshot", "ALT+F1", "Camera", "Alt+F1", "sky"),
+      hotkey("Overlay", "ALT+Z", "Layers", "Alt+Z", "mint"),
+      hotkey("Stats", "ALT+R", "Cpu", "Alt+R", "gold"),
+      hotkey("Photo Mode", "ALT+F2", "Sparkles", "Alt+F2", "violet"),
+      hotkey("Filters", "ALT+F3", "Sliders", "Alt+F3", "violet"),
+      ["Mic", "MUTE", "MicOff", "audio.mute_mic", "", "rose"],
+      ["Game Mode", "FOCUS", "Gamepad2", "sys.game_mode", "", "slate"],
+    ],
+    zone: { index: 0, label: "SAVE CLIP", valueText: "Last few minutes", tapActionId: "custom.hotkey", tapActionParam: "Alt+F10", accentColor: "#76B900" },
+  },
+  {
     id: "tpl-go-live",
     name: "Go Live",
     tagline: "Stream, record, switch scenes, clip the last minute.",
