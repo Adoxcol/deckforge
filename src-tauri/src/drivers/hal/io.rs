@@ -310,7 +310,7 @@ fn deck_io() -> &'static DeckIo {
     DECK_IO.get_or_init(|| {
         let (job_tx, job_rx) = mpsc::sync_channel::<DeckJob>(scheduler::QUEUE_CAPACITY);
         let (report_tx, report_rx) = mpsc::channel::<Vec<u8>>();
-        std::thread::spawn(move || deck_io_loop(job_rx, report_tx));
+        std::thread::spawn(move || supervise_io(job_rx, report_tx));
         DeckIo {
             jobs: job_tx,
             reports: Mutex::new(report_rx),
@@ -475,7 +475,28 @@ fn reject_queued_jobs(jobs: &mpsc::Receiver<DeckJob>, message: &str) {
     }
 }
 
-fn deck_io_loop(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
+/// Runs the I/O loop and starts it again if it ever panics. A dead loop used to leave the
+/// deck without any output until DeckForge was restarted ("Deck output worker stopped").
+fn supervise_io(jobs: mpsc::Receiver<DeckJob>, reports: mpsc::Sender<Vec<u8>>) {
+    loop {
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| deck_io_loop(&jobs, &reports)));
+        let reason = match outcome {
+            Ok(()) => "returned".to_string(),
+            Err(panic) => panic
+                .downcast_ref::<&str>()
+                .map(|s| s.to_string())
+                .or_else(|| panic.downcast_ref::<String>().cloned())
+                .unwrap_or_else(|| "unknown panic".into()),
+        };
+        deck_log(&format!("io thread stopped ({reason}); restarting"));
+        CONTROL_OPEN.store(false, Ordering::SeqCst);
+        update_status(|s| s.state = "reconnecting");
+        reject_queued_jobs(&jobs, "Deck connection restarted; queued output discarded");
+        std::thread::sleep(Duration::from_secs(1));
+    }
+}
+
+fn deck_io_loop(jobs: &mpsc::Receiver<DeckJob>, reports: &mpsc::Sender<Vec<u8>>) {
     let mut open: Option<(HidApi, hidapi::HidDevice)> = None;
     let mut errors = 0u8;
     let mut buf = [0u8; 2048];
